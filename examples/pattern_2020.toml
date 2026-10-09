@@ -1,0 +1,21 @@
+schema_version = 1
+operation = "patterns"
+seed = 20200603
+samples = 8
+
+[model]
+genes = 2
+
+[spatial]
+cells = 31
+steps = 100
+boundary = "open"
+diffusion = "A"
+morphogen = "central_A_pulse"
+
+[execution]
+backend = "cpu"
+batch_size = 128
+
+[recording]
+mode = "replayable"

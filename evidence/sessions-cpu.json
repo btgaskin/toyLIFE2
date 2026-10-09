@@ -1,0 +1,31 @@
+{
+  "backend": "cpu",
+  "checks": [
+    "temporal",
+    "run_tumble",
+    "signalling",
+    "population",
+    "pending_tick_replay",
+    "population_replay"
+  ],
+  "fallback": false,
+  "population_counts": {
+    "invocation": {
+      "chemical_updates": 42,
+      "evolution_updates": 4,
+      "world_ticks": 42
+    },
+    "total": {
+      "chemical_updates": 42,
+      "evolution_updates": 4,
+      "world_ticks": 42
+    }
+  },
+  "runtime": {
+    "backend": "cpu",
+    "evaluation_contexts": 1,
+    "live_session_buffer_bytes": 123288,
+    "sessions": 10,
+    "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+  }
+}

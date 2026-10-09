@@ -1,0 +1,16 @@
+schema_version = 1
+operation = "metabolic"
+seed = 20180110
+samples = 8
+
+[model]
+genes = 2
+
+[assay]
+phenotype = "metabolic"
+environment = ["0000", "0101", "1111", "01010101"]
+
+[execution]
+backend = "cpu"
+batch_size = 128
+max_steps = 100000

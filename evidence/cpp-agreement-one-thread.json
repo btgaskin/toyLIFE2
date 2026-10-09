@@ -1,0 +1,239 @@
+{
+  "agreement_source": "<checkout>/qualification/cpp-benchmark-repaired",
+  "agreement_source_sha256": "59d723512be4fee465a681e7401467bc802f98df56c0ac6b201e6afd2b33793f",
+  "baseline_threads": 1,
+  "cases": [
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": 7.75729082169684,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 7.75729082169684,
+          "status_counts": {
+            "complete": 65533
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 2,
+      "input_sha256": "4962d2f3dda2ec2d72bed4d617f94b6f13e33ce40c1470cf34a7bf40704f6724",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.107598208,
+          "iqr_seconds": 0.011927135249999998,
+          "loops": 2,
+          "max_seconds": 0.1018826875,
+          "median_seconds": 0.078081625,
+          "min_seconds": 0.072092625,
+          "process_seconds": 3.7371653330046684,
+          "samples_seconds": [
+            0.1018826875,
+            0.082592854,
+            0.086710125,
+            0.078081625,
+            0.072092625,
+            0.0727010835,
+            0.072747625
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.2873924591112882,
+          "iqr_seconds": 0.0005119937472045435,
+          "loops": 10,
+          "max_seconds": 0.01080042498651892,
+          "median_seconds": 0.010065579181537032,
+          "min_seconds": 0.009441512520425022,
+          "process_seconds": 3.8357395420316607,
+          "samples_seconds": [
+            0.009441512520425022,
+            0.00944767501205206,
+            0.010413112491369248,
+            0.01080042498651892,
+            0.010065579181537032,
+            0.010122624994255602,
+            0.010064074979163706
+          ]
+        }
+      },
+      "name": "regulatory-g2-n65536",
+      "order": [
+        "cpp",
+        "cpu"
+      ],
+      "rows": 65533,
+      "sanitizer_returncode": 0,
+      "selection": {
+        "excluded_rows": [
+          1724,
+          37042,
+          51415
+        ],
+        "method": "postselected exact full-output agreement; no timing filter",
+        "original_input_sha256": "805c37b0c24dde5e6a94879ba333b60273ecebec0cbeafacfe7c42c04354588e",
+        "original_rows": 65536,
+        "retained_rows": 65533
+      },
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": 3.064223588499327,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 3.064223588499327,
+          "status_counts": {
+            "complete": 65518
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 3,
+      "input_sha256": "6ecd591402744878e24ca4d2244d2a59ef1defae52a79608698b5904ad08a885",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.15243025,
+          "iqr_seconds": 0.01870425050000002,
+          "loops": 1,
+          "max_seconds": 0.205421291,
+          "median_seconds": 0.160573041,
+          "min_seconds": 0.145196292,
+          "process_seconds": 3.1939357907976955,
+          "samples_seconds": [
+            0.145196292,
+            0.160393666,
+            0.160573041,
+            0.15714075,
+            0.205421291,
+            0.187140375,
+            0.167802542
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.4384614578448236,
+          "iqr_seconds": 0.0079435002990067,
+          "loops": 2,
+          "max_seconds": 0.06364158354699612,
+          "median_seconds": 0.05240252101793885,
+          "min_seconds": 0.04660164599772543,
+          "process_seconds": 5.230381584027782,
+          "samples_seconds": [
+            0.06364158354699612,
+            0.05957764608319849,
+            0.04927845799829811,
+            0.05605506256688386,
+            0.05046725005377084,
+            0.04660164599772543,
+            0.05240252101793885
+          ]
+        }
+      },
+      "name": "regulatory-g3-n65536",
+      "order": [
+        "cpu",
+        "cpp"
+      ],
+      "rows": 65518,
+      "sanitizer_returncode": 0,
+      "selection": {
+        "excluded_rows": [
+          504,
+          3793,
+          7448,
+          10190,
+          12929,
+          21077,
+          21235,
+          27596,
+          30885,
+          35309,
+          36925,
+          40522,
+          42113,
+          46977,
+          53584,
+          55205,
+          58043,
+          65338
+        ],
+        "method": "postselected exact full-output agreement; no timing filter",
+        "original_input_sha256": "9257e2863571b894f3c8140229baf0243e30171cf942701b947f40213fc6d2a3",
+        "original_rows": 65536,
+        "retained_rows": 65518
+      },
+      "workload": "regulatory"
+    }
+  ],
+  "cpp_variant": "iterator-safe",
+  "harness_sha256": "0c50ab4559d6d477df5047352da49f31666b49c28acba14a1f030623401a8099",
+  "host": {
+    "compiler": {
+      "process_seconds": 0.015796999912708998,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.4.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n"
+    },
+    "hardware": {
+      "process_seconds": 0.004751040833070874,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "hw.model: Mac17,4\nhw.ncpu: 10\nhw.memsize: 34359738368\nmachdep.cpu.brand_string: Apple M5\n"
+    },
+    "power_thermal": {
+      "process_seconds": 0.012080000014975667,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    },
+    "upstream_changes": {
+      "process_seconds": 0.020068917190656066,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    "upstream_commit": {
+      "process_seconds": 0.015462790848687291,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "9e17c92ea05f2e3dd63bf437400ddd8e61694ff9\n"
+    }
+  },
+  "load_end": [
+    28.94921875,
+    26.97705078125,
+    13.61865234375
+  ],
+  "load_start": [
+    55.1435546875,
+    30.4775390625,
+    14.06494140625
+  ],
+  "max_steps": 100000,
+  "original_source_sha256": {
+    "benchmarks/cpp_author.cpp": "47aa2e0841d81ea4db01bc19eb34bb1c9e21e40ee5b1bca91a1363ce10202bf7",
+    "upstream/toylife/helper_functions.cpp": "cfa999095128b353e3c44bb5b9de4b98784cea05a45038c4b694b476d7573ad4",
+    "upstream/toylife/patterns/patternsplugin.cpp": "33c7f29a37b1f5023c1942e010fa20de490333c5d964031eb0ec30ae6880b90a",
+    "upstream/toylife/toy_plugin.cpp": "a9f5cb52b62cf8a831cbd40031a647482eaeb2f0dfbe4b663590774bbd778a64"
+  },
+  "platform": "macOS-26.4.1-arm64-arm-64bit",
+  "python": "3.12.13 (main, Mar 25 2026, 03:16:06) [Clang 22.1.1 ]",
+  "repeats": 7,
+  "requested_cpu_threads": 1,
+  "schema_version": 1,
+  "seed": 60213,
+  "selection": "secondary postselected agreement cohort; all rows whose saved outputs agree across C++, CPU, and Metal",
+  "source_sha256": {
+    "benchmarks/cpp_author.cpp": "47aa2e0841d81ea4db01bc19eb34bb1c9e21e40ee5b1bca91a1363ce10202bf7",
+    "qualification/cpp-benchmark-agreement-one-thread-fixed/toy_plugin_iterator_safe.cpp": "a6c190926c1f3eae675e70ab5196b5f5ac0b682eefad2fd6a886a8f61d43089e",
+    "upstream/toylife/helper_functions.cpp": "cfa999095128b353e3c44bb5b9de4b98784cea05a45038c4b694b476d7573ad4",
+    "upstream/toylife/patterns/patternsplugin.cpp": "33c7f29a37b1f5023c1942e010fa20de490333c5d964031eb0ec30ae6880b90a"
+  },
+  "target_repeat_seconds": 0.1,
+  "timing_boundary": "loaded tables and prepared inputs; public evaluation, allocation, transfers, and completed host outputs; excludes file IO",
+  "upstream_source_unchanged": true
+}

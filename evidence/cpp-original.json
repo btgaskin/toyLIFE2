@@ -1,0 +1,612 @@
+{
+  "baseline_threads": 1,
+  "cases": [
+    {
+      "comparisons": {},
+      "genes": 2,
+      "input_sha256": "07035edfb71e0dc1b2a492b75ab400372286754dcd8589fa3267c1ed2731ab8f",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.2367532500065863,
+          "iqr_seconds": 2.127543245101452e-06,
+          "loops": 164,
+          "max_seconds": 0.0003623775356994351,
+          "median_seconds": 0.00034542251151145956,
+          "min_seconds": 0.00034180411603301764,
+          "process_seconds": 2.401351625099778,
+          "samples_seconds": [
+            0.0003623775356994351,
+            0.00034494461525776766,
+            0.00034774797003171064,
+            0.0003459011715632386,
+            0.0003444494398469787,
+            0.00034542251151145956,
+            0.00034180411603301764
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.16669708397239447,
+          "iqr_seconds": 1.6310046810437753e-05,
+          "loops": 17,
+          "max_seconds": 0.0034552328151595943,
+          "median_seconds": 0.0023539901765830375,
+          "min_seconds": 0.0023406397085636854,
+          "process_seconds": 2.124558291165158,
+          "samples_seconds": [
+            0.0034552328151595943,
+            0.0023406397085636854,
+            0.0023468651754014634,
+            0.0023654999951010242,
+            0.002366492634310442,
+            0.0023525073603891276,
+            0.0023539901765830375
+          ]
+        }
+      },
+      "name": "regulatory-g2-n256",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 256,
+      "sanitizer_returncode": -6,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {},
+      "genes": 3,
+      "input_sha256": "eb2ecc17dacf02859c8ded734f7dcb0e1e11638cf10e173d26a24fc3948bd2c1",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.1947444169782102,
+          "iqr_seconds": 3.2761070707981645e-06,
+          "loops": 154,
+          "max_seconds": 0.0004012021100051798,
+          "median_seconds": 0.00037892775870133915,
+          "min_seconds": 0.00037735011035503895,
+          "process_seconds": 2.208803999936208,
+          "samples_seconds": [
+            0.0004012021100051798,
+            0.000383255954880219,
+            0.00037735011035503895,
+            0.00037892775870133915,
+            0.0003773885319469037,
+            0.0003784001629509322,
+            0.00037908495415921336
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.15976741700433195,
+          "iqr_seconds": 5.3098225700003946e-05,
+          "loops": 14,
+          "max_seconds": 0.003768386868094759,
+          "median_seconds": 0.002346636927021401,
+          "min_seconds": 0.0023166874889284372,
+          "process_seconds": 2.0668580839410424,
+          "samples_seconds": [
+            0.003768386868094759,
+            0.0023966755751254304,
+            0.0023166874889284372,
+            0.002345059499410646,
+            0.002346636927021401,
+            0.0023350714140438606,
+            0.0023896517897290842
+          ]
+        }
+      },
+      "name": "regulatory-g3-n256",
+      "order": [
+        "cpu",
+        "metal",
+        "cpp"
+      ],
+      "rows": 256,
+      "sanitizer_returncode": -6,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {},
+      "genes": 2,
+      "input_sha256": "c4d3061964d8f936930b0fe36332b8700aac1321526b9678d1869acca9385af6",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.19782891706563532,
+          "iqr_seconds": 3.1183477678969245e-06,
+          "loops": 119,
+          "max_seconds": 0.000580730738446993,
+          "median_seconds": 0.0005786701676850559,
+          "min_seconds": 0.0005690577741274063,
+          "process_seconds": 2.584332250058651,
+          "samples_seconds": [
+            0.0005690577741274063,
+            0.0005786701676850559,
+            0.0005753928572409043,
+            0.000580730738446993,
+            0.0005783410351566907,
+            0.0005804100171701998,
+            0.0005795605707631892
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.159736666129902,
+          "iqr_seconds": 1.4444425081213026e-05,
+          "loops": 15,
+          "max_seconds": 0.0036810027280201516,
+          "median_seconds": 0.002402169459188978,
+          "min_seconds": 0.002363441667209069,
+          "process_seconds": 2.1123116249218583,
+          "samples_seconds": [
+            0.0036810027280201516,
+            0.002363441667209069,
+            0.002406105523308118,
+            0.0023777555363873643,
+            0.0024016777984797954,
+            0.002402169459188978,
+            0.002402216661721468
+          ]
+        }
+      },
+      "name": "regulatory-g2-n4096",
+      "order": [
+        "metal",
+        "cpp",
+        "cpu"
+      ],
+      "rows": 4096,
+      "sanitizer_returncode": -6,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {},
+      "genes": 3,
+      "input_sha256": "ff1df2c1e5ac9bdfbb7a2b9032e097f42ffcfed9c063226f5450aafff0e68294",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.19274562504142523,
+          "iqr_seconds": 5.065429155738676e-06,
+          "loops": 78,
+          "max_seconds": 0.0009213792673574808,
+          "median_seconds": 0.0009087959352212074,
+          "min_seconds": 0.0009037462564615103,
+          "process_seconds": 2.3256569169461727,
+          "samples_seconds": [
+            0.0009144834356191448,
+            0.0009213792673574808,
+            0.0009087959352212074,
+            0.0009092088573827193,
+            0.0009075843979819462,
+            0.0009037462564615103,
+            0.0009059770367084405
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.15560083300806582,
+          "iqr_seconds": 2.8876354917883873e-05,
+          "loops": 15,
+          "max_seconds": 0.003552322198326389,
+          "median_seconds": 0.0024027888663113116,
+          "min_seconds": 0.002390766671548287,
+          "process_seconds": 2.1205225840676576,
+          "samples_seconds": [
+            0.003552322198326389,
+            0.002390766671548287,
+            0.0023929556055615345,
+            0.0024179693932334582,
+            0.002428233328585823,
+            0.002395494406421979,
+            0.0024027888663113116
+          ]
+        }
+      },
+      "name": "regulatory-g3-n4096",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 4096,
+      "sanitizer_returncode": -6,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {},
+      "genes": 2,
+      "input_sha256": "805c37b0c24dde5e6a94879ba333b60273ecebec0cbeafacfe7c42c04354588e",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.2369756659027189,
+          "iqr_seconds": 0.00022346190720175935,
+          "loops": 6,
+          "max_seconds": 0.00923302082810551,
+          "median_seconds": 0.009006090190572044,
+          "min_seconds": 0.008879333307656148,
+          "process_seconds": 2.315417541889474,
+          "samples_seconds": [
+            0.009168541640974581,
+            0.00923302082810551,
+            0.009094812519227466,
+            0.009006090190572044,
+            0.008879333307656148,
+            0.008897194328407446,
+            0.008919236017391086
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.21445654216222465,
+          "iqr_seconds": 0.0010389580080906527,
+          "loops": 3,
+          "max_seconds": 0.038767138961702585,
+          "median_seconds": 0.03728305563951532,
+          "min_seconds": 0.03690105529191593,
+          "process_seconds": 2.7562718340195715,
+          "samples_seconds": [
+            0.03728305563951532,
+            0.03701615302513043,
+            0.038767138961702585,
+            0.03853459695043663,
+            0.03690105529191593,
+            0.0376053333748132,
+            0.03704586128393809
+          ]
+        }
+      },
+      "name": "regulatory-g2-n65536",
+      "order": [
+        "cpu",
+        "metal",
+        "cpp"
+      ],
+      "rows": 65536,
+      "sanitizer_returncode": -6,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {},
+      "genes": 3,
+      "input_sha256": "9257e2863571b894f3c8140229baf0243e30171cf942701b947f40213fc6d2a3",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.20961704198271036,
+          "iqr_seconds": 6.295827084354041e-05,
+          "loops": 7,
+          "max_seconds": 0.014888261977050985,
+          "median_seconds": 0.01477521428439234,
+          "min_seconds": 0.014686827414802142,
+          "process_seconds": 2.617700290866196,
+          "samples_seconds": [
+            0.014764446432569198,
+            0.014888261977050985,
+            0.014718202408403158,
+            0.01477521428439234,
+            0.014826285686077816,
+            0.01478227969658162,
+            0.014686827414802142
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.21661545801907778,
+          "iqr_seconds": 0.00038267701165750623,
+          "loops": 2,
+          "max_seconds": 0.039981396053917706,
+          "median_seconds": 0.03969585441518575,
+          "min_seconds": 0.03690620849374682,
+          "process_seconds": 2.639969374984503,
+          "samples_seconds": [
+            0.0395552288973704,
+            0.03690620849374682,
+            0.03969585441518575,
+            0.039888687431812286,
+            0.039981396053917706,
+            0.039821499958634377,
+            0.03938960446976125
+          ]
+        }
+      },
+      "name": "regulatory-g3-n65536",
+      "order": [
+        "metal",
+        "cpp",
+        "cpu"
+      ],
+      "rows": 65536,
+      "sanitizer_returncode": -6,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {},
+      "genes": 3,
+      "input_sha256": "1951d8310a9419cf82ec4261187245b3fd012f706ae82c406b989032f1bb6897",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.89648133283481,
+          "iqr_seconds": 1.8726633975236833e-05,
+          "loops": 41,
+          "max_seconds": 0.0018954847587227095,
+          "median_seconds": 0.0017814501926938936,
+          "min_seconds": 0.0017707530499958411,
+          "process_seconds": 3.0493526249192655,
+          "samples_seconds": [
+            0.0018954847587227095,
+            0.0018042815145014263,
+            0.0017766839506604324,
+            0.0017827103629980872,
+            0.0017814501926938936,
+            0.0017707530499958411,
+            0.0017728546588886074
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.7504920840729028,
+          "iqr_seconds": 0.0002277950989082473,
+          "loops": 6,
+          "max_seconds": 0.00902316668846955,
+          "median_seconds": 0.008663451337876419,
+          "min_seconds": 0.008497361171369752,
+          "process_seconds": 2.7838800828903913,
+          "samples_seconds": [
+            0.00875528467198213,
+            0.008525638996313015,
+            0.008497361171369752,
+            0.008663451337876419,
+            0.008534756993564466,
+            0.008760701515711844,
+            0.00902316668846955
+          ]
+        }
+      },
+      "name": "metabolic-g3-n256",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 256,
+      "sanitizer_returncode": -6,
+      "workload": "metabolic"
+    },
+    {
+      "comparisons": {},
+      "genes": 3,
+      "input_sha256": "bfcd864b5021fe9d25bd7484dc33ad60fa90273f35aeaded1d087e58f84581e8",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.889428790891543,
+          "iqr_seconds": 9.427549472699678e-05,
+          "loops": 9,
+          "max_seconds": 0.01240507867704663,
+          "median_seconds": 0.011800504677618543,
+          "min_seconds": 0.011618412125648724,
+          "process_seconds": 3.331707209115848,
+          "samples_seconds": [
+            0.011761134205799963,
+            0.01240507867704663,
+            0.011811092547658417,
+            0.011800504677618543,
+            0.011853120444963375,
+            0.011714527797367837,
+            0.011618412125648724
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.7041962910443544,
+          "iqr_seconds": 6.585840601474116e-05,
+          "loops": 5,
+          "max_seconds": 0.013747783191502095,
+          "median_seconds": 0.013657433213666081,
+          "min_seconds": 0.013557524979114532,
+          "process_seconds": 2.8467932499479502,
+          "samples_seconds": [
+            0.013747783191502095,
+            0.0136848000343889,
+            0.013610574975609779,
+            0.013670566771179438,
+            0.013657433213666081,
+            0.013557524979114532,
+            0.013613075017929077
+          ]
+        }
+      },
+      "name": "metabolic-g3-n4096",
+      "order": [
+        "cpu",
+        "metal",
+        "cpp"
+      ],
+      "rows": 4096,
+      "sanitizer_returncode": -6,
+      "workload": "metabolic"
+    },
+    {
+      "comparisons": {},
+      "genes": 2,
+      "input_sha256": "5bfd1855e11d377c419a21ce79e1e1076beefa0be5cda0b1ce6f13bb9e268a1b",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.23818920808844268,
+          "iqr_seconds": 1.8993353781600938e-05,
+          "loops": 69,
+          "max_seconds": 0.001054687796673481,
+          "median_seconds": 0.0010213725795240505,
+          "min_seconds": 0.0010021992763369412,
+          "process_seconds": 2.4300764580257237,
+          "samples_seconds": [
+            0.001054687796673481,
+            0.0010213725795240505,
+            0.0010256751143522022,
+            0.0010296696817259426,
+            0.0010059094225204942,
+            0.0010021992763369412,
+            0.001011448665994449
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.2307239999063313,
+          "iqr_seconds": 0.0005580833336959277,
+          "loops": 12,
+          "max_seconds": 0.007949336839374155,
+          "median_seconds": 0.005290611084395398,
+          "min_seconds": 0.005252468748949468,
+          "process_seconds": 2.476413333090022,
+          "samples_seconds": [
+            0.0058627951657399535,
+            0.005252468748949468,
+            0.005280756915453821,
+            0.005290611084395398,
+            0.007949336839374155,
+            0.005817076327123989,
+            0.005282947910018265
+          ]
+        }
+      },
+      "name": "spatial_descriptor-g2-n256",
+      "order": [
+        "metal",
+        "cpp",
+        "cpu"
+      ],
+      "rows": 256,
+      "sanitizer_returncode": -6,
+      "workload": "spatial_descriptor"
+    },
+    {
+      "comparisons": {},
+      "genes": 2,
+      "input_sha256": "81783bfbe15fe95ad0a844b19af54ab014b76543e4c7a3f61e49eff3baa6da04",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.2330702079925686,
+          "iqr_seconds": 3.409648534694748e-05,
+          "loops": 38,
+          "max_seconds": 0.002277198474315044,
+          "median_seconds": 0.002235389234939296,
+          "min_seconds": 0.0022107620515223396,
+          "process_seconds": 2.5616565828677267,
+          "samples_seconds": [
+            0.002277198474315044,
+            0.002268862947331447,
+            0.0022271787380113415,
+            0.002235389234939296,
+            0.0022375844235188866,
+            0.0022107620515223396,
+            0.002211075662145097
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.1899479168932885,
+          "iqr_seconds": 3.4872369724325836e-05,
+          "loops": 8,
+          "max_seconds": 0.006238911359105259,
+          "median_seconds": 0.005512442759936675,
+          "min_seconds": 0.005481828120537102,
+          "process_seconds": 2.2502257500309497,
+          "samples_seconds": [
+            0.006238911359105259,
+            0.005524593754671514,
+            0.005481828120537102,
+            0.005512442759936675,
+            0.005523338477360085,
+            0.0054821822559461,
+            0.005496005236636847
+          ]
+        }
+      },
+      "name": "spatial_descriptor-g2-n4096",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 4096,
+      "sanitizer_returncode": -6,
+      "workload": "spatial_descriptor"
+    }
+  ],
+  "harness_sha256": "bb04031079ae05a3bb9e7e40b9ccba215337cf7e28017eaa7376ffafad5bb4ff",
+  "host": {
+    "compiler": {
+      "process_seconds": 0.00828583282418549,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.4.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n"
+    },
+    "hardware": {
+      "process_seconds": 0.003468833165243268,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "hw.model: Mac17,4\nhw.ncpu: 10\nhw.memsize: 34359738368\nmachdep.cpu.brand_string: Apple M5\n"
+    },
+    "power_thermal": {
+      "process_seconds": 0.009390583960339427,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    },
+    "upstream_changes": {
+      "process_seconds": 0.009708458092063665,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    "upstream_commit": {
+      "process_seconds": 0.007542999926954508,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "9e17c92ea05f2e3dd63bf437400ddd8e61694ff9\n"
+    }
+  },
+  "load_end": [
+    2.6494140625,
+    2.29541015625,
+    2.19384765625
+  ],
+  "load_start": [
+    1.95849609375,
+    2.14453125,
+    2.13916015625
+  ],
+  "platform": "macOS-26.4.1-arm64-arm-64bit",
+  "python": "3.12.13 (main, Mar 25 2026, 03:16:06) [Clang 22.1.1 ]",
+  "repeats": 7,
+  "schema_version": 1,
+  "seed": 60213,
+  "selection": "fixed-seed unfiltered random genotypes; metabolic first two rows are predeclared cleavage and cycle fixtures",
+  "source_sha256": {
+    "benchmarks/cpp_author.cpp": "dd3861fe41c965ab5a8e30e69f99efd80efd076e5e2f9b4d0c2562c5cf1eaf97",
+    "upstream/toylife/helper_functions.cpp": "cfa999095128b353e3c44bb5b9de4b98784cea05a45038c4b694b476d7573ad4",
+    "upstream/toylife/patterns/patternsplugin.cpp": "33c7f29a37b1f5023c1942e010fa20de490333c5d964031eb0ec30ae6880b90a",
+    "upstream/toylife/toy_plugin.cpp": "a9f5cb52b62cf8a831cbd40031a647482eaeb2f0dfbe4b663590774bbd778a64"
+  },
+  "target_repeat_seconds": 0.1,
+  "timing_boundary": "loaded tables and prepared inputs; public evaluation, allocation, transfers, and completed host outputs; excludes file IO"
+}

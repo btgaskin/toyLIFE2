@@ -1,0 +1,2248 @@
+{
+  "baseline_threads": 1,
+  "cases": [
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": 0.4071073958547711,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 0.4071073958547711,
+          "status_counts": {
+            "complete": 256
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": 0.0661933830052262,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 0.0661933830052262,
+          "status_counts": {
+            "complete": 256
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 2,
+      "input_sha256": "07035edfb71e0dc1b2a492b75ab400372286754dcd8589fa3267c1ed2731ab8f",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.000318958,
+          "iqr_seconds": 1.0995273437500045e-06,
+          "loops": 256,
+          "max_seconds": 0.0001649404296875,
+          "median_seconds": 0.00015554996875,
+          "min_seconds": 0.00015503515625,
+          "process_seconds": 1.5251852090004832,
+          "samples_seconds": [
+            0.0001649404296875,
+            0.00015662076953125,
+            0.00015618391796875,
+            0.00015517350390625,
+            0.00015503515625,
+            0.00015554996875,
+            0.00015543212890625
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.20307812513783574,
+          "iqr_seconds": 8.350553301473499e-06,
+          "loops": 150,
+          "max_seconds": 0.0003899208332101504,
+          "median_seconds": 0.0003820858336985111,
+          "min_seconds": 0.0003558752794439594,
+          "process_seconds": 2.1998978338669986,
+          "samples_seconds": [
+            0.0003878216662754615,
+            0.0003820858336985111,
+            0.0003558752794439594,
+            0.00037887416624774535,
+            0.0003856766674046715,
+            0.0003779230608294408,
+            0.0003899208332101504
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.1602075002156198,
+          "iqr_seconds": 2.3985652660485357e-05,
+          "loops": 16,
+          "max_seconds": 0.0032640338758938015,
+          "median_seconds": 0.0023499322996940464,
+          "min_seconds": 0.0023312031262321398,
+          "process_seconds": 2.104289417155087,
+          "samples_seconds": [
+            0.0032640338758938015,
+            0.0023338411847362295,
+            0.0023499322996940464,
+            0.0023312031262321398,
+            0.0023658046848140657,
+            0.002337119818548672,
+            0.0023531276237918064
+          ]
+        }
+      },
+      "name": "regulatory-g2-n256",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 256,
+      "sanitizer_returncode": 0,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": 1.0845054249683546,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 1.0845054249683546,
+          "status_counts": {
+            "complete": 256
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": 0.17614491978688412,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 0.17614491978688412,
+          "status_counts": {
+            "complete": 256
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 3,
+      "input_sha256": "eb2ecc17dacf02859c8ded734f7dcb0e1e11638cf10e173d26a24fc3948bd2c1",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.000648459,
+          "iqr_seconds": 2.4266546391753132e-06,
+          "loops": 194,
+          "max_seconds": 0.000433888530927835,
+          "median_seconds": 0.0004139093608247423,
+          "min_seconds": 0.0004119478092783505,
+          "process_seconds": 1.8334035000298172,
+          "samples_seconds": [
+            0.000433888530927835,
+            0.00041520532989690724,
+            0.00041266817010309273,
+            0.00041506787113402063,
+            0.0004127517216494845,
+            0.0004139093608247423,
+            0.0004119478092783505
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.1950889159925282,
+          "iqr_seconds": 3.891122329673959e-06,
+          "loops": 146,
+          "max_seconds": 0.0003981715202178449,
+          "median_seconds": 0.00038165725250919794,
+          "min_seconds": 0.00037949657456770743,
+          "process_seconds": 2.2008449169807136,
+          "samples_seconds": [
+            0.0003981715202178449,
+            0.00038817865065975143,
+            0.00037949657456770743,
+            0.00038115696643466413,
+            0.00038165725250919794,
+            0.00038231078739443873,
+            0.0003815502269601781
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.15856224996969104,
+          "iqr_seconds": 1.951824378920719e-05,
+          "loops": 16,
+          "max_seconds": 0.0032585884910076857,
+          "median_seconds": 0.002349822869291529,
+          "min_seconds": 0.0023310937540372834,
+          "process_seconds": 2.1078007090836763,
+          "samples_seconds": [
+            0.0032585884910076857,
+            0.002334364573471248,
+            0.002349822869291529,
+            0.0023310937540372834,
+            0.0023502968688262627,
+            0.002333512995392084,
+            0.002356617187615484
+          ]
+        }
+      },
+      "name": "regulatory-g3-n256",
+      "order": [
+        "cpu",
+        "metal",
+        "cpp"
+      ],
+      "rows": 256,
+      "sanitizer_returncode": 0,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                2,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                472315,
+                408477
+              ],
+              "quadrants": [
+                2,
+                0,
+                0,
+                2
+              ],
+              "row": 1724
+            }
+          ],
+          "mismatching_rows": 1,
+          "mismatching_values": 1,
+          "same_input_time_ratio": 4.4095538006518655,
+          "status_counts": {
+            "complete": 4096
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                2,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                472315,
+                408477
+              ],
+              "quadrants": [
+                2,
+                0,
+                0,
+                2
+              ],
+              "row": 1724
+            }
+          ],
+          "mismatching_rows": 1,
+          "mismatching_values": 1,
+          "same_input_time_ratio": 1.0203905628364272,
+          "status_counts": {
+            "complete": 4096
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 2,
+      "input_sha256": "c4d3061964d8f936930b0fe36332b8700aac1321526b9678d1869acca9385af6",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.003320541,
+          "iqr_seconds": 1.8358791666666686e-05,
+          "loops": 36,
+          "max_seconds": 0.0024610058055555555,
+          "median_seconds": 0.0024356354166666667,
+          "min_seconds": 0.0024215509166666664,
+          "process_seconds": 1.8727235831320286,
+          "samples_seconds": [
+            0.0024610058055555555,
+            0.002456160861111111,
+            0.0024356354166666667,
+            0.002441978,
+            0.0024329837777777776,
+            0.0024284375,
+            0.0024215509166666664
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.1952174159232527,
+          "iqr_seconds": 5.627257633023007e-06,
+          "loops": 120,
+          "max_seconds": 0.0005798760413502653,
+          "median_seconds": 0.0005523541670603057,
+          "min_seconds": 0.000547935066667075,
+          "process_seconds": 2.255727333948016,
+          "samples_seconds": [
+            0.0005798760413502653,
+            0.0005578909748389075,
+            0.0005549954832531512,
+            0.000547935066667075,
+            0.0005513784669650098,
+            0.0005523541670603057,
+            0.000550253475861003
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.1595225411001593,
+          "iqr_seconds": 1.7995884021123048e-05,
+          "loops": 15,
+          "max_seconds": 0.0035469139305253825,
+          "median_seconds": 0.0023869638796895744,
+          "min_seconds": 0.0023747556066761413,
+          "process_seconds": 2.108138875104487,
+          "samples_seconds": [
+            0.0035469139305253825,
+            0.002387341670691967,
+            0.0023869638796895744,
+            0.0023747556066761413,
+            0.0023778888552139204,
+            0.002376824989914894,
+            0.002403363942479094
+          ]
+        }
+      },
+      "name": "regulatory-g2-n4096",
+      "order": [
+        "metal",
+        "cpp",
+        "cpu"
+      ],
+      "rows": 4096,
+      "sanitizer_returncode": 0,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                2,
+                7,
+                6,
+                7,
+                7,
+                7,
+                7,
+                7
+              ],
+              "genotype": [
+                258039,
+                385797,
+                114685
+              ],
+              "quadrants": [
+                2,
+                7,
+                6,
+                7,
+                7,
+                2,
+                7,
+                6
+              ],
+              "row": 504
+            },
+            {
+              "cpp": [
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2
+              ],
+              "genotype": [
+                622642,
+                770762,
+                172460
+              ],
+              "quadrants": [
+                2,
+                2,
+                2,
+                0,
+                2,
+                2,
+                2,
+                0
+              ],
+              "row": 3793
+            }
+          ],
+          "mismatching_rows": 2,
+          "mismatching_values": 4,
+          "same_input_time_ratio": 7.347384226240269,
+          "status_counts": {
+            "complete": 4096
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                2,
+                7,
+                6,
+                7,
+                7,
+                7,
+                7,
+                7
+              ],
+              "genotype": [
+                258039,
+                385797,
+                114685
+              ],
+              "quadrants": [
+                2,
+                7,
+                6,
+                7,
+                7,
+                2,
+                7,
+                6
+              ],
+              "row": 504
+            },
+            {
+              "cpp": [
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2
+              ],
+              "genotype": [
+                622642,
+                770762,
+                172460
+              ],
+              "quadrants": [
+                2,
+                2,
+                2,
+                0,
+                2,
+                2,
+                2,
+                0
+              ],
+              "row": 3793
+            }
+          ],
+          "mismatching_rows": 2,
+          "mismatching_values": 4,
+          "same_input_time_ratio": 2.91062179264053,
+          "status_counts": {
+            "complete": 4096
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 3,
+      "input_sha256": "ff1df2c1e5ac9bdfbb7a2b9032e097f42ffcfed9c063226f5450aafff0e68294",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.00852725,
+          "iqr_seconds": 4.663242857142966e-05,
+          "loops": 14,
+          "max_seconds": 0.006854788642857143,
+          "median_seconds": 0.006645038642857142,
+          "min_seconds": 0.006622541642857143,
+          "process_seconds": 1.942779041128233,
+          "samples_seconds": [
+            0.006854788642857143,
+            0.0067194345,
+            0.0066564107142857145,
+            0.0066405446428571425,
+            0.006642035714285714,
+            0.006622541642857143,
+            0.006645038642857142
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.1967720000538975,
+          "iqr_seconds": 7.340450228863842e-06,
+          "loops": 79,
+          "max_seconds": 0.0009185875577356996,
+          "median_seconds": 0.0009044087580346231,
+          "min_seconds": 0.0008999831131600504,
+          "process_seconds": 2.326189709128812,
+          "samples_seconds": [
+            0.0009185875577356996,
+            0.000913547469845301,
+            0.0009043285935598461,
+            0.0009044087580346231,
+            0.0008999831131600504,
+            0.000908613924078549,
+            0.0009031518999062762
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.15982591593638062,
+          "iqr_seconds": 1.9182000930110556e-05,
+          "loops": 15,
+          "max_seconds": 0.003476402737821142,
+          "median_seconds": 0.0022830306086689236,
+          "min_seconds": 0.00227250000461936,
+          "process_seconds": 2.1028950829058886,
+          "samples_seconds": [
+            0.003476402737821142,
+            0.00227880273014307,
+            0.0022830306086689236,
+            0.00227250000461936,
+            0.002273730530093114,
+            0.0023015749951203666,
+            0.002289322266976039
+          ]
+        }
+      },
+      "name": "regulatory-g3-n4096",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 4096,
+      "sanitizer_returncode": 0,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                2,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                472315,
+                408477
+              ],
+              "quadrants": [
+                2,
+                0,
+                0,
+                2
+              ],
+              "row": 1724
+            },
+            {
+              "cpp": [
+                2,
+                3,
+                3,
+                3
+              ],
+              "genotype": [
+                520189,
+                180221
+              ],
+              "quadrants": [
+                2,
+                3,
+                3,
+                2
+              ],
+              "row": 37042
+            },
+            {
+              "cpp": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "genotype": [
+                141756,
+                770349
+              ],
+              "quadrants": [
+                1,
+                1,
+                1,
+                0
+              ],
+              "row": 51415
+            }
+          ],
+          "mismatching_rows": 3,
+          "mismatching_values": 3,
+          "same_input_time_ratio": 12.919452419701653,
+          "status_counts": {
+            "complete": 65536
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                2,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                472315,
+                408477
+              ],
+              "quadrants": [
+                2,
+                0,
+                0,
+                2
+              ],
+              "row": 1724
+            },
+            {
+              "cpp": [
+                2,
+                3,
+                3,
+                3
+              ],
+              "genotype": [
+                520189,
+                180221
+              ],
+              "quadrants": [
+                2,
+                3,
+                3,
+                2
+              ],
+              "row": 37042
+            },
+            {
+              "cpp": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "genotype": [
+                141756,
+                770349
+              ],
+              "quadrants": [
+                1,
+                1,
+                1,
+                0
+              ],
+              "row": 51415
+            }
+          ],
+          "mismatching_rows": 3,
+          "mismatching_values": 3,
+          "same_input_time_ratio": 12.167359768092986,
+          "status_counts": {
+            "complete": 65536
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 2,
+      "input_sha256": "805c37b0c24dde5e6a94879ba333b60273ecebec0cbeafacfe7c42c04354588e",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.043111708,
+          "iqr_seconds": 0.00014788216666666854,
+          "loops": 3,
+          "max_seconds": 0.04173183333333333,
+          "median_seconds": 0.041370778000000004,
+          "min_seconds": 0.041216055333333335,
+          "process_seconds": 2.2041852918919176,
+          "samples_seconds": [
+            0.04173183333333333,
+            0.041384778000000004,
+            0.04128906933333334,
+            0.041289291666666665,
+            0.041489347333333336,
+            0.041216055333333335,
+            0.041370778000000004
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.19808929204009473,
+          "iqr_seconds": 4.914500750601274e-05,
+          "loops": 25,
+          "max_seconds": 0.0033177400007843973,
+          "median_seconds": 0.0032022083178162575,
+          "min_seconds": 0.0031654033157974483,
+          "process_seconds": 2.421391500160098,
+          "samples_seconds": [
+            0.0033177400007843973,
+            0.003260745005682111,
+            0.0032022083178162575,
+            0.0031759283132851124,
+            0.0031924033537507057,
+            0.0031654033157974483,
+            0.0032058766763657333
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.16029858402907848,
+          "iqr_seconds": 4.4347772088188225e-05,
+          "loops": 13,
+          "max_seconds": 0.004477974296045991,
+          "median_seconds": 0.0034001442209745827,
+          "min_seconds": 0.003358554471140871,
+          "process_seconds": 2.2140379999764264,
+          "samples_seconds": [
+            0.004477974296045991,
+            0.003426535323692056,
+            0.003358554471140871,
+            0.00338458653109578,
+            0.003412948688492179,
+            0.003366201936912078,
+            0.0034001442209745827
+          ]
+        }
+      },
+      "name": "regulatory-g2-n65536",
+      "order": [
+        "cpu",
+        "metal",
+        "cpp"
+      ],
+      "rows": 65536,
+      "sanitizer_returncode": 0,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                2,
+                7,
+                6,
+                7,
+                7,
+                7,
+                7,
+                7
+              ],
+              "genotype": [
+                258039,
+                385797,
+                114685
+              ],
+              "quadrants": [
+                2,
+                7,
+                6,
+                7,
+                7,
+                2,
+                7,
+                6
+              ],
+              "row": 504
+            },
+            {
+              "cpp": [
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2
+              ],
+              "genotype": [
+                622642,
+                770762,
+                172460
+              ],
+              "quadrants": [
+                2,
+                2,
+                2,
+                0,
+                2,
+                2,
+                2,
+                0
+              ],
+              "row": 3793
+            },
+            {
+              "cpp": [
+                3,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "genotype": [
+                105391,
+                968039,
+                370619
+              ],
+              "quadrants": [
+                3,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                0
+              ],
+              "row": 7448
+            },
+            {
+              "cpp": [
+                3,
+                2,
+                3,
+                2,
+                3,
+                3,
+                2,
+                2
+              ],
+              "genotype": [
+                302528,
+                505685,
+                774994
+              ],
+              "quadrants": [
+                3,
+                2,
+                3,
+                2,
+                3,
+                3,
+                2,
+                3
+              ],
+              "row": 10190
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4
+              ],
+              "genotype": [
+                255738,
+                441150,
+                39190
+              ],
+              "quadrants": [
+                0,
+                0,
+                4,
+                4,
+                4,
+                4,
+                0,
+                0
+              ],
+              "row": 12929
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1
+              ],
+              "genotype": [
+                80890,
+                316093,
+                718294
+              ],
+              "quadrants": [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              "row": 21077
+            },
+            {
+              "cpp": [
+                4,
+                4,
+                4,
+                4,
+                0,
+                0,
+                4,
+                4
+              ],
+              "genotype": [
+                511589,
+                1009,
+                73459
+              ],
+              "quadrants": [
+                4,
+                4,
+                4,
+                4,
+                0,
+                0,
+                4,
+                0
+              ],
+              "row": 21235
+            },
+            {
+              "cpp": [
+                6,
+                6,
+                6,
+                4,
+                2,
+                2,
+                2,
+                0
+              ],
+              "genotype": [
+                473916,
+                379258,
+                160024
+              ],
+              "quadrants": [
+                6,
+                6,
+                6,
+                4,
+                2,
+                2,
+                2,
+                2
+              ],
+              "row": 27596
+            },
+            {
+              "cpp": [
+                3,
+                2,
+                0,
+                3,
+                3,
+                2,
+                3,
+                2
+              ],
+              "genotype": [
+                119379,
+                760259,
+                944519
+              ],
+              "quadrants": [
+                3,
+                2,
+                0,
+                3,
+                3,
+                2,
+                3,
+                0
+              ],
+              "row": 30885
+            },
+            {
+              "cpp": [
+                2,
+                2,
+                2,
+                0,
+                0,
+                2,
+                2,
+                0
+              ],
+              "genotype": [
+                712225,
+                489428,
+                60302
+              ],
+              "quadrants": [
+                2,
+                2,
+                2,
+                0,
+                0,
+                2,
+                2,
+                2
+              ],
+              "row": 35309
+            }
+          ],
+          "mismatching_rows": 18,
+          "mismatching_values": 26,
+          "same_input_time_ratio": 10.71336119392013,
+          "status_counts": {
+            "complete": 65536
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                2,
+                7,
+                6,
+                7,
+                7,
+                7,
+                7,
+                7
+              ],
+              "genotype": [
+                258039,
+                385797,
+                114685
+              ],
+              "quadrants": [
+                2,
+                7,
+                6,
+                7,
+                7,
+                2,
+                7,
+                6
+              ],
+              "row": 504
+            },
+            {
+              "cpp": [
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2
+              ],
+              "genotype": [
+                622642,
+                770762,
+                172460
+              ],
+              "quadrants": [
+                2,
+                2,
+                2,
+                0,
+                2,
+                2,
+                2,
+                0
+              ],
+              "row": 3793
+            },
+            {
+              "cpp": [
+                3,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "genotype": [
+                105391,
+                968039,
+                370619
+              ],
+              "quadrants": [
+                3,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                0
+              ],
+              "row": 7448
+            },
+            {
+              "cpp": [
+                3,
+                2,
+                3,
+                2,
+                3,
+                3,
+                2,
+                2
+              ],
+              "genotype": [
+                302528,
+                505685,
+                774994
+              ],
+              "quadrants": [
+                3,
+                2,
+                3,
+                2,
+                3,
+                3,
+                2,
+                3
+              ],
+              "row": 10190
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4
+              ],
+              "genotype": [
+                255738,
+                441150,
+                39190
+              ],
+              "quadrants": [
+                0,
+                0,
+                4,
+                4,
+                4,
+                4,
+                0,
+                0
+              ],
+              "row": 12929
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1
+              ],
+              "genotype": [
+                80890,
+                316093,
+                718294
+              ],
+              "quadrants": [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0
+              ],
+              "row": 21077
+            },
+            {
+              "cpp": [
+                4,
+                4,
+                4,
+                4,
+                0,
+                0,
+                4,
+                4
+              ],
+              "genotype": [
+                511589,
+                1009,
+                73459
+              ],
+              "quadrants": [
+                4,
+                4,
+                4,
+                4,
+                0,
+                0,
+                4,
+                0
+              ],
+              "row": 21235
+            },
+            {
+              "cpp": [
+                6,
+                6,
+                6,
+                4,
+                2,
+                2,
+                2,
+                0
+              ],
+              "genotype": [
+                473916,
+                379258,
+                160024
+              ],
+              "quadrants": [
+                6,
+                6,
+                6,
+                4,
+                2,
+                2,
+                2,
+                2
+              ],
+              "row": 27596
+            },
+            {
+              "cpp": [
+                3,
+                2,
+                0,
+                3,
+                3,
+                2,
+                3,
+                2
+              ],
+              "genotype": [
+                119379,
+                760259,
+                944519
+              ],
+              "quadrants": [
+                3,
+                2,
+                0,
+                3,
+                3,
+                2,
+                3,
+                0
+              ],
+              "row": 30885
+            },
+            {
+              "cpp": [
+                2,
+                2,
+                2,
+                0,
+                0,
+                2,
+                2,
+                0
+              ],
+              "genotype": [
+                712225,
+                489428,
+                60302
+              ],
+              "quadrants": [
+                2,
+                2,
+                2,
+                0,
+                0,
+                2,
+                2,
+                2
+              ],
+              "row": 35309
+            }
+          ],
+          "mismatching_rows": 18,
+          "mismatching_values": 26,
+          "same_input_time_ratio": 18.72251429230305,
+          "status_counts": {
+            "complete": 65536
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 3,
+      "input_sha256": "9257e2863571b894f3c8140229baf0243e30171cf942701b947f40213fc6d2a3",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.112993416,
+          "iqr_seconds": 0.00039656249999998894,
+          "loops": 1,
+          "max_seconds": 0.110320958,
+          "median_seconds": 0.109704417,
+          "min_seconds": 0.10903925,
+          "process_seconds": 2.175888459198177,
+          "samples_seconds": [
+            0.110186,
+            0.109704417,
+            0.110320958,
+            0.10948175,
+            0.109667833,
+            0.109756708,
+            0.10903925
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.20511766709387302,
+          "iqr_seconds": 5.928954342380305e-05,
+          "loops": 10,
+          "max_seconds": 0.010389795806258918,
+          "median_seconds": 0.010239962511695922,
+          "min_seconds": 0.010193416592665016,
+          "process_seconds": 2.6515730409882963,
+          "samples_seconds": [
+            0.010389795806258918,
+            0.010193416592665016,
+            0.010256695793941617,
+            0.010231820889748633,
+            0.010238720802590251,
+            0.010239962511695922,
+            0.01033242498524487
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.16428854106925428,
+          "iqr_seconds": 4.580005770549178e-05,
+          "loops": 10,
+          "max_seconds": 0.006678050011396408,
+          "median_seconds": 0.005859491694718599,
+          "min_seconds": 0.005809779092669487,
+          "process_seconds": 2.3725845420267433,
+          "samples_seconds": [
+            0.006678050011396408,
+            0.005908241705037653,
+            0.005809779092669487,
+            0.005840979097411036,
+            0.005870474991388619,
+            0.0058461374836042525,
+            0.005859491694718599
+          ]
+        }
+      },
+      "name": "regulatory-g3-n65536",
+      "order": [
+        "metal",
+        "cpp",
+        "cpu"
+      ],
+      "rows": 65536,
+      "sanitizer_returncode": 0,
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                907050,
+                1048465,
+                769001
+              ],
+              "quadrants": [
+                1,
+                0,
+                0,
+                0
+              ],
+              "row": 0
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                808032,
+                167119,
+                372441
+              ],
+              "quadrants": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "row": 85
+            }
+          ],
+          "mismatching_rows": 2,
+          "mismatching_values": 3,
+          "same_input_time_ratio": 1.8840564703701785,
+          "status_counts": {
+            "complete": 1024
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                907050,
+                1048465,
+                769001
+              ],
+              "quadrants": [
+                1,
+                0,
+                0,
+                0
+              ],
+              "row": 0
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                808032,
+                167119,
+                372441
+              ],
+              "quadrants": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "row": 85
+            }
+          ],
+          "mismatching_rows": 2,
+          "mismatching_values": 3,
+          "same_input_time_ratio": 0.34918574335797586,
+          "status_counts": {
+            "complete": 1024
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 3,
+      "input_sha256": "1951d8310a9419cf82ec4261187245b3fd012f706ae82c406b989032f1bb6897",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.003882583,
+          "iqr_seconds": 3.6147916666666446e-05,
+          "loops": 30,
+          "max_seconds": 0.0035141333333333336,
+          "median_seconds": 0.0034143999999999997,
+          "min_seconds": 0.0034093916666666666,
+          "process_seconds": 2.0221406249329448,
+          "samples_seconds": [
+            0.0034636708333333336,
+            0.0034143999999999997,
+            0.003410927766666667,
+            0.0034093916666666666,
+            0.0034104014,
+            0.0034299541666666664,
+            0.0035141333333333336
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.8849504580721259,
+          "iqr_seconds": 3.2690475650486595e-05,
+          "loops": 42,
+          "max_seconds": 0.001928398812500139,
+          "median_seconds": 0.0018122599049959155,
+          "min_seconds": 0.0017905000020705518,
+          "process_seconds": 3.024564125109464,
+          "samples_seconds": [
+            0.001928398812500139,
+            0.001832546644090187,
+            0.0018041438556143216,
+            0.0017905000020705518,
+            0.0018438303543786918,
+            0.0018122599049959155,
+            0.0018068521915535843
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.7369746670592576,
+          "iqr_seconds": 0.0019687266321852803,
+          "loops": 8,
+          "max_seconds": 0.01293402598821558,
+          "median_seconds": 0.009778176987310871,
+          "min_seconds": 0.00844440099899657,
+          "process_seconds": 3.0007505000103265,
+          "samples_seconds": [
+            0.009778176987310871,
+            0.009817781246965751,
+            0.01293402598821558,
+            0.011458479246357456,
+            0.008755447866860777,
+            0.008583359362091869,
+            0.00844440099899657
+          ]
+        }
+      },
+      "name": "metabolic-g3-n256",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 256,
+      "sanitizer_returncode": 0,
+      "workload": "metabolic"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                907050,
+                1048465,
+                769001
+              ],
+              "quadrants": [
+                1,
+                0,
+                0,
+                0
+              ],
+              "row": 0
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                808032,
+                167119,
+                372441
+              ],
+              "quadrants": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "row": 85
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                1029949,
+                941745,
+                239252
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 1035
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                884350,
+                598736,
+                255680
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 1200
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                350936,
+                86389,
+                348987
+              ],
+              "quadrants": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "row": 1295
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                476836,
+                932790,
+                100351
+              ],
+              "quadrants": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "row": 1338
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                948231,
+                516008,
+                961472
+              ],
+              "quadrants": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "row": 1492
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                187796,
+                1004940,
+                459223
+              ],
+              "quadrants": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "row": 1803
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                897393,
+                306194,
+                371101
+              ],
+              "quadrants": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "row": 2627
+            },
+            {
+              "cpp": [
+                1,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                787899,
+                962255,
+                779530
+              ],
+              "quadrants": [
+                1,
+                0,
+                1,
+                0
+              ],
+              "row": 2939
+            }
+          ],
+          "mismatching_rows": 15,
+          "mismatching_values": 19,
+          "same_input_time_ratio": 4.057699677607898,
+          "status_counts": {
+            "complete": 16384
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                907050,
+                1048465,
+                769001
+              ],
+              "quadrants": [
+                1,
+                0,
+                0,
+                0
+              ],
+              "row": 0
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                808032,
+                167119,
+                372441
+              ],
+              "quadrants": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "row": 85
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                1029949,
+                941745,
+                239252
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 1035
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                884350,
+                598736,
+                255680
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 1200
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                350936,
+                86389,
+                348987
+              ],
+              "quadrants": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "row": 1295
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                476836,
+                932790,
+                100351
+              ],
+              "quadrants": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "row": 1338
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                948231,
+                516008,
+                961472
+              ],
+              "quadrants": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "row": 1492
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                187796,
+                1004940,
+                459223
+              ],
+              "quadrants": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "row": 1803
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                897393,
+                306194,
+                371101
+              ],
+              "quadrants": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "row": 2627
+            },
+            {
+              "cpp": [
+                1,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                787899,
+                962255,
+                779530
+              ],
+              "quadrants": [
+                1,
+                0,
+                1,
+                0
+              ],
+              "row": 2939
+            }
+          ],
+          "mismatching_rows": 15,
+          "mismatching_values": 19,
+          "same_input_time_ratio": 3.724501795262333,
+          "status_counts": {
+            "complete": 16384
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 3,
+      "input_sha256": "bfcd864b5021fe9d25bd7484dc33ad60fa90273f35aeaded1d087e58f84581e8",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.053629416,
+          "iqr_seconds": 0.0018074270000000003,
+          "loops": 2,
+          "max_seconds": 0.0530058125,
+          "median_seconds": 0.050999875,
+          "min_seconds": 0.05021725,
+          "process_seconds": 2.0320554999634624,
+          "samples_seconds": [
+            0.0522774585,
+            0.0526714375,
+            0.0530058125,
+            0.050999875,
+            0.0507323545,
+            0.05021725,
+            0.0506016875
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.9058353342115879,
+          "iqr_seconds": 0.0002925443113781512,
+          "loops": 8,
+          "max_seconds": 0.013010270748054609,
+          "median_seconds": 0.012568666745210066,
+          "min_seconds": 0.012358942622086033,
+          "process_seconds": 3.2375360829755664,
+          "samples_seconds": [
+            0.012775682378560305,
+            0.012358942622086033,
+            0.012370958254905418,
+            0.012443562503904104,
+            0.012568666745210066,
+            0.01262392700300552,
+            0.013010270748054609
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.7116502919234335,
+          "iqr_seconds": 0.00012517187860794365,
+          "loops": 4,
+          "max_seconds": 0.015909718757029623,
+          "median_seconds": 0.013693073007743806,
+          "min_seconds": 0.013563802291173488,
+          "process_seconds": 2.8449341249652207,
+          "samples_seconds": [
+            0.015909718757029623,
+            0.013771479250863194,
+            0.013685114507097751,
+            0.013740645779762417,
+            0.013576666766311973,
+            0.013563802291173488,
+            0.013693073007743806
+          ]
+        }
+      },
+      "name": "metabolic-g3-n4096",
+      "order": [
+        "cpu",
+        "metal",
+        "cpp"
+      ],
+      "rows": 4096,
+      "sanitizer_returncode": 0,
+      "workload": "metabolic"
+    },
+    {
+      "comparisons": {},
+      "genes": 2,
+      "input_sha256": "5bfd1855e11d377c419a21ce79e1e1076beefa0be5cda0b1ce6f13bb9e268a1b",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.23432787507772446,
+          "iqr_seconds": 3.0822029137718074e-05,
+          "loops": 70,
+          "max_seconds": 0.0010419696436396667,
+          "median_seconds": 0.0009867857143815075,
+          "min_seconds": 0.0009805321427328246,
+          "process_seconds": 2.319777291966602,
+          "samples_seconds": [
+            0.0010419696436396667,
+            0.0010205993994272182,
+            0.0010073279862159064,
+            0.0009805321427328246,
+            0.000983840469936175,
+            0.0009824428574315138,
+            0.0009867857143815075
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.2270049168728292,
+          "iqr_seconds": 4.0170115729172735e-05,
+          "loops": 12,
+          "max_seconds": 0.0058755381614901125,
+          "median_seconds": 0.005289690918289125,
+          "min_seconds": 0.00526509725023061,
+          "process_seconds": 2.469189167022705,
+          "samples_seconds": [
+            0.0058755381614901125,
+            0.005282933998387307,
+            0.00526509725023061,
+            0.005268510431051254,
+            0.005333902741161485,
+            0.005289690918289125,
+            0.0052978819197354214
+          ]
+        }
+      },
+      "name": "spatial_descriptor-g2-n256",
+      "order": [
+        "metal",
+        "cpp",
+        "cpu"
+      ],
+      "rows": 256,
+      "sanitizer_returncode": -6,
+      "workload": "spatial_descriptor"
+    },
+    {
+      "comparisons": {},
+      "genes": 2,
+      "input_sha256": "81783bfbe15fe95ad0a844b19af54ab014b76543e4c7a3f61e49eff3baa6da04",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 0.24401554209180176,
+          "iqr_seconds": 1.4306139847677663e-05,
+          "loops": 36,
+          "max_seconds": 0.002306964138471004,
+          "median_seconds": 0.002288076392788854,
+          "min_seconds": 0.0022691041683881646,
+          "process_seconds": 2.5203292921651155,
+          "samples_seconds": [
+            0.002306964138471004,
+            0.002288076392788854,
+            0.0023014456124251913,
+            0.002288245363160968,
+            0.002275675916785581,
+            0.002285402779105223,
+            0.0022691041683881646
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.19359445804730058,
+          "iqr_seconds": 7.224398931222377e-05,
+          "loops": 7,
+          "max_seconds": 0.006833470293453762,
+          "median_seconds": 0.005659404709669096,
+          "min_seconds": 0.005578595147069011,
+          "process_seconds": 2.4849652918055654,
+          "samples_seconds": [
+            0.006833470293453762,
+            0.005578595147069011,
+            0.00561752386524209,
+            0.005586607148870826,
+            0.005659404709669096,
+            0.005671868998823422,
+            0.00567674999391394
+          ]
+        }
+      },
+      "name": "spatial_descriptor-g2-n4096",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 4096,
+      "sanitizer_returncode": -6,
+      "workload": "spatial_descriptor"
+    }
+  ],
+  "cpp_variant": "iterator-safe",
+  "harness_sha256": "41dafc2ed06f6ded107e24293e5d3c7d78f9c338eba363f03d724be344894108",
+  "host": {
+    "compiler": {
+      "process_seconds": 0.00915362499654293,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.4.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n"
+    },
+    "hardware": {
+      "process_seconds": 0.002213540952652693,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "hw.model: Mac17,4\nhw.ncpu: 10\nhw.memsize: 34359738368\nmachdep.cpu.brand_string: Apple M5\n"
+    },
+    "power_thermal": {
+      "process_seconds": 0.005950374994426966,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    },
+    "upstream_changes": {
+      "process_seconds": 0.009802583837881684,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    "upstream_commit": {
+      "process_seconds": 0.007621833123266697,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "9e17c92ea05f2e3dd63bf437400ddd8e61694ff9\n"
+    }
+  },
+  "load_end": [
+    2.72021484375,
+    2.46044921875,
+    2.29638671875
+  ],
+  "load_start": [
+    2.36865234375,
+    2.4013671875,
+    2.26611328125
+  ],
+  "original_source_sha256": {
+    "benchmarks/cpp_author.cpp": "47aa2e0841d81ea4db01bc19eb34bb1c9e21e40ee5b1bca91a1363ce10202bf7",
+    "upstream/toylife/helper_functions.cpp": "cfa999095128b353e3c44bb5b9de4b98784cea05a45038c4b694b476d7573ad4",
+    "upstream/toylife/patterns/patternsplugin.cpp": "33c7f29a37b1f5023c1942e010fa20de490333c5d964031eb0ec30ae6880b90a",
+    "upstream/toylife/toy_plugin.cpp": "a9f5cb52b62cf8a831cbd40031a647482eaeb2f0dfbe4b663590774bbd778a64"
+  },
+  "platform": "macOS-26.4.1-arm64-arm-64bit",
+  "python": "3.12.13 (main, Mar 25 2026, 03:16:06) [Clang 22.1.1 ]",
+  "repeats": 7,
+  "schema_version": 1,
+  "seed": 60213,
+  "selection": "fixed-seed unfiltered random genotypes; metabolic first two rows are predeclared cleavage and cycle fixtures",
+  "source_sha256": {
+    "benchmarks/cpp_author.cpp": "47aa2e0841d81ea4db01bc19eb34bb1c9e21e40ee5b1bca91a1363ce10202bf7",
+    "qualification/cpp-benchmark-repaired/toy_plugin_iterator_safe.cpp": "a6c190926c1f3eae675e70ab5196b5f5ac0b682eefad2fd6a886a8f61d43089e",
+    "upstream/toylife/helper_functions.cpp": "cfa999095128b353e3c44bb5b9de4b98784cea05a45038c4b694b476d7573ad4",
+    "upstream/toylife/patterns/patternsplugin.cpp": "33c7f29a37b1f5023c1942e010fa20de490333c5d964031eb0ec30ae6880b90a"
+  },
+  "target_repeat_seconds": 0.1,
+  "timing_boundary": "loaded tables and prepared inputs; public evaluation, allocation, transfers, and completed host outputs; excludes file IO",
+  "upstream_source_unchanged": true
+}

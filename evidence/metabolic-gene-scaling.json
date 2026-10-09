@@ -1,0 +1,884 @@
+{
+  "baseline_threads": 1,
+  "cases": [
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": 0.08648904759667247,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 0.08648904759667247,
+          "status_counts": {
+            "complete": 512
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": 0.13209283153340334,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 0.13209283153340334,
+          "status_counts": {
+            "complete": 512
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 2,
+      "input_sha256": "8bc50d7821ff1d3226d8b7e91db8e192590e34f9b628c879958633411ec3ed9f",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.001431291,
+          "iqr_seconds": 0.00010114930952380939,
+          "loops": 42,
+          "max_seconds": 0.0017716845238095237,
+          "median_seconds": 0.0016831011904761904,
+          "min_seconds": 0.001569385904761905,
+          "process_peak_rss_bytes": null,
+          "process_seconds": 2.848648790968582,
+          "resident_table_bytes": null,
+          "samples_seconds": [
+            0.0017716845238095237,
+            0.001569385904761905,
+            0.0016831011904761904
+          ]
+        },
+        "cpu": {
+          "first_seconds": 2.3721187501214445,
+          "iqr_seconds": 0.005118359375046566,
+          "loops": 4,
+          "max_seconds": 0.022173656267113984,
+          "median_seconds": 0.01946028124075383,
+          "min_seconds": 0.011936937517020851,
+          "process_peak_rss_bytes": 360300544,
+          "process_seconds": 5.66888179210946,
+          "resident_table_bytes": 102447720,
+          "samples_seconds": [
+            0.01946028124075383,
+            0.011936937517020851,
+            0.022173656267113984
+          ]
+        },
+        "metal": {
+          "first_seconds": 1.738603207981214,
+          "iqr_seconds": 0.002427694310123721,
+          "loops": 3,
+          "max_seconds": 0.014189721938843528,
+          "median_seconds": 0.012741805675129095,
+          "min_seconds": 0.009334333318596085,
+          "process_peak_rss_bytes": 287227904,
+          "process_seconds": 6.098247874993831,
+          "resident_table_bytes": 102447720,
+          "samples_seconds": [
+            0.014189721938843528,
+            0.009334333318596085,
+            0.012741805675129095
+          ]
+        }
+      },
+      "name": "metabolic-g2-n128",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 128,
+      "sanitizer_returncode": 0,
+      "workload": "metabolic"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                907050,
+                1048465,
+                769001,
+                0
+              ],
+              "quadrants": [
+                1,
+                0,
+                0,
+                0
+              ],
+              "row": 0
+            }
+          ],
+          "mismatching_rows": 1,
+          "mismatching_values": 1,
+          "same_input_time_ratio": 0.8320238323348792,
+          "status_counts": {
+            "complete": 512
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                907050,
+                1048465,
+                769001,
+                0
+              ],
+              "quadrants": [
+                1,
+                0,
+                0,
+                0
+              ],
+              "row": 0
+            }
+          ],
+          "mismatching_rows": 1,
+          "mismatching_values": 1,
+          "same_input_time_ratio": 0.33504021580314913,
+          "status_counts": {
+            "complete": 512
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 4,
+      "input_sha256": "7d18b3218c1d9b1954b8766c0d81edac04677141be61c8783177450b0d8b9edb",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.003358583,
+          "iqr_seconds": 6.917219999999979e-05,
+          "loops": 15,
+          "max_seconds": 0.0034490694,
+          "median_seconds": 0.0033297972,
+          "min_seconds": 0.003310725,
+          "process_peak_rss_bytes": null,
+          "process_seconds": 1.6081560419406742,
+          "resident_table_bytes": null,
+          "samples_seconds": [
+            0.0034490694,
+            0.003310725,
+            0.0033297972
+          ]
+        },
+        "cpu": {
+          "first_seconds": 1.707852000137791,
+          "iqr_seconds": 0.00018126513300971512,
+          "loops": 11,
+          "max_seconds": 0.004270871169865131,
+          "median_seconds": 0.004002045459029349,
+          "min_seconds": 0.0039083409038457,
+          "process_peak_rss_bytes": 360251392,
+          "process_seconds": 4.495807624887675,
+          "resident_table_bytes": 102447720,
+          "samples_seconds": [
+            0.0039083409038457,
+            0.004270871169865131,
+            0.004002045459029349
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.8836920419707894,
+          "iqr_seconds": 0.001999743127574522,
+          "loops": 3,
+          "max_seconds": 0.012439999962225556,
+          "median_seconds": 0.009938500045488277,
+          "min_seconds": 0.00844051370707651,
+          "process_peak_rss_bytes": 286343168,
+          "process_seconds": 3.4548900830559433,
+          "resident_table_bytes": 102447720,
+          "samples_seconds": [
+            0.012439999962225556,
+            0.00844051370707651,
+            0.009938500045488277
+          ]
+        }
+      },
+      "name": "metabolic-g4-n128",
+      "order": [
+        "cpu",
+        "metal",
+        "cpp"
+      ],
+      "rows": 128,
+      "sanitizer_returncode": 0,
+      "workload": "metabolic"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                907050,
+                1048465,
+                769001,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "quadrants": [
+                1,
+                0,
+                0,
+                0
+              ],
+              "row": 0
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                984313,
+                925162,
+                333930,
+                148096,
+                473047,
+                666316,
+                485014,
+                350959
+              ],
+              "quadrants": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "row": 11
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                366255,
+                581661,
+                803876,
+                612669,
+                639528,
+                620591,
+                1043109,
+                342464
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 27
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                881898,
+                93595,
+                814567,
+                549126,
+                890716,
+                422533,
+                414330,
+                578933
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 43
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                98062,
+                864832,
+                236657,
+                226073,
+                481529,
+                935797,
+                364780,
+                582801
+              ],
+              "quadrants": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "row": 51
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                607809,
+                946905,
+                158708,
+                158243,
+                76757,
+                643407,
+                915439,
+                409843
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 92
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                368325,
+                1003245,
+                465530,
+                320154,
+                343483,
+                14989,
+                856275,
+                872849
+              ],
+              "quadrants": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "row": 110
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                830640,
+                590903,
+                158994,
+                113919,
+                1024561,
+                114072,
+                900075,
+                778604
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 118
+            }
+          ],
+          "mismatching_rows": 8,
+          "mismatching_values": 9,
+          "same_input_time_ratio": 0.36713106907801396,
+          "status_counts": {
+            "complete": 512
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": null,
+          "exact_output_agreement": false,
+          "examples": [
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                907050,
+                1048465,
+                769001,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "quadrants": [
+                1,
+                0,
+                0,
+                0
+              ],
+              "row": 0
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                984313,
+                925162,
+                333930,
+                148096,
+                473047,
+                666316,
+                485014,
+                350959
+              ],
+              "quadrants": [
+                0,
+                1,
+                1,
+                0
+              ],
+              "row": 11
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                366255,
+                581661,
+                803876,
+                612669,
+                639528,
+                620591,
+                1043109,
+                342464
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 27
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                881898,
+                93595,
+                814567,
+                549126,
+                890716,
+                422533,
+                414330,
+                578933
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 43
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                98062,
+                864832,
+                236657,
+                226073,
+                481529,
+                935797,
+                364780,
+                582801
+              ],
+              "quadrants": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "row": 51
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                607809,
+                946905,
+                158708,
+                158243,
+                76757,
+                643407,
+                915439,
+                409843
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 92
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                368325,
+                1003245,
+                465530,
+                320154,
+                343483,
+                14989,
+                856275,
+                872849
+              ],
+              "quadrants": [
+                0,
+                1,
+                0,
+                0
+              ],
+              "row": 110
+            },
+            {
+              "cpp": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "genotype": [
+                830640,
+                590903,
+                158994,
+                113919,
+                1024561,
+                114072,
+                900075,
+                778604
+              ],
+              "quadrants": [
+                0,
+                0,
+                1,
+                0
+              ],
+              "row": 118
+            }
+          ],
+          "mismatching_rows": 8,
+          "mismatching_values": 9,
+          "same_input_time_ratio": 0.08280182718764884,
+          "status_counts": {
+            "complete": 512
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 8,
+      "input_sha256": "1ee946280e44519eaab8858efc9456bed848d0ca2f55e3649130adf40bdee400",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.132975875,
+          "iqr_seconds": 0.006309395499999981,
+          "loops": 1,
+          "max_seconds": 0.139325666,
+          "median_seconds": 0.134785625,
+          "min_seconds": 0.126706875,
+          "process_peak_rss_bytes": null,
+          "process_seconds": 2.3580200001597404,
+          "resident_table_bytes": null,
+          "samples_seconds": [
+            0.126706875,
+            0.134785625,
+            0.139325666
+          ]
+        },
+        "cpu": {
+          "first_seconds": 1.5079540831502527,
+          "iqr_seconds": 0.029554083361290395,
+          "loops": 1,
+          "max_seconds": 0.3879481249023229,
+          "median_seconds": 0.3671321670990437,
+          "min_seconds": 0.3288399581797421,
+          "process_peak_rss_bytes": 357826560,
+          "process_seconds": 5.4502982089761645,
+          "resident_table_bytes": 102447720,
+          "samples_seconds": [
+            0.3879481249023229,
+            0.3288399581797421,
+            0.3671321670990437
+          ]
+        },
+        "metal": {
+          "first_seconds": 3.071638457942754,
+          "iqr_seconds": 0.16986068803817034,
+          "loops": 1,
+          "max_seconds": 1.9533745420631021,
+          "median_seconds": 1.6278097908943892,
+          "min_seconds": 1.6136531659867615,
+          "process_peak_rss_bytes": 286490624,
+          "process_seconds": 12.31853058305569,
+          "resident_table_bytes": 102447720,
+          "samples_seconds": [
+            1.9533745420631021,
+            1.6136531659867615,
+            1.6278097908943892
+          ]
+        }
+      },
+      "name": "metabolic-g8-n128",
+      "order": [
+        "metal",
+        "cpp",
+        "cpu"
+      ],
+      "rows": 128,
+      "sanitizer_returncode": 0,
+      "workload": "metabolic"
+    },
+    {
+      "comparisons": {},
+      "genes": 16,
+      "input_sha256": "5b9ddf66873f56fef6203186e5ef2243b3dfeb61d34c0a72e2026d2ba4fe2a54",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 2.915492875035852,
+          "iqr_seconds": 0.012256478890776634,
+          "loops": 1,
+          "max_seconds": 0.5673599578440189,
+          "median_seconds": 0.5595114580355585,
+          "min_seconds": 0.5428470000624657,
+          "process_peak_rss_bytes": 358596608,
+          "process_seconds": 8.342933042207733,
+          "resident_table_bytes": 102447720,
+          "samples_seconds": [
+            0.5595114580355585,
+            0.5428470000624657,
+            0.5673599578440189
+          ]
+        },
+        "metal": {
+          "first_seconds": 4.023507208097726,
+          "iqr_seconds": 0.031783937592990696,
+          "loops": 1,
+          "max_seconds": 2.685271500144154,
+          "median_seconds": 2.6325925409328192,
+          "min_seconds": 2.6217036249581724,
+          "process_peak_rss_bytes": 284426240,
+          "process_seconds": 17.830465625040233,
+          "resident_table_bytes": 102447720,
+          "samples_seconds": [
+            2.685271500144154,
+            2.6325925409328192,
+            2.6217036249581724
+          ]
+        }
+      },
+      "name": "metabolic-g16-n128",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 128,
+      "sanitizer_returncode": null,
+      "workload": "metabolic"
+    },
+    {
+      "comparisons": {},
+      "cpp_coverage": "benchmark adapter coverage is capped at 16 genes",
+      "genes": 32,
+      "input_sha256": "97e6932361244a575378ce561944654246f410225309d9b4bf2c4994b11042de",
+      "measurements": {
+        "cpp": {
+          "error": "C++ diagnostic probe failed; timed execution skipped"
+        },
+        "cpu": {
+          "first_seconds": 2.1633896250277758,
+          "iqr_seconds": 0.021034979028627276,
+          "loops": 1,
+          "max_seconds": 0.6092715829145163,
+          "median_seconds": 0.5810797079466283,
+          "min_seconds": 0.5672016248572618,
+          "process_peak_rss_bytes": 357908480,
+          "process_seconds": 7.651605166029185,
+          "resident_table_bytes": 102447720,
+          "samples_seconds": [
+            0.5810797079466283,
+            0.5672016248572618,
+            0.6092715829145163
+          ]
+        },
+        "metal": {
+          "first_seconds": 5.161153292050585,
+          "iqr_seconds": 0.1207112914416939,
+          "loops": 1,
+          "max_seconds": 2.7154547499958426,
+          "median_seconds": 2.663679291959852,
+          "min_seconds": 2.4740321671124548,
+          "process_peak_rss_bytes": 288309248,
+          "process_seconds": 21.495454958174378,
+          "resident_table_bytes": 102447720,
+          "samples_seconds": [
+            2.7154547499958426,
+            2.663679291959852,
+            2.4740321671124548
+          ]
+        }
+      },
+      "name": "metabolic-g32-n128",
+      "order": [
+        "cpu",
+        "metal",
+        "cpp"
+      ],
+      "rows": 128,
+      "workload": "metabolic"
+    }
+  ],
+  "cpp_variant": "iterator-safe",
+  "harness_sha256": "e17bf23577fbb50d90d25139682c6f5f7b9a9ec9f3c7f1a19761fd1944ab19e2",
+  "host": {
+    "compiler": {
+      "process_seconds": 0.01279966696165502,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.4.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n"
+    },
+    "hardware": {
+      "process_seconds": 0.00387587514705956,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "hw.model: Mac17,4\nhw.ncpu: 10\nhw.memsize: 34359738368\nmachdep.cpu.brand_string: Apple M5\n"
+    },
+    "power_thermal": {
+      "process_seconds": 0.008522249991074204,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    },
+    "upstream_changes": {
+      "process_seconds": 0.015309999929741025,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    "upstream_commit": {
+      "process_seconds": 0.01043500006198883,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "9e17c92ea05f2e3dd63bf437400ddd8e61694ff9\n"
+    }
+  },
+  "load_end": [
+    18.6640625,
+    22.26953125,
+    16.64990234375
+  ],
+  "load_start": [
+    7.9052734375,
+    15.57421875,
+    11.6474609375
+  ],
+  "max_steps": 64,
+  "original_source_sha256": {
+    "benchmarks/cpp_author.cpp": "47aa2e0841d81ea4db01bc19eb34bb1c9e21e40ee5b1bca91a1363ce10202bf7",
+    "upstream/toylife/helper_functions.cpp": "cfa999095128b353e3c44bb5b9de4b98784cea05a45038c4b694b476d7573ad4",
+    "upstream/toylife/patterns/patternsplugin.cpp": "33c7f29a37b1f5023c1942e010fa20de490333c5d964031eb0ec30ae6880b90a",
+    "upstream/toylife/toy_plugin.cpp": "a9f5cb52b62cf8a831cbd40031a647482eaeb2f0dfbe4b663590774bbd778a64"
+  },
+  "platform": "macOS-26.4.1-arm64-arm-64bit",
+  "python": "3.12.13 (main, Mar 25 2026, 03:16:06) [Clang 22.1.1 ]",
+  "repeats": 3,
+  "requested_cpu_threads": null,
+  "schema_version": 1,
+  "seed": 60213,
+  "selection": "fixed-seed unfiltered random genotypes; metabolic first two rows are predeclared cleavage and cycle fixtures",
+  "source_sha256": {
+    "benchmarks/cpp_author.cpp": "47aa2e0841d81ea4db01bc19eb34bb1c9e21e40ee5b1bca91a1363ce10202bf7",
+    "qualification/metabolic-gene-scaling/toy_plugin_iterator_safe.cpp": "a6c190926c1f3eae675e70ab5196b5f5ac0b682eefad2fd6a886a8f61d43089e",
+    "upstream/toylife/helper_functions.cpp": "cfa999095128b353e3c44bb5b9de4b98784cea05a45038c4b694b476d7573ad4",
+    "upstream/toylife/patterns/patternsplugin.cpp": "33c7f29a37b1f5023c1942e010fa20de490333c5d964031eb0ec30ae6880b90a"
+  },
+  "target_repeat_seconds": 0.05,
+  "timing_boundary": "loaded tables and prepared inputs; public evaluation, allocation, transfers, and completed host outputs; excludes file IO",
+  "upstream_source_unchanged": true
+}

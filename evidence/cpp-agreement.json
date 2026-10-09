@@ -1,0 +1,297 @@
+{
+  "agreement_source": "<checkout>/qualification/cpp-benchmark-repaired",
+  "agreement_source_sha256": "59d723512be4fee465a681e7401467bc802f98df56c0ac6b201e6afd2b33793f",
+  "baseline_threads": 1,
+  "cases": [
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": 12.3748890319367,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 12.3748890319367,
+          "status_counts": {
+            "complete": 65533
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": 11.877315274203053,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 11.877315274203053,
+          "status_counts": {
+            "complete": 65533
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 2,
+      "input_sha256": "4962d2f3dda2ec2d72bed4d617f94b6f13e33ce40c1470cf34a7bf40704f6724",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.044483167,
+          "iqr_seconds": 0.0001850276666666706,
+          "loops": 3,
+          "max_seconds": 0.042926319666666664,
+          "median_seconds": 0.04085861133333333,
+          "min_seconds": 0.04060530566666667,
+          "process_seconds": 2.196108458098024,
+          "samples_seconds": [
+            0.042926319666666664,
+            0.04112063866666667,
+            0.04084945833333333,
+            0.040891403,
+            0.04060530566666667,
+            0.04085861133333333,
+            0.040792528
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.19896883401088417,
+          "iqr_seconds": 3.2845360692590475e-05,
+          "loops": 26,
+          "max_seconds": 0.003347028852798618,
+          "median_seconds": 0.0033017355733766006,
+          "min_seconds": 0.0032422884653967162,
+          "process_seconds": 2.4561247918754816,
+          "samples_seconds": [
+            0.0033165208475950817,
+            0.003321857379677777,
+            0.003291322115378884,
+            0.0032422884653967162,
+            0.0032813653905087938,
+            0.003347028852798618,
+            0.0033017355733766006
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.16235158313065767,
+          "iqr_seconds": 7.116669215835071e-05,
+          "loops": 13,
+          "max_seconds": 0.004491397448313924,
+          "median_seconds": 0.0034400544559153225,
+          "min_seconds": 0.0034128942240316132,
+          "process_seconds": 2.2371699169743806,
+          "samples_seconds": [
+            0.004491397448313924,
+            0.0034161634707393553,
+            0.0034400544559153225,
+            0.0035236859335922278,
+            0.0034128942240316132,
+            0.0034206602364205397,
+            0.0034554711578843687
+          ]
+        }
+      },
+      "name": "regulatory-g2-n65536",
+      "order": [
+        "cpp",
+        "cpu",
+        "metal"
+      ],
+      "rows": 65533,
+      "sanitizer_returncode": 0,
+      "selection": {
+        "excluded_rows": [
+          1724,
+          37042,
+          51415
+        ],
+        "method": "postselected exact full-output agreement; no timing filter",
+        "original_input_sha256": "805c37b0c24dde5e6a94879ba333b60273ecebec0cbeafacfe7c42c04354588e",
+        "original_rows": 65536,
+        "retained_rows": 65533
+      },
+      "workload": "regulatory"
+    },
+    {
+      "comparisons": {
+        "cpu": {
+          "equivalent_workload_speedup": 10.602405972988063,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 10.602405972988063,
+          "status_counts": {
+            "complete": 65518
+          }
+        },
+        "metal": {
+          "equivalent_workload_speedup": 11.624847991720305,
+          "exact_output_agreement": true,
+          "examples": [],
+          "mismatching_rows": 0,
+          "mismatching_values": 0,
+          "same_input_time_ratio": 11.624847991720305,
+          "status_counts": {
+            "complete": 65518
+          }
+        }
+      },
+      "cpp_diagnostic_output_agreement": true,
+      "genes": 3,
+      "input_sha256": "6ecd591402744878e24ca4d2244d2a59ef1defae52a79608698b5904ad08a885",
+      "measurements": {
+        "cpp": {
+          "first_seconds": 0.1134445,
+          "iqr_seconds": 0.0006194584999999891,
+          "loops": 1,
+          "max_seconds": 0.111839541,
+          "median_seconds": 0.111050042,
+          "min_seconds": 0.110553792,
+          "process_seconds": 2.187947834143415,
+          "samples_seconds": [
+            0.111306291,
+            0.111515167,
+            0.111009458,
+            0.110553792,
+            0.111839541,
+            0.110573083,
+            0.111050042
+          ]
+        },
+        "cpu": {
+          "first_seconds": 0.20855474984273314,
+          "iqr_seconds": 0.0002896365476772189,
+          "loops": 9,
+          "max_seconds": 0.010885208327737119,
+          "median_seconds": 0.010474041673458286,
+          "min_seconds": 0.010227222228422761,
+          "process_seconds": 2.6129181671421975,
+          "samples_seconds": [
+            0.010474041673458286,
+            0.010388972237706184,
+            0.010227222228422761,
+            0.01046866667456925,
+            0.010607106455912193,
+            0.010829805551717678,
+            0.010885208327737119
+          ]
+        },
+        "metal": {
+          "first_seconds": 0.1655284590087831,
+          "iqr_seconds": 0.0011516792001202703,
+          "loops": 10,
+          "max_seconds": 0.010762791708111763,
+          "median_seconds": 0.009552816697396337,
+          "min_seconds": 0.007055200007744134,
+          "process_seconds": 2.586018375121057,
+          "samples_seconds": [
+            0.007055200007744134,
+            0.0076391249895095825,
+            0.009552816697396337,
+            0.010762791708111763,
+            0.009643816691823303,
+            0.009551799995824695,
+            0.009850466693751513
+          ]
+        }
+      },
+      "name": "regulatory-g3-n65536",
+      "order": [
+        "cpu",
+        "metal",
+        "cpp"
+      ],
+      "rows": 65518,
+      "sanitizer_returncode": 0,
+      "selection": {
+        "excluded_rows": [
+          504,
+          3793,
+          7448,
+          10190,
+          12929,
+          21077,
+          21235,
+          27596,
+          30885,
+          35309,
+          36925,
+          40522,
+          42113,
+          46977,
+          53584,
+          55205,
+          58043,
+          65338
+        ],
+        "method": "postselected exact full-output agreement; no timing filter",
+        "original_input_sha256": "9257e2863571b894f3c8140229baf0243e30171cf942701b947f40213fc6d2a3",
+        "original_rows": 65536,
+        "retained_rows": 65518
+      },
+      "workload": "regulatory"
+    }
+  ],
+  "cpp_variant": "iterator-safe",
+  "harness_sha256": "3c6e1bc781df83c6625b80c65c1efa5de0ce981db4a057fdbf90869fc1fe7211",
+  "host": {
+    "compiler": {
+      "process_seconds": 0.008322083856910467,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.4.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n"
+    },
+    "hardware": {
+      "process_seconds": 0.002174499910324812,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "hw.model: Mac17,4\nhw.ncpu: 10\nhw.memsize: 34359738368\nmachdep.cpu.brand_string: Apple M5\n"
+    },
+    "power_thermal": {
+      "process_seconds": 0.005554124945774674,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n"
+    },
+    "upstream_changes": {
+      "process_seconds": 0.008924416964873672,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    "upstream_commit": {
+      "process_seconds": 0.007211499847471714,
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "9e17c92ea05f2e3dd63bf437400ddd8e61694ff9\n"
+    }
+  },
+  "load_end": [
+    2.662109375,
+    2.47509765625,
+    2.31591796875
+  ],
+  "load_start": [
+    2.3994140625,
+    2.4140625,
+    2.29052734375
+  ],
+  "original_source_sha256": {
+    "benchmarks/cpp_author.cpp": "47aa2e0841d81ea4db01bc19eb34bb1c9e21e40ee5b1bca91a1363ce10202bf7",
+    "upstream/toylife/helper_functions.cpp": "cfa999095128b353e3c44bb5b9de4b98784cea05a45038c4b694b476d7573ad4",
+    "upstream/toylife/patterns/patternsplugin.cpp": "33c7f29a37b1f5023c1942e010fa20de490333c5d964031eb0ec30ae6880b90a",
+    "upstream/toylife/toy_plugin.cpp": "a9f5cb52b62cf8a831cbd40031a647482eaeb2f0dfbe4b663590774bbd778a64"
+  },
+  "platform": "macOS-26.4.1-arm64-arm-64bit",
+  "python": "3.12.13 (main, Mar 25 2026, 03:16:06) [Clang 22.1.1 ]",
+  "repeats": 7,
+  "schema_version": 1,
+  "seed": 60213,
+  "selection": "secondary postselected agreement cohort; all rows whose saved outputs agree across C++, CPU, and Metal",
+  "source_sha256": {
+    "benchmarks/cpp_author.cpp": "47aa2e0841d81ea4db01bc19eb34bb1c9e21e40ee5b1bca91a1363ce10202bf7",
+    "qualification/cpp-benchmark-agreement/toy_plugin_iterator_safe.cpp": "a6c190926c1f3eae675e70ab5196b5f5ac0b682eefad2fd6a886a8f61d43089e",
+    "upstream/toylife/helper_functions.cpp": "cfa999095128b353e3c44bb5b9de4b98784cea05a45038c4b694b476d7573ad4",
+    "upstream/toylife/patterns/patternsplugin.cpp": "33c7f29a37b1f5023c1942e010fa20de490333c5d964031eb0ec30ae6880b90a"
+  },
+  "target_repeat_seconds": 0.1,
+  "timing_boundary": "loaded tables and prepared inputs; public evaluation, allocation, transfers, and completed host outputs; excludes file IO",
+  "upstream_source_unchanged": true
+}

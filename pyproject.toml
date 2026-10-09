@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "toylife2"
+version = "0.1.0"
+description = "Reproducible batched toyLIFE research with Python and Quadrants"
+requires-python = ">=3.12,<3.14"
+license = "GPL-3.0-or-later"
+dependencies = ["numpy>=2.2,<3", "quadrants==1.3.3", "tomli-w>=1.2,<2"]
+
+[project.optional-dependencies]
+reports = ["matplotlib>=3.10,<4"]
+
+[project.scripts]
+toylife2 = "toylife2.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.3,<10", "ruff>=0.12,<1", "pyright>=1.1.400,<2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/toylife2"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"upstream/toylife/data" = "toylife2/_vendor/toylife/data"
+"upstream/toylife/promoters" = "toylife2/_vendor/toylife/promoters"
+"upstream/toylife/prot_metabolism" = "toylife2/_vendor/toylife/prot_metabolism"
+"upstream/toylife/dim_metabolism" = "toylife2/_vendor/toylife/dim_metabolism"
+"upstream/toylife/toyLIFE.pdf" = "toylife2/_provenance/upstream/toylife/toyLIFE.pdf"
+"upstream/toylife/README.md" = "toylife2/_provenance/upstream/toylife/README.md"
+"upstream/toylife/Documentation.md" = "toylife2/_provenance/upstream/toylife/Documentation.md"
+"upstream/toylife/Lookup_Files.md" = "toylife2/_provenance/upstream/toylife/Lookup_Files.md"
+"upstream/toylife/Makefile" = "toylife2/_provenance/upstream/toylife/Makefile"
+"upstream/toylife/example.cpp" = "toylife2/_provenance/upstream/toylife/example.cpp"
+"upstream/toylife/helper_functions.cpp" = "toylife2/_provenance/upstream/toylife/helper_functions.cpp"
+"upstream/toylife/helper_functions.h" = "toylife2/_provenance/upstream/toylife/helper_functions.h"
+"upstream/toylife/toy_plugin.cpp" = "toylife2/_provenance/upstream/toylife/toy_plugin.cpp"
+"upstream/toylife/toy_plugin.h" = "toylife2/_provenance/upstream/toylife/toy_plugin.h"
+"upstream/toylife/patterns/README.md" = "toylife2/_provenance/upstream/toylife/patterns/README.md"
+"upstream/toylife/patterns/Makefile" = "toylife2/_provenance/upstream/toylife/patterns/Makefile"
+"upstream/toylife/patterns/patternsplugin.cpp" = "toylife2/_provenance/upstream/toylife/patterns/patternsplugin.cpp"
+"upstream/toylife/patterns/patternsplugin.h" = "toylife2/_provenance/upstream/toylife/patterns/patternsplugin.h"
+"upstream/toylife/patterns/simulationsplugin.cpp" = "toylife2/_provenance/upstream/toylife/patterns/simulationsplugin.cpp"
+"upstream/toylife/patterns/simulationsplugin.h" = "toylife2/_provenance/upstream/toylife/patterns/simulationsplugin.h"
+"upstream/toylife/patterns/grn_abundance.cpp" = "toylife2/_provenance/upstream/toylife/patterns/grn_abundance.cpp"
+"upstream/toylife/patterns/gpmap_morphogen_choose_diffusion.cpp" = "toylife2/_provenance/upstream/toylife/patterns/gpmap_morphogen_choose_diffusion.cpp"
+"upstream/toylife/patterns/phenotype_complexity.cpp" = "toylife2/_provenance/upstream/toylife/patterns/phenotype_complexity.cpp"
+"upstream/toylife/patterns/simulations_pattern113.cpp" = "toylife2/_provenance/upstream/toylife/patterns/simulations_pattern113.cpp"
+"upstream/toylife/patterns/simulations_patternFig3.cpp" = "toylife2/_provenance/upstream/toylife/patterns/simulations_patternFig3.cpp"
+"upstream/toylife/patterns/simulations_prob_of_arrival_patterns.cpp" = "toylife2/_provenance/upstream/toylife/patterns/simulations_prob_of_arrival_patterns.cpp"
+"pyproject.toml" = "toylife2/_provenance/pyproject.toml"
+"uv.lock" = "toylife2/_provenance/uv.lock"
+"docs/decisions.md" = "toylife2/_provenance/docs/decisions.md"
+"LICENSE" = "toylife2/_provenance/LICENSE"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["metal: requires Apple Metal hardware", "qualification: extended model qualification"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pyright]
+include = ["src/toylife2"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"

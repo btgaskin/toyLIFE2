@@ -1,0 +1,67 @@
+{
+  "files": {
+    "cpp-agreement-one-thread.json": {
+      "checkout_path_redacted": true,
+      "export_sha256": "2598dcb6ac738ce5ab5ab7f4c342a7ce2700e228ed2c32bab5965b340ec24322",
+      "source": "qualification/cpp-benchmark-agreement-one-thread-fixed/comparison.json",
+      "source_sha256": "410da883ec20b515e921ac5eee4aa46d93a5f1b4074125c3b8ce6f9beb8dd158"
+    },
+    "cpp-agreement.json": {
+      "checkout_path_redacted": true,
+      "export_sha256": "2df051a8779472ad488215046cd5bb423d760b83a56b4e37a77232a8c8c9f7b2",
+      "source": "qualification/cpp-benchmark-agreement/comparison.json",
+      "source_sha256": "2dd4dc2f893d29cc1b88a77629730f993b8499f9fb2d34e59f8a9d5b20a0456b"
+    },
+    "cpp-original.json": {
+      "checkout_path_redacted": false,
+      "export_sha256": "465e0d95afe8bf8399448a794c77ea5f53dfb8c5646999952b12171bfe1ca769",
+      "source": "qualification/cpp-benchmark/comparison.json",
+      "source_sha256": "465e0d95afe8bf8399448a794c77ea5f53dfb8c5646999952b12171bfe1ca769"
+    },
+    "cpp-repaired.json": {
+      "checkout_path_redacted": false,
+      "export_sha256": "59d723512be4fee465a681e7401467bc802f98df56c0ac6b201e6afd2b33793f",
+      "source": "qualification/cpp-benchmark-repaired/comparison.json",
+      "source_sha256": "59d723512be4fee465a681e7401467bc802f98df56c0ac6b201e6afd2b33793f"
+    },
+    "cpu-metal-comparison.json": {
+      "checkout_path_redacted": false,
+      "export_sha256": "bbc7d92ddafb877c363c9111ebb147acac66f5e61f30df1d665e7a2f920dfce3",
+      "source": "qualification/cpu-metal-comparison.json",
+      "source_sha256": "bbc7d92ddafb877c363c9111ebb147acac66f5e61f30df1d665e7a2f920dfce3"
+    },
+    "evolution-scaling.json": {
+      "checkout_path_redacted": false,
+      "export_sha256": "d7c22f8b04e9d62299f5c8be81205798a08301f3c81a8d159d490a9b36400fb1",
+      "source": "qualification/evolution-scaling.json",
+      "source_sha256": "d7c22f8b04e9d62299f5c8be81205798a08301f3c81a8d159d490a9b36400fb1"
+    },
+    "full-map-cpu.json": {
+      "checkout_path_redacted": false,
+      "export_sha256": "be3880260b1f1077dbd49c49b20d5d5d579dba38b8caa04c250e04a664e9d250",
+      "source": "qualification/full-map-cpu.json",
+      "source_sha256": "be3880260b1f1077dbd49c49b20d5d5d579dba38b8caa04c250e04a664e9d250"
+    },
+    "metabolic-gene-scaling.json": {
+      "checkout_path_redacted": false,
+      "export_sha256": "07bc5185a5a6490dac9d1d129e0fcac44be8d89eb5ee6cfa979267a9cb660464",
+      "source": "qualification/metabolic-gene-scaling/comparison.json",
+      "source_sha256": "07bc5185a5a6490dac9d1d129e0fcac44be8d89eb5ee6cfa979267a9cb660464"
+    },
+    "sessions-cpu.json": {
+      "checkout_path_redacted": false,
+      "export_sha256": "ae8f0cdf64b215421de8f8aad4a701f3f6f9299ae11b5540a228e8025168a520",
+      "source": "qualification/sessions-cpu.json",
+      "source_sha256": "ae8f0cdf64b215421de8f8aad4a701f3f6f9299ae11b5540a228e8025168a520"
+    },
+    "sessions-metal.json": {
+      "checkout_path_redacted": false,
+      "export_sha256": "2aaf8899ed81ce78043d1cb490cf8bb8734ad17a9f7d3bfbdc7979e66da59de1",
+      "source": "qualification/sessions-metal.json",
+      "source_sha256": "2aaf8899ed81ce78043d1cb490cf8bb8734ad17a9f7d3bfbdc7979e66da59de1"
+    }
+  },
+  "format_version": 1,
+  "transformation": "Replace checkout-absolute path prefixes with <checkout>; all numerical results retained.",
+  "upstream_commit": "9e17c92ea05f2e3dd63bf437400ddd8e61694ff9"
+}

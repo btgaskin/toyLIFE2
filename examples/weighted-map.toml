@@ -1,0 +1,17 @@
+schema_version = 1
+operation = "weighted_map"
+
+[model]
+genes = 2
+
+[map]
+start_pair = 0
+tile_pairs = 2048
+
+[execution]
+backend = "cpu"
+batch_size = 4096
+memory_budget_mib = 1024
+
+[recording]
+checkpoint_interval = 100

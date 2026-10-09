@@ -1,0 +1,2999 @@
+{
+  "benchmark": "canonical_two_gene_wright_fisher_scaling",
+  "complete_cases": 14,
+  "matched_batch_backend_outputs": true,
+  "requested_cases": 14,
+  "rows": [
+    {
+      "backend": "cpu",
+      "case": {
+        "batch": 256,
+        "name": "population_128",
+        "population": 128,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 184188928,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            1,
+            3,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            1
+          ],
+          "cache_saved_fraction": 0.9917279411764706,
+          "evaluated_genotypes": 18,
+          "fitness_requests": 2176,
+          "host_and_cache_seconds": 0.01566041586920619,
+          "output_sha256": "820d53f0bb5a11309f5ac5dcee3ca6f415414d6be413458abdba78e73776b9d3",
+          "pattern_calls": 11,
+          "pattern_seconds": 0.19595887628383934,
+          "repeat": 0,
+          "seconds": 0.21161929215304554,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            1,
+            3,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            1
+          ],
+          "cache_saved_fraction": 0.9917279411764706,
+          "evaluated_genotypes": 18,
+          "fitness_requests": 2176,
+          "host_and_cache_seconds": 0.0204390415456146,
+          "output_sha256": "820d53f0bb5a11309f5ac5dcee3ca6f415414d6be413458abdba78e73776b9d3",
+          "pattern_calls": 11,
+          "pattern_seconds": 0.061216791393235326,
+          "repeat": 1,
+          "seconds": 0.08165583293884993,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            1,
+            3,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            1
+          ],
+          "cache_saved_fraction": 0.9917279411764706,
+          "evaluated_genotypes": 18,
+          "fitness_requests": 2176,
+          "host_and_cache_seconds": 0.016594460466876626,
+          "output_sha256": "820d53f0bb5a11309f5ac5dcee3ca6f415414d6be413458abdba78e73776b9d3",
+          "pattern_calls": 11,
+          "pattern_seconds": 0.0494196645449847,
+          "repeat": 2,
+          "seconds": 0.06601412501186132,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.24114166712388396,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "cpu",
+      "case": {
+        "batch": 256,
+        "name": "population_1024",
+        "population": 1024,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 173113344,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.05953658348880708,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.29648833256214857,
+          "repeat": 0,
+          "seconds": 0.35602491605095565,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.05167833180166781,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.12610983406193554,
+          "repeat": 1,
+          "seconds": 0.17778816586360335,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.05122696002945304,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.09416562388651073,
+          "repeat": 2,
+          "seconds": 0.14539258391596377,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.3096883750986308,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "cpu",
+      "case": {
+        "batch": 256,
+        "name": "population_8192",
+        "population": 8192,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 173932544,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            36,
+            10,
+            27,
+            72,
+            58,
+            43,
+            40,
+            38,
+            28,
+            28,
+            20,
+            27,
+            32,
+            30,
+            38,
+            34
+          ],
+          "cache_saved_fraction": 0.9959644990808824,
+          "evaluated_genotypes": 562,
+          "fitness_requests": 139264,
+          "host_and_cache_seconds": 0.30969287431798875,
+          "output_sha256": "8e5df60458d11febf6f747132a22c8fbd1fe86877519f86b1bd300da332c209f",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.3808405427262187,
+          "repeat": 0,
+          "seconds": 0.6905334170442075,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            36,
+            10,
+            27,
+            72,
+            58,
+            43,
+            40,
+            38,
+            28,
+            28,
+            20,
+            27,
+            32,
+            30,
+            38,
+            34
+          ],
+          "cache_saved_fraction": 0.9959644990808824,
+          "evaluated_genotypes": 562,
+          "fitness_requests": 139264,
+          "host_and_cache_seconds": 0.25060099991969764,
+          "output_sha256": "8e5df60458d11febf6f747132a22c8fbd1fe86877519f86b1bd300da332c209f",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.06551029114052653,
+          "repeat": 1,
+          "seconds": 0.3161112910602242,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            36,
+            10,
+            27,
+            72,
+            58,
+            43,
+            40,
+            38,
+            28,
+            28,
+            20,
+            27,
+            32,
+            30,
+            38,
+            34
+          ],
+          "cache_saved_fraction": 0.9959644990808824,
+          "evaluated_genotypes": 562,
+          "fitness_requests": 139264,
+          "host_and_cache_seconds": 0.16441804030910134,
+          "output_sha256": "8e5df60458d11febf6f747132a22c8fbd1fe86877519f86b1bd300da332c209f",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.04416266758926213,
+          "repeat": 2,
+          "seconds": 0.20858070789836347,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.2783672909718007,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "cpu",
+      "case": {
+        "batch": 256,
+        "name": "trials_4",
+        "population": 1024,
+        "trials": 4
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 170229760,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9,
+            1,
+            11,
+            9,
+            7,
+            6,
+            2,
+            2,
+            1,
+            2,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            11,
+            6,
+            8,
+            2,
+            5,
+            3,
+            3,
+            2,
+            1,
+            4,
+            1,
+            2,
+            2,
+            4,
+            2,
+            1,
+            11,
+            11,
+            9,
+            1,
+            1,
+            5,
+            3,
+            1,
+            1,
+            1,
+            2,
+            1
+          ],
+          "cache_saved_fraction": 0.9960506663602942,
+          "evaluated_genotypes": 275,
+          "fitness_requests": 69632,
+          "host_and_cache_seconds": 0.08810437587089837,
+          "output_sha256": "f1ef68891fae3019484b1f1fc8b625900afaec2ffc97ada8e9ba40ab2b932018",
+          "pattern_calls": 61,
+          "pattern_seconds": 0.20110962423495948,
+          "repeat": 0,
+          "seconds": 0.28921400010585785,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null,
+              null,
+              null,
+              null
+            ],
+            "censored_trials": 4,
+            "completed_trials": 4,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16,
+              16,
+              16,
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 4,
+            "terminal_times": null,
+            "trial_status": [
+              "complete",
+              "complete",
+              "complete",
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9,
+            1,
+            11,
+            9,
+            7,
+            6,
+            2,
+            2,
+            1,
+            2,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            11,
+            6,
+            8,
+            2,
+            5,
+            3,
+            3,
+            2,
+            1,
+            4,
+            1,
+            2,
+            2,
+            4,
+            2,
+            1,
+            11,
+            11,
+            9,
+            1,
+            1,
+            5,
+            3,
+            1,
+            1,
+            1,
+            2,
+            1
+          ],
+          "cache_saved_fraction": 0.9960506663602942,
+          "evaluated_genotypes": 275,
+          "fitness_requests": 69632,
+          "host_and_cache_seconds": 0.08706362615339458,
+          "output_sha256": "f1ef68891fae3019484b1f1fc8b625900afaec2ffc97ada8e9ba40ab2b932018",
+          "pattern_calls": 61,
+          "pattern_seconds": 0.11165637383237481,
+          "repeat": 1,
+          "seconds": 0.1987199999857694,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null,
+              null,
+              null,
+              null
+            ],
+            "censored_trials": 4,
+            "completed_trials": 4,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16,
+              16,
+              16,
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 4,
+            "terminal_times": null,
+            "trial_status": [
+              "complete",
+              "complete",
+              "complete",
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9,
+            1,
+            11,
+            9,
+            7,
+            6,
+            2,
+            2,
+            1,
+            2,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            11,
+            6,
+            8,
+            2,
+            5,
+            3,
+            3,
+            2,
+            1,
+            4,
+            1,
+            2,
+            2,
+            4,
+            2,
+            1,
+            11,
+            11,
+            9,
+            1,
+            1,
+            5,
+            3,
+            1,
+            1,
+            1,
+            2,
+            1
+          ],
+          "cache_saved_fraction": 0.9960506663602942,
+          "evaluated_genotypes": 275,
+          "fitness_requests": 69632,
+          "host_and_cache_seconds": 0.08370525180362165,
+          "output_sha256": "f1ef68891fae3019484b1f1fc8b625900afaec2ffc97ada8e9ba40ab2b932018",
+          "pattern_calls": 61,
+          "pattern_seconds": 0.10568312322720885,
+          "repeat": 2,
+          "seconds": 0.1893883750308305,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null,
+              null,
+              null,
+              null
+            ],
+            "censored_trials": 4,
+            "completed_trials": 4,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16,
+              16,
+              16,
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 4,
+            "terminal_times": null,
+            "trial_status": [
+              "complete",
+              "complete",
+              "complete",
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.24765908415429294,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "cpu",
+      "case": {
+        "batch": 32,
+        "name": "batch_32",
+        "population": 1024,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 170328064,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.026637667324393988,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.1320360405370593,
+          "repeat": 0,
+          "seconds": 0.1586737078614533,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.02163841691799462,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.03087995806708932,
+          "repeat": 1,
+          "seconds": 0.05251837498508394,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.021766084479168057,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.03046195744536817,
+          "repeat": 2,
+          "seconds": 0.05222804192453623,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.2524920841678977,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "cpu",
+      "case": {
+        "batch": 1024,
+        "name": "batch_1024",
+        "population": 1024,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 169754624,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.022029580548405647,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.10993262846022844,
+          "repeat": 0,
+          "seconds": 0.1319622090086341,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.018984960857778788,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.026157581247389317,
+          "repeat": 1,
+          "seconds": 0.045142542105168104,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.018878543516620994,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.026175540406256914,
+          "repeat": 2,
+          "seconds": 0.04505408392287791,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.22119762492366135,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "cpu",
+      "case": {
+        "batch": 256,
+        "initial": "independent_random",
+        "name": "independent_initial",
+        "population": 1024,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 171409408,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            256,
+            256,
+            256,
+            256,
+            8,
+            8,
+            11,
+            7,
+            12,
+            11,
+            13,
+            9,
+            12,
+            10,
+            10,
+            6,
+            9,
+            6,
+            17,
+            10
+          ],
+          "cache_saved_fraction": 0.9320427389705882,
+          "evaluated_genotypes": 1183,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.02496641711331904,
+          "output_sha256": "e6533fd0bd99603120ae883a4a2c6c763e4823ca25ad17bb024fdfab87fbe2eb",
+          "pattern_calls": 20,
+          "pattern_seconds": 0.138843665830791,
+          "repeat": 0,
+          "seconds": 0.16381008294411004,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            256,
+            256,
+            256,
+            256,
+            8,
+            8,
+            11,
+            7,
+            12,
+            11,
+            13,
+            9,
+            12,
+            10,
+            10,
+            6,
+            9,
+            6,
+            17,
+            10
+          ],
+          "cache_saved_fraction": 0.9320427389705882,
+          "evaluated_genotypes": 1183,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.02135183149948716,
+          "output_sha256": "e6533fd0bd99603120ae883a4a2c6c763e4823ca25ad17bb024fdfab87fbe2eb",
+          "pattern_calls": 20,
+          "pattern_seconds": 0.0351725856307894,
+          "repeat": 1,
+          "seconds": 0.05652441713027656,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            256,
+            256,
+            256,
+            256,
+            8,
+            8,
+            11,
+            7,
+            12,
+            11,
+            13,
+            9,
+            12,
+            10,
+            10,
+            6,
+            9,
+            6,
+            17,
+            10
+          ],
+          "cache_saved_fraction": 0.9320427389705882,
+          "evaluated_genotypes": 1183,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.020766585366800427,
+          "output_sha256": "e6533fd0bd99603120ae883a4a2c6c763e4823ca25ad17bb024fdfab87fbe2eb",
+          "pattern_calls": 20,
+          "pattern_seconds": 0.03447266458533704,
+          "repeat": 2,
+          "seconds": 0.05523924995213747,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.22638704092241824,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "metal",
+      "case": {
+        "batch": 256,
+        "name": "population_128",
+        "population": 128,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 221560832,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            1,
+            3,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            1
+          ],
+          "cache_saved_fraction": 0.9917279411764706,
+          "evaluated_genotypes": 18,
+          "fitness_requests": 2176,
+          "host_and_cache_seconds": 0.0097826246637851,
+          "output_sha256": "820d53f0bb5a11309f5ac5dcee3ca6f415414d6be413458abdba78e73776b9d3",
+          "pattern_calls": 11,
+          "pattern_seconds": 0.3419806673191488,
+          "repeat": 0,
+          "seconds": 0.3517632919829339,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            1,
+            3,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            1
+          ],
+          "cache_saved_fraction": 0.9917279411764706,
+          "evaluated_genotypes": 18,
+          "fitness_requests": 2176,
+          "host_and_cache_seconds": 0.006596375722438097,
+          "output_sha256": "820d53f0bb5a11309f5ac5dcee3ca6f415414d6be413458abdba78e73776b9d3",
+          "pattern_calls": 11,
+          "pattern_seconds": 0.07295191520825028,
+          "repeat": 1,
+          "seconds": 0.07954829093068838,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            1,
+            3,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            1
+          ],
+          "cache_saved_fraction": 0.9917279411764706,
+          "evaluated_genotypes": 18,
+          "fitness_requests": 2176,
+          "host_and_cache_seconds": 0.0062602912075817585,
+          "output_sha256": "820d53f0bb5a11309f5ac5dcee3ca6f415414d6be413458abdba78e73776b9d3",
+          "pattern_calls": 11,
+          "pattern_seconds": 0.07303975080139935,
+          "repeat": 2,
+          "seconds": 0.07930004200898111,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.3003682498820126,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "metal",
+      "case": {
+        "batch": 256,
+        "name": "population_1024",
+        "population": 1024,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 207503360,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.02256141835823655,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.2387398318387568,
+          "repeat": 0,
+          "seconds": 0.26130125019699335,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.02011479320935905,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.11873508174903691,
+          "repeat": 1,
+          "seconds": 0.13884987495839596,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.01964254188351333,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.11829366628080606,
+          "repeat": 2,
+          "seconds": 0.1379362081643194,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.29820704204030335,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "metal",
+      "case": {
+        "batch": 256,
+        "name": "population_8192",
+        "population": 8192,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 212697088,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            36,
+            10,
+            27,
+            72,
+            58,
+            43,
+            40,
+            38,
+            28,
+            28,
+            20,
+            27,
+            32,
+            30,
+            38,
+            34
+          ],
+          "cache_saved_fraction": 0.9959644990808824,
+          "evaluated_genotypes": 562,
+          "fitness_requests": 139264,
+          "host_and_cache_seconds": 0.13351233140565455,
+          "output_sha256": "8e5df60458d11febf6f747132a22c8fbd1fe86877519f86b1bd300da332c209f",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.27509345952421427,
+          "repeat": 0,
+          "seconds": 0.4086057909298688,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            36,
+            10,
+            27,
+            72,
+            58,
+            43,
+            40,
+            38,
+            28,
+            28,
+            20,
+            27,
+            32,
+            30,
+            38,
+            34
+          ],
+          "cache_saved_fraction": 0.9959644990808824,
+          "evaluated_genotypes": 562,
+          "fitness_requests": 139264,
+          "host_and_cache_seconds": 0.13426608638837934,
+          "output_sha256": "8e5df60458d11febf6f747132a22c8fbd1fe86877519f86b1bd300da332c209f",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.1576954557094723,
+          "repeat": 1,
+          "seconds": 0.29196154209785163,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            36,
+            10,
+            27,
+            72,
+            58,
+            43,
+            40,
+            38,
+            28,
+            28,
+            20,
+            27,
+            32,
+            30,
+            38,
+            34
+          ],
+          "cache_saved_fraction": 0.9959644990808824,
+          "evaluated_genotypes": 562,
+          "fitness_requests": 139264,
+          "host_and_cache_seconds": 0.12902837619185448,
+          "output_sha256": "8e5df60458d11febf6f747132a22c8fbd1fe86877519f86b1bd300da332c209f",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.1440513317938894,
+          "repeat": 2,
+          "seconds": 0.2730797079857439,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.29974154103547335,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "metal",
+      "case": {
+        "batch": 256,
+        "name": "trials_4",
+        "population": 1024,
+        "trials": 4
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 210075648,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9,
+            1,
+            11,
+            9,
+            7,
+            6,
+            2,
+            2,
+            1,
+            2,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            11,
+            6,
+            8,
+            2,
+            5,
+            3,
+            3,
+            2,
+            1,
+            4,
+            1,
+            2,
+            2,
+            4,
+            2,
+            1,
+            11,
+            11,
+            9,
+            1,
+            1,
+            5,
+            3,
+            1,
+            1,
+            1,
+            2,
+            1
+          ],
+          "cache_saved_fraction": 0.9960506663602942,
+          "evaluated_genotypes": 275,
+          "fitness_requests": 69632,
+          "host_and_cache_seconds": 0.07826362526975572,
+          "output_sha256": "f1ef68891fae3019484b1f1fc8b625900afaec2ffc97ada8e9ba40ab2b932018",
+          "pattern_calls": 61,
+          "pattern_seconds": 0.5226025837473571,
+          "repeat": 0,
+          "seconds": 0.6008662090171129,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null,
+              null,
+              null,
+              null
+            ],
+            "censored_trials": 4,
+            "completed_trials": 4,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16,
+              16,
+              16,
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 4,
+            "terminal_times": null,
+            "trial_status": [
+              "complete",
+              "complete",
+              "complete",
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9,
+            1,
+            11,
+            9,
+            7,
+            6,
+            2,
+            2,
+            1,
+            2,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            11,
+            6,
+            8,
+            2,
+            5,
+            3,
+            3,
+            2,
+            1,
+            4,
+            1,
+            2,
+            2,
+            4,
+            2,
+            1,
+            11,
+            11,
+            9,
+            1,
+            1,
+            5,
+            3,
+            1,
+            1,
+            1,
+            2,
+            1
+          ],
+          "cache_saved_fraction": 0.9960506663602942,
+          "evaluated_genotypes": 275,
+          "fitness_requests": 69632,
+          "host_and_cache_seconds": 0.07622816832736135,
+          "output_sha256": "f1ef68891fae3019484b1f1fc8b625900afaec2ffc97ada8e9ba40ab2b932018",
+          "pattern_calls": 61,
+          "pattern_seconds": 0.41778962360695004,
+          "repeat": 1,
+          "seconds": 0.4940177919343114,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null,
+              null,
+              null,
+              null
+            ],
+            "censored_trials": 4,
+            "completed_trials": 4,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16,
+              16,
+              16,
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 4,
+            "terminal_times": null,
+            "trial_status": [
+              "complete",
+              "complete",
+              "complete",
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9,
+            1,
+            11,
+            9,
+            7,
+            6,
+            2,
+            2,
+            1,
+            2,
+            1,
+            2,
+            3,
+            3,
+            1,
+            1,
+            1,
+            11,
+            6,
+            8,
+            2,
+            5,
+            3,
+            3,
+            2,
+            1,
+            4,
+            1,
+            2,
+            2,
+            4,
+            2,
+            1,
+            11,
+            11,
+            9,
+            1,
+            1,
+            5,
+            3,
+            1,
+            1,
+            1,
+            2,
+            1
+          ],
+          "cache_saved_fraction": 0.9960506663602942,
+          "evaluated_genotypes": 275,
+          "fitness_requests": 69632,
+          "host_and_cache_seconds": 0.0809937126468867,
+          "output_sha256": "f1ef68891fae3019484b1f1fc8b625900afaec2ffc97ada8e9ba40ab2b932018",
+          "pattern_calls": 61,
+          "pattern_seconds": 0.4372652873862535,
+          "repeat": 2,
+          "seconds": 0.5182590000331402,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null,
+              null,
+              null,
+              null
+            ],
+            "censored_trials": 4,
+            "completed_trials": 4,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16,
+              16,
+              16,
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 4,
+            "terminal_times": null,
+            "trial_status": [
+              "complete",
+              "complete",
+              "complete",
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.29259254201315343,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "metal",
+      "case": {
+        "batch": 32,
+        "name": "batch_32",
+        "population": 1024,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 209862656,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.022305081831291318,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.21783512621186674,
+          "repeat": 0,
+          "seconds": 0.24014020804315805,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.0202230429276824,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.11887587420642376,
+          "repeat": 1,
+          "seconds": 0.13909891713410616,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.0193814137019217,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.11689896113239229,
+          "repeat": 2,
+          "seconds": 0.136280374834314,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.2792234579101205,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "metal",
+      "case": {
+        "batch": 1024,
+        "name": "batch_1024",
+        "population": 1024,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 210026496,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.02235875092446804,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.22279199911281466,
+          "repeat": 0,
+          "seconds": 0.2451507500372827,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.019225585274398327,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.11764637287706137,
+          "repeat": 1,
+          "seconds": 0.1368719581514597,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            1,
+            6,
+            6,
+            9,
+            7,
+            9,
+            9,
+            11,
+            6,
+            8,
+            7,
+            5,
+            2,
+            6,
+            6,
+            11,
+            9
+          ],
+          "cache_saved_fraction": 0.9932215073529411,
+          "evaluated_genotypes": 118,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.019188959151506424,
+          "output_sha256": "5c3792395b043f10e156af2a402c441ed89460573d0626e176d4dc066076d15b",
+          "pattern_calls": 17,
+          "pattern_seconds": 0.11745499889366329,
+          "repeat": 2,
+          "seconds": 0.1366439580451697,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.28707545809447765,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    },
+    {
+      "backend": "metal",
+      "case": {
+        "batch": 256,
+        "initial": "independent_random",
+        "name": "independent_initial",
+        "population": 1024,
+        "trials": 1
+      },
+      "generations": 16,
+      "genes": 2,
+      "host": "macOS-26.4.1-arm64-arm-64bit",
+      "mutation_probability": 0.01,
+      "process_peak_rss_bytes": 214368256,
+      "quadrants_version": [
+        1,
+        3,
+        3
+      ],
+      "runs": [
+        {
+          "batch_sizes": [
+            256,
+            256,
+            256,
+            256,
+            8,
+            8,
+            11,
+            7,
+            12,
+            11,
+            13,
+            9,
+            12,
+            10,
+            10,
+            6,
+            9,
+            6,
+            17,
+            10
+          ],
+          "cache_saved_fraction": 0.9320427389705882,
+          "evaluated_genotypes": 1183,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.03451237175613642,
+          "output_sha256": "e6533fd0bd99603120ae883a4a2c6c763e4823ca25ad17bb024fdfab87fbe2eb",
+          "pattern_calls": 20,
+          "pattern_seconds": 0.5271551283076406,
+          "repeat": 0,
+          "seconds": 0.561667500063777,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            256,
+            256,
+            256,
+            256,
+            8,
+            8,
+            11,
+            7,
+            12,
+            11,
+            13,
+            9,
+            12,
+            10,
+            10,
+            6,
+            9,
+            6,
+            17,
+            10
+          ],
+          "cache_saved_fraction": 0.9320427389705882,
+          "evaluated_genotypes": 1183,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.02346966601908207,
+          "output_sha256": "e6533fd0bd99603120ae883a4a2c6c763e4823ca25ad17bb024fdfab87fbe2eb",
+          "pattern_calls": 20,
+          "pattern_seconds": 0.15338937612250447,
+          "repeat": 1,
+          "seconds": 0.17685904214158654,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        },
+        {
+          "batch_sizes": [
+            256,
+            256,
+            256,
+            256,
+            8,
+            8,
+            11,
+            7,
+            12,
+            11,
+            13,
+            9,
+            12,
+            10,
+            10,
+            6,
+            9,
+            6,
+            17,
+            10
+          ],
+          "cache_saved_fraction": 0.9320427389705882,
+          "evaluated_genotypes": 1183,
+          "fitness_requests": 17408,
+          "host_and_cache_seconds": 0.02299508242867887,
+          "output_sha256": "e6533fd0bd99603120ae883a4a2c6c763e4823ca25ad17bb024fdfab87fbe2eb",
+          "pattern_calls": 20,
+          "pattern_seconds": 0.15001683356240392,
+          "repeat": 2,
+          "seconds": 0.1730119159910828,
+          "status": "complete",
+          "summary": {
+            "algorithm": "wright_fisher",
+            "arrival_probability": 0.0,
+            "arrivals": [
+              null
+            ],
+            "censored_trials": 1,
+            "completed_trials": 1,
+            "history_dropped": 0,
+            "mean_observed_arrival": null,
+            "observed_horizons": [
+              16
+            ],
+            "pending_events": null,
+            "recording_limit": null,
+            "rng": "philox4x32-10-logical-v1",
+            "started_trials": 1,
+            "terminal_times": null,
+            "trial_status": [
+              "complete"
+            ],
+            "unstarted_trials": 0
+          }
+        }
+      ],
+      "seed": 60213,
+      "setup_seconds": 0.3637738327961415,
+      "spatial": {
+        "cells": 31,
+        "steps": 16,
+        "target": "state_1_at_cells_10_through_20_all_ticks"
+      },
+      "status": "complete",
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    }
+  ],
+  "timeout_per_case_seconds": 90
+}

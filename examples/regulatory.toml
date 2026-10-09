@@ -1,0 +1,14 @@
+schema_version = 1
+operation = "regulatory"
+seed = 20201003
+samples = 8
+
+[model]
+genes = 2
+
+[execution]
+backend = "cpu"
+batch_size = 256
+
+[recording]
+mode = "replayable"

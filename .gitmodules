@@ -1,0 +1,3 @@
+[submodule "upstream/toylife"]
+	path = upstream/toylife
+	url = https://github.com/PabloCatalan/toylife.git

@@ -1,0 +1,32 @@
+schema_version = 2
+operation = "wright_fisher"
+seed = 123
+
+[model]
+genes = 2
+
+[task]
+kind = "run_tumble"
+
+[episode]
+horizon = 20
+episodes = 2
+dt = 0.05
+chemical_updates = 1
+panel = "generation"
+
+[objective]
+kind = "bounded_reward"
+goal = 0.05
+
+[evolution]
+trials = 2
+population_size = 4
+generations = 2
+mutation_probability = 0.1
+
+[execution]
+backend = "cpu"
+batch_size = 16
+max_active_lanes = 2
+cpu_threads = 1

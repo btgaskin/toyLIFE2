@@ -1,0 +1,79 @@
+{
+  "cpu_seconds": 82.58311875001527,
+  "integrity": {
+    "cpu-oracle-record": {
+      "errors": [],
+      "ok": true,
+      "scientific_identity": "cc6d52d0dca25e2d07080b75b7447b7890f15fefab2d641b74197b366a9e277a",
+      "status": "complete",
+      "uncommitted_checkpoint_revisions": [],
+      "uncommitted_trace_chunks": []
+    },
+    "full-map-metal-record": {
+      "errors": [],
+      "ok": true,
+      "scientific_identity": "e7d1716e2633e05dc2e0bd9c2f1f3fb3a93b45f0da3a4a35fb6d6538f2dab465",
+      "status": "complete",
+      "uncommitted_checkpoint_revisions": [],
+      "uncommitted_trace_chunks": []
+    },
+    "full-map-record": {
+      "errors": [],
+      "ok": true,
+      "scientific_identity": "e7d1716e2633e05dc2e0bd9c2f1f3fb3a93b45f0da3a4a35fb6d6538f2dab465",
+      "status": "complete",
+      "uncommitted_checkpoint_revisions": [],
+      "uncommitted_trace_chunks": []
+    },
+    "metal-oracle-record": {
+      "errors": [],
+      "ok": true,
+      "scientific_identity": "cc6d52d0dca25e2d07080b75b7447b7890f15fefab2d641b74197b366a9e277a",
+      "status": "complete",
+      "uncommitted_checkpoint_revisions": [],
+      "uncommitted_trace_chunks": []
+    }
+  },
+  "map_counts": {
+    "ca_histogram": 557,
+    "grn_histogram": 2183,
+    "logic_histogram": 1955,
+    "pattern_histogram": 191
+  },
+  "map_scientific_field_equality": {
+    "ca_histogram": true,
+    "ca_to_pattern": true,
+    "diffusion": true,
+    "grn_histogram": true,
+    "logic_histogram": true,
+    "next_pair": true,
+    "ordered_pair_start": true,
+    "ordered_pair_stop": true,
+    "pattern_histogram": true,
+    "pattern_rules": true,
+    "spatial_digest": true,
+    "status": true,
+    "table_digest": true,
+    "total_genotypes": true,
+    "total_ordered_pairs": true
+  },
+  "metal_seconds": 79.09265791717917,
+  "metal_tests": {
+    "backend": "metal",
+    "pytest_exit_code": 0,
+    "test_modules": [
+      "runtime",
+      "trajectory",
+      "spatial",
+      "maps"
+    ]
+  },
+  "oracle_array_equality": {
+    "genotypes": true,
+    "metabolic": true,
+    "metabolic_status": true,
+    "regulatory": true,
+    "regulatory_status": true
+  },
+  "weighted_genomes": 1099511627776
+}
