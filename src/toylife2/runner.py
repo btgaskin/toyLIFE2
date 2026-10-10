@@ -60,29 +60,70 @@ def _target(record: Path, spec: RunSpec) -> np.ndarray:
 
 
 def _evaluate(model: Model, spec: RunSpec, genes: np.ndarray):
-    if spec.schema_version == 2:
-        import copy
+    import copy
 
+    execution = model.engine.execution
+    if spec.schema_version == 2:
         model = copy.copy(model)
-        model.engine = copy.copy(model.engine)
         model.execution = dataclasses.replace(
             model.execution, max_steps=min(model.execution.max_steps, spec.limits.max_assay_steps)
         )
         model.engine.execution = model.execution
-    if spec.operation == "regulatory":
-        return model.regulatory(genes)
-    if spec.operation == "metabolic":
-        return model.metabolic(genes, spec.assay.environment)
-    if spec.operation == "neighbourhood":
-        return model.neighbourhood(
-            genes, phenotype=spec.assay.phenotype, environment=spec.assay.environment
-        )
+    try:
+        if spec.operation == "regulatory":
+            return model.regulatory(genes)
+        if spec.operation == "metabolic":
+            return model.metabolic(genes, spec.assay.environment)
+        if spec.operation == "neighbourhood":
+            return model.neighbourhood(
+                genes, phenotype=spec.assay.phenotype, environment=spec.assay.environment
+            )
+        if spec.operation == "patterns":
+            return model.patterns(genes, spec.spatial)
+        raise ValueError("profiling/evaluation requires a batched phenotype operation")
+    finally:
+        model.engine.execution = execution
+
+
+def _fixed_artifacts(model, spec, genes, result):
+    """Use the same scientific result contract for standalone and coalesced assays."""
+    arrays = {"genotypes": genes, "phenotypes": result}
+    summary = {
+        "samples": len(genes),
+        "complete": result.complete,
+        "output_shape": list(result.values.shape),
+    }
+    if spec.operation == "neighbourhood" and result.complete:
+        from .analysis import neighbourhood_summary
+
+        retained = genes.nbytes + result.values.nbytes + result.status.nbytes
+        with model.engine._temporary_bytes(
+            retained, message="neighbourhood results exceed memory budget"
+        ):
+            base = _evaluate(
+                model, dataclasses.replace(spec, operation=spec.assay.phenotype), genes
+            )
+            model.engine._check_memory(
+                base.values.nbytes
+                + base.status.nbytes
+                + result.status.nbytes
+                + 5 * result.values.nbytes
+                + result.values.size // result.values.shape[-1] * 16,
+                message="neighbourhood summary exceeds memory budget",
+            )
+            neighbourhood = neighbourhood_summary(base, result)
+        arrays["robustness"] = neighbourhood["robustness"]
+        arrays["neutral_mutations"] = neighbourhood["neutral_mutations"]
+        summary["nonneutral_histograms"] = [
+            {"phenotypes": row["phenotypes"].tolist(), "counts": row["counts"].tolist()}
+            for row in neighbourhood["nonneutral_histograms"]
+        ]
     if spec.operation == "patterns":
-        return model.patterns(genes, spec.spatial)
-    raise ValueError("profiling/evaluation requires a batched phenotype operation")
+        summary.update(pattern_summary(result.values, spec.spatial))
+    return arrays, summary, "complete" if result.complete else "partial"
 
 
-def _execute(spec: RunSpec, record: Path, checkpoint=None) -> Path:
+def _execute(spec: RunSpec, record: Path, checkpoint=None, tables=None) -> Path:
     if spec.schema_version == 2 and spec.operation in {
         "chemistry",
         "tissue",
@@ -94,7 +135,7 @@ def _execute(spec: RunSpec, record: Path, checkpoint=None) -> Path:
     }:
         from .batch import BatchRunner
 
-        with BatchRunner(spec.execution) as batch:
+        with BatchRunner(spec.execution, tables=tables) as batch:
             session = batch.from_spec(_captured_spec(record), checkpoint=checkpoint, record=record)
             if spec.operation == "chemistry":
                 session.run(max(0, spec.controller.warmup + spec.cell.steps - session.update))
@@ -114,7 +155,7 @@ def _execute(spec: RunSpec, record: Path, checkpoint=None) -> Path:
             assert finished is not None
             return finished
     started = time.perf_counter()
-    model = Model(execution=spec.execution)
+    model = Model(execution=spec.execution, tables=tables)
     arrays, summary = {}, {}
     status = "complete"
     actual = spec.execution.backend
@@ -166,6 +207,7 @@ def _execute(spec: RunSpec, record: Path, checkpoint=None) -> Path:
         summary = enumerate_map(
             model.tables,
             spec.execution,
+            engine=model.engine,
             spatial=spec.spatial,
             diffusion=spec.spatial.diffusion,
             start_pair=spec.map.start_pair,
@@ -187,30 +229,7 @@ def _execute(spec: RunSpec, record: Path, checkpoint=None) -> Path:
     else:
         genes = _genotypes(spec)
         result = _evaluate(model, spec, genes)
-        arrays = {"genotypes": genes, "phenotypes": result}
-        status = "complete" if result.complete else "partial"
-        summary = {
-            "samples": len(genes),
-            "complete": result.complete,
-            "output_shape": list(result.values.shape),
-        }
-        if spec.operation == "neighbourhood" and result.complete:
-            from .analysis import neighbourhood_summary
-
-            base = (
-                model.regulatory(genes)
-                if spec.assay.phenotype == "regulatory"
-                else model.metabolic(genes, spec.assay.environment)
-            )
-            neighbourhood = neighbourhood_summary(base, result)
-            arrays["robustness"] = neighbourhood["robustness"]
-            arrays["neutral_mutations"] = neighbourhood["neutral_mutations"]
-            summary["nonneutral_histograms"] = [
-                {"phenotypes": row["phenotypes"].tolist(), "counts": row["counts"].tolist()}
-                for row in neighbourhood["nonneutral_histograms"]
-            ]
-        if spec.operation == "patterns":
-            summary.update(pattern_summary(result.values, spec.spatial))
+        arrays, summary, status = _fixed_artifacts(model, spec, genes, result)
     summary["elapsed_seconds"] = time.perf_counter() - started
     return finalize_record(
         record,
@@ -229,15 +248,34 @@ def _execute(spec: RunSpec, record: Path, checkpoint=None) -> Path:
     )
 
 
-def run(spec: RunSpec, workspace=None, destination=None, checkpoint=None, parent=None) -> Path:
+def run(
+    spec: RunSpec,
+    workspace=None,
+    destination=None,
+    checkpoint=None,
+    parent=None,
+    *,
+    tables=None,
+    session_inputs=None,
+) -> Path:
     """Create provenance before execution, retaining failed/interrupted records."""
-    record = begin_record(spec, _destination(spec, workspace, destination), inputs=_inputs(spec))
+    if tables is None:
+        from .tables import Tables
+
+        tables = Tables.load(cache_dir=spec.execution.cache_dir)
+    record = begin_record(
+        spec,
+        _destination(spec, workspace, destination),
+        inputs=_inputs(spec),
+        tables=tables,
+        session_inputs=session_inputs,
+    )
     if parent:
         from .records import annotate_record
 
         annotate_record(record, {"parent": parent})
     try:
-        return _execute(spec, record, checkpoint)
+        return _execute(spec, record, checkpoint, tables)
     except BaseException as error:
         finalize_record(
             record,
@@ -255,7 +293,7 @@ def _checkpoint_record(path: Path) -> Path:
 
 
 def _check_source(record: Path) -> None:
-    from .records import _hash, _source_archive, _table_archive
+    from .records import _hash, _source_archive
 
     checked = verify_record(record)
     if not checked["ok"]:
@@ -270,9 +308,6 @@ def _check_source(record: Path) -> None:
         _source_archive(folder / "source.zip")
         if _hash(folder / "source.zip") != manifest["source_sha256"]:
             raise ValueError("executed source differs from record; restore captured source first")
-        tables = _table_archive(folder)
-        if _hash(tables) != manifest["table_pack_sha256"]:
-            raise ValueError("current molecular tables differ from the captured pack")
     from .records import _software_environment
 
     expected = manifest["software_environment"]
@@ -346,20 +381,23 @@ def resume(
         "external",
     ):
         raise ValueError("this operation has no evolutionary checkpoint")
-    from .records import _hash
+    from .records import _hash, captured_tables, load_session_inputs
 
-    return run(
-        spec,
-        destination=destination,
-        checkpoint=loaded,
-        parent={
-            "relationship": "resume",
-            "scientific_identity": inspect_record(source)["scientific_identity"],
-            "manifest_sha256": _hash(source / "manifest.json"),
-            "checkpoint_revision": loaded["revision"],
-            "checkpoint_sha256": _hash(committed_path),
-        },
-    )
+    with captured_tables(source) as tables:
+        return run(
+            spec,
+            destination=destination,
+            checkpoint=loaded,
+            tables=tables,
+            session_inputs=load_session_inputs(source),
+            parent={
+                "relationship": "resume",
+                "scientific_identity": inspect_record(source)["scientific_identity"],
+                "manifest_sha256": _hash(source / "manifest.json"),
+                "checkpoint_revision": loaded["revision"],
+                "checkpoint_sha256": _hash(committed_path),
+            },
+        )
 
 
 def reproduce(record, destination) -> Path:
@@ -376,15 +414,20 @@ def reproduce(record, destination) -> Path:
         function = profile if kind == "profile" else qualify
         output = function(_captured_spec(source), destination=destination)
     else:
-        output = run(
-            _captured_spec(source),
-            destination=destination,
-            parent={
-                "relationship": "reproduce",
-                "scientific_identity": inspect_record(source)["scientific_identity"],
-                "manifest_sha256": _hash(source / "manifest.json"),
-            },
-        )
+        from .records import captured_tables, load_session_inputs
+
+        with captured_tables(source) as tables:
+            output = run(
+                _captured_spec(source),
+                destination=destination,
+                tables=tables,
+                session_inputs=load_session_inputs(source),
+                parent={
+                    "relationship": "reproduce",
+                    "scientific_identity": inspect_record(source)["scientific_identity"],
+                    "manifest_sha256": _hash(source / "manifest.json"),
+                },
+            )
     original = inspect_record(source)["artifacts"]["arrays"]
     recreated = inspect_record(output)["artifacts"]["arrays"]
     if set(original) != set(recreated):

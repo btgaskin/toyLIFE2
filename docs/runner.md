@@ -51,7 +51,10 @@ with BatchRunner() as runner:
 permit it. `run(steps=n)` makes at most `n` step attempts. `run()` follows the declared
 horizon or a world-tick limit. An unbounded episode requires one of these stopping
 conditions. `snapshot()` copies selected numerical state into owned, read-only
-arrays and checks its requested array bytes against the execution memory budget.
+arrays. The runner's numerical memory budget covers live session reservations,
+resident tables, fixed assay outputs, and temporary numerical work together.
+Release completed sessions with `runner.release(session)` to free their
+reservation before admitting another workload.
 `include_pending=True` adds staged observations, chemical progress, and any prepared
 world update; selecting fields also selects which snapshot entries are returned.
 
@@ -162,6 +165,38 @@ For a full trace paused by its byte limit, increase the retained trace budget:
 .venv/bin/toylife2 resume /tmp/toylife-partial \
   --trace-budget-mib 32 --destination /tmp/toylife-larger-trace
 ```
+
+## Recording Python sessions
+
+Build the effective specification once and use it to construct the session:
+
+```python
+from toylife2 import BatchRunner, EpisodeSpec, RunSpec, TaskSpec
+from toylife2.runner import reproduce
+
+spec = RunSpec(
+    schema_version=2, operation="rollout", seed=42, samples=8,
+    task=TaskSpec(kind="temporal_probe"),
+    episode=EpisodeSpec(horizon=20, chemical_updates=4),
+)
+with BatchRunner(spec.execution) as runner:
+    session = runner.from_spec(spec, destination="runs/python-control")
+    session.step()
+    session.run()
+    runner.finish(session)
+reproduce("runs/python-control", "runs/python-control-replayed")
+```
+
+For explicit genomes and stochastic panels, `runner.rollout(genomes, spec=spec,
+panel=7, identities=numeric_tree, destination=...)` captures the panel and typed
+identity tree alongside the spec. Declare those genomes in `spec.genotypes`,
+and use the same task, protocol, controller, seed, work limits, and recording
+settings. Omitted settings inherit the supplied spec. A session that differs
+from the supplied scientific configuration is rejected at registration.
+
+Pass `tables=Tables.load(source=..., cache_dir=...)` to `BatchRunner` or
+`toylife2.runner.run` to record an alternate source pack. Replay restores its captured
+source; recording requires the executing arrays to match that source.
 
 `BatchRunner.finish(session)` flushes a final checkpoint and result artifacts for a
 recorded session. A runner context manager finishes its registered records on exit.

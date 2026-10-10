@@ -342,11 +342,9 @@ class _BatchChemistry:
         }
         needed = self.buffer_memory["total"]
         engine = model.engine
-        if (
-            needed + engine._table_bytes + getattr(engine, "_reserved_session_bytes", 0)
-            > engine.execution.memory_budget_mib * 1024 * 1024
-        ):
-            raise MemoryError("persistent chemistry exceeds execution memory budget")
+        engine._check_memory(
+            needed, message="persistent chemistry exceeds execution memory budget"
+        )
         self._admit(initial)
         self.arrays = [
             engine._i32(a.shape, a) for a in (kinds, release, rx, products, promoters, polymerase)
@@ -733,21 +731,27 @@ class ChemistrySession(SessionBase):
         return report
 
     def snapshot(self, fields=None, include_pending=False):
-        result = {
-            "state": dict(self.state),
-            "genotypes": _owned(self.genotypes),
-            "inventories": self.inventories,
-            "after_input": self._batch.inventories("after_input"),
-            "after_output": self._batch.inventories("after_output"),
-            "fissions": self._batch.fissions(),
-        }
-        if include_pending:
-            from .sessions import owned
+        from .sessions import owned
 
-            result["pending_trace"] = owned(self._pending_trace)
-        if fields is not None:
-            result = {key: result[key] for key in fields}
-        return MappingProxyType(result)
+        factories = {
+            "state": lambda: dict(self.state),
+            "genotypes": lambda: _owned(self.genotypes),
+            "inventories": lambda: self.inventories,
+            "after_input": lambda: self._batch.inventories("after_input"),
+            "after_output": lambda: self._batch.inventories("after_output"),
+            "fissions": lambda: self._batch.fissions(),
+        }
+        # Expression construction overlaps its source and immutable owning copy.
+        sizes = {name: 0 for name in factories}
+        sizes["state"] = len(self._batch.host) * 16
+        sizes["genotypes"] = self.genotypes.nbytes
+        if include_pending:
+            factories["pending_trace"] = lambda: owned(self._pending_trace)
+            sizes["pending_trace"] = self.model.engine._snapshot_bytes(self._pending_trace)
+        selected = tuple(factories) if fields is None else tuple(fields)
+        required = sum(sizes[name] for name in selected)
+        self.model.engine._check_snapshot_memory(self, required)
+        return MappingProxyType({name: factories[name]() for name in selected})
 
     def drain_trace(self):
         """Transfer retained full rows to an owning parent recorder.
@@ -784,6 +788,25 @@ class ChemistrySession(SessionBase):
             "first_events": self._batch.first_event_counts.copy(),
             "after_input": self._batch.stages.get("after_input", self._batch.host).copy(),
             "after_output": self._batch.stages.get("after_output", self._batch.host).copy(),
+        }
+
+    def _payload_view(self):
+        """Borrow the numerical tree so the parent can admit its owning copy."""
+        return {
+            "identity": self.identity,
+            "table_digest": str(self.model.tables.digest),
+            "ruleset": RULESET,
+            "update": self.update,
+            "spec": asdict(self.spec),
+            "genotypes": self.genotypes,
+            "unrecorded_trace": self._unrecorded_trace,
+            "trace_bytes": self._trace_bytes,
+            "counts": self._batch.host,
+            "bits": self._batch.bits,
+            "events": self._batch.last_events,
+            "first_events": self._batch.first_event_counts,
+            "after_input": self._batch.stages.get("after_input", self._batch.host),
+            "after_output": self._batch.stages.get("after_output", self._batch.host),
         }
 
     def restore_payload(self, payload):

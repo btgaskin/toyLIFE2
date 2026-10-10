@@ -9,24 +9,51 @@ integrity check covers every committed file with SHA-256 and byte size.
 | --- | --- |
 | `spec.json`, `spec.toml` | Effective validated run definition. |
 | `source/source.zip` | Executed package source, dependency lock when present, and scientific decisions. |
-| `source/tables.zip` | Exact author lookup files. In a workspace this is a link to an immutable content-addressed pack under `packs/`; portable exports include the bytes. |
-| `inputs/` | Copied external input files and their hashes. |
+| `source/tables.zip` | Exact executed lookup source files, including alternate source packs. In a workspace this is a link to an immutable content-addressed pack under `packs/`; portable exports include the bytes. |
+| `inputs/` | Copied external input files and typed numerical session inputs, with their hashes. |
 | `checkpoints/<revision>/checkpoint.json`, `*.npy` | Immutable algorithm/RNG state and large arrays; manifest retains the latest two committed revisions. |
 | `arrays/*.npy` | Typed result arrays and per-element status arrays where applicable. |
 | `traces/*.jsonl` | Immutable event chunks in `full` recording mode, bounded by `trace_budget_mib`. |
 | `summary.json`, `summary.csv` | Aggregate outputs and portable scalar summary. |
 | `manifest.json` | Schema, source/input/lock/environment identity, scientific identity, backend, status, artifacts, and file hashes. |
 
-The scientific identity hashes the model rules, operation, seed, assay settings,
-and copied external input file contents. `spec_scientific_identity` captures the
-validated spec alone, while a record with external inputs adds their SHA-256
-hashes. Scientific identity omits `execution` and `recording`: batch size, memory budget,
-CPU/Metal placement, and trace settings cannot change the scientific question.
-The manifest separately records the requested and actual execution backend.
-The lookup pack holds model data, not a regenerable numerical cache. A standalone
-record owns the pack; workspace runs share a content-addressed pack. Both use
-the same record path and manifest fields. Portable exports copy the pack into
-the exported run.
+The scientific identity hashes model rules, operation, seed, assay settings,
+copied input contents, captured custom components, the executed molecular source
+digest, and explicit session inputs. `spec_scientific_identity` captures the
+validated spec alone. New manifests declare
+`scientific_identity_scheme="spec-inputs-components-tables-session-v1"`; existing
+records retain their original identity projection when verified.
+
+A recorded rollout retains its `panel` and numerical `identities` in
+`session_inputs`. Arrays use typed NPY files under `inputs/session/`; tuples and
+array references use a JSON state tree. Replay restores those inputs before
+constructing the session. Scientific identity omits physical execution and
+recording settings, including controller capacity and work quotas. The manifest
+separately records the requested and actual backend and coalescing metadata.
+Standalone and coalesced assays retain the same scientific summaries and arrays,
+including neighborhood robustness and neutral mutation counts.
+
+The lookup pack holds authoritative model data. Recording checks the executing
+arrays against a fresh parse of their source pack, captures that source, and
+checks its digest against the executing tables. Synthetic in-memory tables can
+be used for model experiments; a replayable record requires their corresponding
+source pack. Parsed and cached tables share shape, dtype, index, and relationship
+validation. Cached arrays additionally carry a source-bound content checksum;
+invalid caches rebuild from source.
+
+A standalone record owns its pack; workspace runs share a content-addressed
+pack. Portable exports include the bytes. Resume and reproduction restore the
+captured tables even when the original alternate source directory has moved or
+been removed. Named batch recovery uses one table pack per runner and checks it
+against the captured batch and children; supply that same `Tables` pack when
+recovering a batch, or resume a child directly from its record.
+
+`reproduce` requires the executed package source, Python build, platform,
+architecture, and NumPy/Quadrants/tomli-w versions and installed-distribution
+fingerprints to match the record. Use the captured source and lock in the recorded
+runtime environment for strict replay. A mismatch identifies the changed
+component before execution. Cross-platform comparisons and backend qualification
+are separate experiments with their own records.
 
 An array result may have a paired status array. `complete` means its value is
 valid. Resource-limited or interrupted units carry their own explicit status;

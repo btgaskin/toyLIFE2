@@ -162,7 +162,7 @@ class RolloutSession(SessionBase):
             WorkLimits(),
             recording or RecordingSpec(),
         )
-        snapshot_bytes = _array_bytes(self.chemistry.payload())
+        snapshot_bytes = _array_bytes(self.chemistry._payload_view())
         # Reserve peak world working arrays and persistent initialized/committed
         # chemistry copies before constructing the numerical world state.
         self._world_peak_bytes = self._world_work * 200 + self._chemical_work * 16
@@ -213,13 +213,9 @@ class RolloutSession(SessionBase):
         self._admit_memory(self.buffer_bytes)
 
     def _admit_memory(self, required: int) -> None:
-        engine = self.model.engine
-        reserved = getattr(engine, "_reserved_session_bytes", 0)
-        if (
-            required + engine._table_bytes + reserved
-            > self.model.execution.memory_budget_mib * 1024 * 1024
-        ):
-            raise MemoryError("persistent rollout exceeds execution memory budget")
+        self.model.engine._check_memory(
+            required, message="persistent rollout exceeds execution memory budget"
+        )
 
     @property
     def buffer_bytes(self) -> int:
@@ -335,6 +331,8 @@ class RolloutSession(SessionBase):
         return owned(numerical(self.world.observe(numerical(self._world_state))))
 
     def snapshot(self, fields=None, include_pending: bool = False) -> dict:
+        # Borrow existing arrays first; derived arrays and all owning copies are
+        # allocated only after the selected fields pass shared admission.
         result = {
             "tick": self.tick,
             "world": self._world_state,
@@ -344,9 +342,9 @@ class RolloutSession(SessionBase):
             "channels": self.channels,
             "reward_sum": self.reward_sum,
             "reward_count": self.reward_count,
-            "scores": self.scores,
-            "status": self.status,
-            "success": self.success,
+            "scores": None,
+            "status": None,
+            "success": None,
         }
         if include_pending:
             result["pending"] = (
@@ -355,23 +353,38 @@ class RolloutSession(SessionBase):
                 else {
                     **(self._pending or {}),
                     "warmup_done": self._warmup_done,
-                    "chemistry": self.chemistry.payload(),
+                    "chemistry": self.chemistry._payload_view(),
                 }
             )
         if fields is not None:
             result = {name: result[name] for name in fields}
-
-        def bytes_used(value):
-            if isinstance(value, np.ndarray):
-                return value.nbytes
-            if isinstance(value, Mapping):
-                return sum(bytes_used(x) for x in value.values())
-            if isinstance(value, (tuple, list)):
-                return sum(bytes_used(x) for x in value)
-            return 0
-
-        if bytes_used(result) > self.model.execution.memory_budget_mib * 1024 * 1024:
-            raise MemoryError("requested snapshot exceeds execution memory budget; select fields")
+        count = self.reward_sum.size
+        derived_bytes = sum(
+            size for name, size in (
+                ("scores", self.reward_sum.nbytes), ("status", count * 64), ("success", count)
+            ) if name in result
+        )
+        scratch = count * 3 if "scores" in result or "success" in result else 0
+        if "success" in result and "scores" not in result:
+            scratch += self.reward_sum.nbytes
+        required = self.model.engine._snapshot_bytes(result) + 2 * derived_bytes + scratch
+        self.model.engine._check_snapshot_memory(self, required)
+        scores = None
+        if "scores" in result or "success" in result:
+            scores = np.divide(
+                self.reward_sum, self.reward_count, out=np.zeros_like(self.reward_sum),
+                where=self.reward_count > 0,
+            )
+        if "scores" in result:
+            result["scores"] = scores
+        if "status" in result:
+            result["status"] = np.full(self.world_shape, self._status, dtype="U16")
+        if "success" in result:
+            assert scores is not None
+            result["success"] = (
+                (self._status == "complete") & (self.reward_count > 0)
+                & (scores >= float(self.task.config.get("goal", 1.0)))
+            )
         return owned(result)
 
     def _encode(self, observation: dict, codec_state):

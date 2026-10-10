@@ -253,6 +253,8 @@ class Evaluator:
 
     def _assay(self, genes):
         model = self.model
+        engine = getattr(model, "engine", None)
+        original_execution = engine.execution if engine is not None else None
         if hasattr(model, "execution"):
             execution = dataclasses.replace(
                 model.execution,
@@ -260,17 +262,23 @@ class Evaluator:
             )
             model = copy.copy(model)
             model.execution = execution
-            if hasattr(model, "engine"):
-                model.engine = copy.copy(model.engine)
-                model.engine.execution = execution
-        if self.kind == "pattern_match":
-            if self.target is None:
-                raise ValueError("pattern_match requires a target")
-            result = model.patterns(genes, self.spec.spatial)
-        elif self.spec.assay.phenotype == "regulatory" and self.kind in {"descriptor", "python"}:
-            result = model.regulatory(genes)
-        else:
-            result = model.metabolic(genes, self.spec.assay.environment)
+            if engine is not None:
+                engine.execution = execution
+        try:
+            if self.kind == "pattern_match":
+                if self.target is None:
+                    raise ValueError("pattern_match requires a target")
+                result = model.patterns(genes, self.spec.spatial)
+            elif self.spec.assay.phenotype == "regulatory" and self.kind in {
+                "descriptor",
+                "python",
+            }:
+                result = model.regulatory(genes)
+            else:
+                result = model.metabolic(genes, self.spec.assay.environment)
+        finally:
+            if engine is not None:
+                engine.execution = original_execution
         status = np.asarray(result.status)
         leading = genes.shape[:-1]
         if status.shape != leading:

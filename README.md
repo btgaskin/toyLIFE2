@@ -155,7 +155,10 @@ print(result.values.shape)  # (2, 8, 4)
 
 `Model` also exposes metabolic assays, tissue patterns, one-bit neighborhoods,
 and robustness. `ArrayResult` owns read-only values and status arrays. Check
-status before using capped or interrupted assays as fitness.
+status before using capped or interrupted assays as fitness. A shared runner
+admits live session buffers, resident table uploads, assay outputs, and numerical
+scratch against one memory budget. Fixed assays share the runner's Engine;
+compatible named assays can coalesce while retaining standalone result artifacts.
 
 ## Stateful control and nested experiments
 
@@ -256,13 +259,20 @@ identity, lookup tables, copied inputs, result arrays, summaries, and checkpoint
 budget. Resource limits produce explicit partial status. Resume uses the last
 committed checkpoint and new invocation quotas.
 
-Scientific identity includes the model, protocol, seed, and input content.
+Scientific identity includes the model, protocol, seed, actual molecular table
+content, copied inputs, and explicit rollout panels and numerical identities.
+Recorded Python sessions use a matching `RunSpec` plus a destination or workspace;
+`runner.from_spec(spec, destination="runs/control")` is the shortest route.
+Alternate source table packs supplied through `Tables` are captured and restored
+from the record for resume and reproduction.
 Execution placement and chunk size are recorded separately, supporting recovery
 with different physical budgets. Covered integer chemistry and map outputs agree
 exactly across CPU and Metal; floating-point world trajectories can diverge.
 See [record format](docs/records.md) for retained files, portable records, and
-integrity checks. Direct Python sessions require an explicit recording workflow;
-creating a `Model` or `BatchRunner` alone does not create a run directory.
+integrity checks and a [recorded Python example](docs/runner.md#recording-python-sessions).
+`reproduce` uses the captured tables and inputs and requires the recorded source,
+Python runtime, platform, and numerical dependency fingerprints. Creating a
+`Model` or `BatchRunner` alone leaves recording to the caller.
 
 ## Qualification and published results
 

@@ -119,3 +119,20 @@ boundaries. Account for these transfers and checkpoint costs when choosing CPU o
 Metal. Record cold compilation separately from warm complete evaluation, include
 validity and work counters, and retain identical logical seeds across comparisons.
 Existing fixed-assay C++ timings describe their original recorded workloads.
+
+
+## Shared numerical memory admission
+
+One Engine accounts for persistent session buffers, resident lazy table packs,
+fixed-assay outputs, and numerical scratch. Session release frees its reservation;
+resident tables remain available for later assays. Table uploads preflight the
+whole requested pack before allocating, so a failed admission preserves the
+existing Engine buffers and counters. The budget covers managed numerical arrays;
+Python interpreter overhead, driver/compiler allocations, and serialization are
+outside this numerical accounting.
+
+Use one `BatchRunner` for compatible work to share tables and runtime state. Named
+fixed assays may coalesce into a larger cohort. Their child records preserve the
+same result arrays and summaries as standalone runs, and record cohort size as
+execution metadata. A named batch keeps the same molecular source pack on
+recovery; ordinary child-record resume restores the archived pack automatically.

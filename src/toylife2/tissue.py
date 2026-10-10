@@ -55,13 +55,9 @@ class TissueSession(SessionBase):
             "total": device_bytes + host_bytes,
         }
         required = self._buffer_memory["total"]
-        if (
-            required
-            + model.engine._table_bytes
-            + getattr(model.engine, "_reserved_session_bytes", 0)
-            > model.execution.memory_budget_mib * 1024 * 1024
-        ):
-            raise MemoryError("persistent tissue exceeds execution memory budget")
+        model.engine._check_memory(
+            required, message="persistent tissue exceeds execution memory budget"
+        )
         self._ca = model.engine._i32(ca.shape, ca)
         self._dimer = model.engine._i32((len(flat),), descriptors[:, 6])
         self._source = model.engine._i32(self._host.shape, self._host)
@@ -177,18 +173,25 @@ class TissueSession(SessionBase):
         return report
 
     def snapshot(self, fields=None, include_pending=False):
-        result = {
-            "state": dict(self.state),
-            "genotypes": _owned(self.genotypes),
-            "tissue": _owned(self._host.reshape((*self.leading, self.spec.cells))),
+        from .sessions import owned
+
+        factories = {
+            "state": lambda: dict(self.state),
+            "genotypes": lambda: _owned(self.genotypes),
+            "tissue": lambda: _owned(self._host.reshape((*self.leading, self.spec.cells))),
+        }
+        sizes = {
+            "state": self._host.nbytes,
+            "genotypes": self.genotypes.nbytes,
+            "tissue": self._host.nbytes,
         }
         if include_pending:
-            from .sessions import owned
-
-            result["pending_trace"] = owned(self._pending_trace)
-        if fields is not None:
-            result = {key: result[key] for key in fields}
-        return MappingProxyType(result)
+            factories["pending_trace"] = lambda: owned(self._pending_trace)
+            sizes["pending_trace"] = self.model.engine._snapshot_bytes(self._pending_trace)
+        selected = tuple(factories) if fields is None else tuple(fields)
+        required = sum(sizes[name] for name in selected)
+        self.model.engine._check_snapshot_memory(self, required)
+        return MappingProxyType({name: factories[name]() for name in selected})
 
     def _checkpoint_payload(self):
         return self.payload()

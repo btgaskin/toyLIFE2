@@ -45,12 +45,22 @@ class Model:
     def neighbourhood(
         self, genotypes: np.ndarray, *, phenotype: str = "metabolic", environment=None
     ) -> ArrayResult:
-        candidates = neighbours(genotypes)
-        if phenotype == "regulatory":
-            return self.regulatory(candidates)
-        if phenotype == "metabolic":
+        if phenotype not in ("regulatory", "metabolic"):
+            raise ValueError("phenotype must be regulatory or metabolic")
+        genes = validate(genotypes)
+        candidate_bytes = genes.nbytes * 20 * genes.shape[-1]
+        self.engine._check_memory(
+            2 * candidate_bytes + 2 * genes.nbytes,
+            message="neighbour genotypes exceed the execution memory budget",
+        )
+        candidates = neighbours(genes)
+        with self.engine._temporary_bytes(
+            genes.nbytes + candidates.nbytes,
+            message="neighbour genotypes exceed the execution memory budget",
+        ):
+            if phenotype == "regulatory":
+                return self.regulatory(candidates)
             return self.metabolic(candidates, environment)
-        raise ValueError("phenotype must be regulatory or metabolic")
 
     def robustness(
         self, genotypes: np.ndarray, *, phenotype: str = "metabolic", environment=None
@@ -59,13 +69,25 @@ class Model:
         genes = validate(genotypes)
         from .analysis import neighbourhood_summary
 
-        base = (
-            self.regulatory(genes)
-            if phenotype == "regulatory"
-            else self.metabolic(genes, environment)
-        )
-        adjacent = self.neighbourhood(genes, phenotype=phenotype, environment=environment)
-        return neighbourhood_summary(base, adjacent)
+        with self.engine._temporary_bytes(
+            genes.nbytes, message="robustness inputs exceed the execution memory budget"
+        ):
+            base = (
+                self.regulatory(genes)
+                if phenotype == "regulatory"
+                else self.metabolic(genes, environment)
+            )
+            with self.engine._temporary_bytes(
+                base.values.nbytes + base.status.nbytes,
+                message="base phenotype exceeds the execution memory budget",
+            ):
+                adjacent = self.neighbourhood(genes, phenotype=phenotype, environment=environment)
+                self.engine._check_memory(
+                    adjacent.status.nbytes + 5 * adjacent.values.nbytes
+                    + adjacent.values.size // adjacent.values.shape[-1] * 16,
+                    message="robustness summary exceeds the execution memory budget",
+                )
+                return neighbourhood_summary(base, adjacent)
 
     def patterns(self, genotypes: np.ndarray, spec: SpatialSpec | None = None) -> ArrayResult:
         from .spatial import patterns

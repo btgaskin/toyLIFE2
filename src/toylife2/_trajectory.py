@@ -49,12 +49,13 @@ def _unpack(key: bytes, n_genes: int) -> np.ndarray:
                          count=n_genes, bitorder="big").astype(np.int32)
 
 
-def _regulatory_chunk(engine, n_genes: int) -> int:
+def _regulatory_chunk(engine, n_genes: int, fixed_bytes: int = 0) -> int:
     capacity = n_genes * (n_genes + 1) // 2
-    per_lane = 4 * (5 * n_genes + 6 * capacity)
-    available = engine.execution.memory_budget_mib * 1024 * 1024 - engine._table_bytes
-    if available < per_lane:
-        raise MemoryError("one reachable regulatory lane exceeds the execution memory budget")
+    per_lane = 4 * (10 * n_genes + 10 * capacity)
+    available = engine._available_bytes(
+        fixed_bytes=fixed_bytes, minimum_bytes=per_lane,
+        message="one reachable regulatory lane exceeds the execution memory budget",
+    )
     return min(engine.execution.batch_size, max(1, available // per_lane))
 
 
@@ -62,15 +63,19 @@ def _reachable_cycles(engine, genes: np.ndarray,
                       tables: tuple[object, ...],
                       reserved_bytes: int = 0) -> tuple[list[list[bytes]], np.ndarray]:
     count, n_genes = genes.shape
+    engine._available_bytes(
+        fixed_bytes=reserved_bytes + count * (4 * n_genes + 9),
+        minimum_bytes=4 * (10 * n_genes + 10 * (n_genes * (n_genes + 1) // 2)),
+        message="reachable regulatory state exceeds the execution memory budget",
+    )
     current = np.zeros((count, n_genes), dtype=np.int32)
     seen: list[dict[bytes, int]] = [{} for _ in range(count)]
     visited: list[list[bytes]] = [[] for _ in range(count)]
     cycles: list[list[bytes]] = [[] for _ in range(count)]
     incomplete = np.zeros(count, dtype=bool)
     active = np.arange(count, dtype=np.int32)
-    chunk_size = _regulatory_chunk(engine, n_genes)
+    fixed_bytes = current.nbytes + incomplete.nbytes + 8 * count + reserved_bytes
     seen_bytes = 0
-    budget = engine.execution.memory_budget_mib * 1024 * 1024
     for _ in range(engine.execution.max_steps):
         pending: list[int] = []
         for index in active:
@@ -79,20 +84,24 @@ def _reachable_cycles(engine, genes: np.ndarray,
             if key in seen[row]:
                 cycles[row] = visited[row][seen[row][key]:]
             else:
-                seen_bytes += len(key) + 128  # dict entry, list pointer, and key payload
-                if engine._table_bytes + reserved_bytes + seen_bytes > budget:
-                    raise MemoryError(
-                        "reachable regulatory history exceeds the execution memory budget")
+                # Packed expression history and its integer position per state.
+                seen_bytes += len(key) + 8
+                engine._available_bytes(
+                    fixed_bytes=fixed_bytes + seen_bytes,
+                    message="reachable regulatory history exceeds the execution memory budget",
+                )
                 seen[row][key] = len(visited[row])
                 visited[row].append(key)
                 pending.append(row)
         if not pending:
             break
         active = np.asarray(pending, dtype=np.int32)
+        chunk_size = _regulatory_chunk(engine, n_genes, fixed_bytes + seen_bytes)
         for start in range(0, len(active), chunk_size):
             chunk = active[start:start + chunk_size]
             next_bits = _single(engine, genes[chunk], current[chunk], tables)[0]
             current[chunk] = next_bits
+            del next_bits
     else:
         # A cycle reached exactly after the final transition still requires
         # one more boundary check, matching the scalar reference cap.
@@ -115,7 +124,8 @@ def _source_inventories(engine, genotype: np.ndarray, cycle: Sequence[bytes],
     dleft = np.full((count, capacity), -1, dtype=np.int32)
     dright = np.full((count, capacity), -1, dtype=np.int32)
     dcount = np.zeros((count, capacity), dtype=np.int32)
-    chunk_size = _regulatory_chunk(engine, n_genes)
+    host_bytes = bits.nbytes + sum(a.nbytes for a in (pids, pcounts, did, dleft, dright, dcount))
+    chunk_size = _regulatory_chunk(engine, n_genes, host_bytes)
     for start in range(0, count, chunk_size):
         end = min(start + chunk_size, count)
         batch = np.broadcast_to(genotype, (end - start, n_genes))
@@ -126,15 +136,15 @@ def _source_inventories(engine, genotype: np.ndarray, cycle: Sequence[bytes],
         dleft[start:end] = d
         dright[start:end] = e
         dcount[start:end] = f
+        del _, a, b, c, d, e, f
     return pids, pcounts, did, dleft, dright, dcount
 
 
 def metabolic_reachable(engine, genotypes: np.ndarray,
-                        environment: tuple[str, ...] | list[str] | None = None) -> ArrayResult:
+                        environment: tuple[str, ...] | list[str] | None = None,
+                        *, _validated: bool = False) -> ArrayResult:
     """Assay only phases on the reachable attractor with exact bounded history."""
-    from ._kernels import metabolic_assay
-
-    genes = validate(genotypes)
+    genes = genotypes if _validated else validate(genotypes)
     leading = genes.shape[:-1]
     n_genes = genes.shape[-1]
     flat = genes.reshape((-1, n_genes))
@@ -150,15 +160,33 @@ def metabolic_reachable(engine, genotypes: np.ndarray,
     met_indices = np.asarray([engine.tables.met_index[canonical_metabolite(met)]
                               for met in env], dtype=np.int32)
     met_lengths = np.asarray([len(met) for met in env], dtype=np.int32)
-    budget = engine.execution.memory_budget_mib * 1024 * 1024
-    result_bytes = len(flat) * len(env) * (1 + 80)  # uint8 values and <U20 statuses
-    if result_bytes >= budget:
-        raise MemoryError("metabolic result arrays exceed the execution memory budget")
-    regulatory_tables = engine._regulatory_tables()
-    met_tables = tuple(engine._table(name) for name in (
-        "protein_met_energy", "dimer_met_energy", "dimer_met_seq", "dimer_met_pos",
-        "dimer_met_breakable", "breaking_seq_to_index", "breaking_energy"))
-    cycles, unfinished = _reachable_cycles(engine, flat, regulatory_tables, result_bytes)
+    result_bytes = 2 * len(flat) * len(env) * (1 + 80)
+    fixed_bytes = result_bytes + genes.nbytes + met_indices.nbytes + met_lengths.nbytes
+    names = engine._REGULATORY_TABLES + engine._METABOLIC_TABLES
+    engine._available_bytes(
+        table_names=names, fixed_bytes=fixed_bytes,
+        minimum_bytes=4 * (10 * n_genes + 10 * (n_genes * (n_genes + 1) // 2)),
+        message="one reachable metabolic assay exceeds the execution memory budget",
+    )
+    buffers = engine._table_pack(names)
+    regulatory_tables = buffers[:len(engine._REGULATORY_TABLES)]
+    met_tables = buffers[len(engine._REGULATORY_TABLES):]
+    with engine._temporary_bytes(
+        fixed_bytes, message="metabolic result arrays exceed the execution memory budget"
+    ):
+        return _metabolic_reachable(
+            engine, flat, leading, env, met_indices, met_lengths, regulatory_tables, met_tables,
+        )
+
+
+def _metabolic_reachable(engine, flat, leading, env, met_indices, met_lengths,
+                         regulatory_tables, met_tables):
+    from ._kernels import metabolic_assay
+
+    n_genes = flat.shape[-1]
+    cycles, unfinished = _reachable_cycles(engine, flat, regulatory_tables)
+    cycle_bytes = sum(len(key) + 8 for cycle in cycles for key in cycle) + unfinished.nbytes
+    engine._check_memory(cycle_bytes, message="reachable cycle history exceeds the memory budget")
     values = np.zeros((len(flat), len(env)), dtype=np.uint8)
     statuses = np.full((len(flat), len(env)), "incomplete", dtype="<U20")
     dim_capacity = n_genes * (n_genes + 1) // 2
@@ -168,9 +196,14 @@ def metabolic_reachable(engine, genotypes: np.ndarray,
             continue
         count = len(cycle) + 1
         source_bytes = 4 * count * (2 * n_genes + 4 * dim_capacity)
-        if budget - engine._table_bytes - result_bytes <= source_bytes:
-            raise MemoryError("reachable cycle inventories exceed the execution memory budget")
-        source = _source_inventories(engine, flat[sample], cycle, regulatory_tables)
+        engine._available_bytes(
+            fixed_bytes=cycle_bytes + source_bytes + 4 * count * n_genes,
+            minimum_bytes=4 * (10 * n_genes + 10 * dim_capacity),
+            message="reachable cycle inventories exceed the execution memory budget",
+        )
+        with engine._temporary_bytes(cycle_bytes,
+                                     message="reachable cycle history exceeds the memory budget"):
+            source = _source_inventories(engine, flat[sample], cycle, regulatory_tables)
         # A boundary has one free metabolite and at most g protein-derived
         # molecules. Only protein/dimer species admitted by this genotype can
         # occur. The finite composition bound preserves exact repeat checks
@@ -184,12 +217,12 @@ def metabolic_reachable(engine, genotypes: np.ndarray,
         history_capacity = finite_bound if finite_bound <= 1024 else 1
         lane_bytes = 4 * (4 * n_genes + 7 * dim_capacity + 6 * candidate_capacity
                           + history_capacity * (n_genes + dim_capacity))
-        fixed_bytes = source_bytes + 4 * (n_genes + count + 1)
-        available = budget - engine._table_bytes - result_bytes - fixed_bytes
-        if available < lane_bytes + 16:
-            raise MemoryError("one reachable metabolic lane exceeds the execution memory budget")
-        met_chunk = min(engine.execution.batch_size, len(env),
-                        max(1, (available - 16) // (lane_bytes + 8)))
+        fixed_bytes = cycle_bytes + 2 * source_bytes + 8 * (n_genes + count + 1)
+        available = engine._available_bytes(
+            fixed_bytes=fixed_bytes, minimum_bytes=lane_bytes + 32 + 80,
+            message="one reachable metabolic lane exceeds the execution memory budget",
+        )
+        met_chunk = min(engine.execution.batch_size, len(env), available // (lane_bytes + 32 + 80))
         device_genes = engine._i32((1, n_genes), flat[sample:sample + 1])
         source_device = tuple(engine._i32(a.shape, a) for a in source)
         cycle_indices = np.arange(count, dtype=np.int32)[None, :]
@@ -221,6 +254,9 @@ def metabolic_reachable(engine, genotypes: np.ndarray,
             values[sample, start:end] = output.to_numpy()[0].astype(np.uint8)
             statuses[sample, start:end] = np.where(
                 status.to_numpy()[0] != 0, "incomplete", "complete")
+            del device_met_ids, device_met_lengths, pids, pcounts, previous_pcounts
+            del dims, candidates, protein_demand, dimer_demand, history_p, history_d, output, status
+        del device_genes, source_device, cycle_indices, device_cycles, device_lengths, source
     return ArrayResult(values.reshape((*leading, len(env))),
                        statuses.reshape((*leading, len(env))),
                        {"ruleset": RULESET, "backend": engine.execution.backend,

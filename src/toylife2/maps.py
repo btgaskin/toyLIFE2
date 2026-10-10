@@ -104,6 +104,7 @@ def enumerate_map(
     tables: Tables,
     execution: ExecutionSpec | None = None,
     *,
+    engine: Engine | None = None,
     spatial: SpatialSpec | None = None,
     diffusion: str | None = None,
     start_pair: int = 0,
@@ -166,74 +167,90 @@ def enumerate_map(
         for field in histograms:
             _merge_histogram(histograms[field], resume_checkpoint[field])
         ca_to_pattern = dict(resume_checkpoint["ca_to_pattern"])
-    work = Engine(tables, execution)
+    work = engine or Engine(tables, execution)
     tiles = 0
     for first in range(cursor, end, tile_pairs):
         ids = np.arange(first, min(first + tile_pairs, end), dtype=np.int64)
         # Bounded host working set for promoter responses, descriptors, and CA rows.
-        tile_bytes = len(ids) * (16 * 6 * 4 + 256 * (7 + 1 + 64) * 4)
-        if tile_bytes > work.execution.memory_budget_mib * 1024 * 1024:
-            raise MemoryError("one weighted-map tile exceeds the execution memory budget")
-        left, right = ids // proteins, ids % proteins
-        weights = count[left].astype(np.int64) * count[right].astype(np.int64)
-        responses, present = pair_promoter_matrix(
-            tables,
-            np.column_stack((left, right)),
-            engine=work,
+        rule_size = 216 if _requires_extended_inputs(config) else 64
+        tile_bytes = (
+            131072 + count.nbytes
+            + len(ids) * (64 + 16 * 6 * 4 + 256 * (7 + 4 + 64 + rule_size) * 4)
         )
-        descriptors = np.empty((len(ids), 16, 16, 7), dtype=np.int32)
-        descriptors[..., :6] = (responses[:, :, None, :] << 1) | responses[:, None, :, :]
-        descriptors[..., :6] &= np.where(left[:, None, None, None] > 0, 3, 1)
-        descriptors[..., :6] &= np.where(right[:, None, None, None] > 0, 3, 2)
-        descriptors[..., 6] = present[:, None, None]
-        flat = descriptors.reshape(-1, 7)
-        row_weights = np.broadcast_to(weights[:, None, None], (len(ids), 16, 16)).ravel()
-        codes = np.zeros(len(flat), dtype=np.int32)
-        for index in range(6):
-            codes |= flat[:, index] << (2 * index)
-        codes |= flat[:, 6] << 12
-        # Weighted bincount uses float64. Every tile sums at most the 2**40
-        # complete map, below float64's exact-integer limit of 2**53.
-        counts = np.bincount(codes, weights=row_weights, minlength=8192)
-        active = np.flatnonzero(counts)
-        distinct = np.empty((len(active), 7), dtype=np.int32)
-        for index in range(6):
-            distinct[:, index] = (active >> (2 * index)) & 3
-        distinct[:, 6] = active >> 12
-        ca = ca_from_descriptors(distinct, mode)
-        ca_keys = ["".join(map(str, row)) for row in ca]
-        if _requires_extended_inputs(config):
-            pattern_ca = ca_from_descriptors(distinct, mode, input_states=6)
-        else:
-            pattern_ca = ca
-        pattern_keys = [
-            f"{int(flag)}:" + "".join(map(str, row))
-            for flag, row in zip(distinct[:, 6], pattern_ca, strict=True)
-        ]
-        new_ca: dict[str, tuple[np.ndarray, int]] = {}
-        for key, row, flag in zip(pattern_keys, pattern_ca, distinct[:, 6], strict=True):
-            if key not in ca_to_pattern:
-                new_ca[key] = (row, int(flag))
-        if new_ca:
-            keys = list(new_ca)
-            trajectories = _trajectories_from_ca(
-                np.stack([new_ca[key][0] for key in keys]),
-                config,
-                work,
-                np.asarray([new_ca[key][1] for key in keys], dtype=np.int32),
+        work._available_bytes(
+            table_names=work._REGULATORY_TABLES, minimum_bytes=tile_bytes,
+            message="one weighted-map tile exceeds the execution memory budget",
+        )
+        with work._temporary_bytes(
+            tile_bytes, message="one weighted-map tile exceeds the execution memory budget"
+        ):
+            left, right = ids // proteins, ids % proteins
+            weights = count[left].astype(np.int64) * count[right].astype(np.int64)
+            responses, present = pair_promoter_matrix(
+                tables,
+                np.column_stack((left, right)),
+                engine=work,
             )
-            for key, trajectory in zip(keys, trajectories, strict=True):
-                ca_to_pattern[key] = _pattern_id(trajectory, protocol)
-        for code, ca_key, pattern_key in zip(active, ca_keys, pattern_keys, strict=True):
-            amount = int(counts[code])
-            grn = _descriptor_key(int(code))
-            histograms["logic_histogram"][grn[:6]] += amount
-            histograms["grn_histogram"][grn] += amount
-            histograms["ca_histogram"][ca_key] += amount
-            histograms["pattern_histogram"][ca_to_pattern[pattern_key]] += amount
-        total_weight += int(weights.sum()) * 256
-        cursor = int(ids[-1]) + 1
-        tiles += 1
+            descriptors = np.empty((len(ids), 16, 16, 7), dtype=np.int32)
+            descriptors[..., :6] = (responses[:, :, None, :] << 1) | responses[:, None, :, :]
+            descriptors[..., :6] &= np.where(left[:, None, None, None] > 0, 3, 1)
+            descriptors[..., :6] &= np.where(right[:, None, None, None] > 0, 3, 2)
+            descriptors[..., 6] = present[:, None, None]
+            flat = descriptors.reshape(-1, 7)
+            row_weights = np.broadcast_to(weights[:, None, None], (len(ids), 16, 16)).ravel()
+            codes = np.zeros(len(flat), dtype=np.int32)
+            for index in range(6):
+                codes |= flat[:, index] << (2 * index)
+            codes |= flat[:, 6] << 12
+            # Weighted bincount uses float64. Every tile sums at most the 2**40
+            # complete map, below float64's exact-integer limit of 2**53.
+            counts = np.bincount(codes, weights=row_weights, minlength=8192)
+            active = np.flatnonzero(counts)
+            distinct = np.empty((len(active), 7), dtype=np.int32)
+            for index in range(6):
+                distinct[:, index] = (active >> (2 * index)) & 3
+            distinct[:, 6] = active >> 12
+            ca = ca_from_descriptors(distinct, mode)
+            ca_keys = ["".join(map(str, row)) for row in ca]
+            if _requires_extended_inputs(config):
+                pattern_ca = ca_from_descriptors(distinct, mode, input_states=6)
+            else:
+                pattern_ca = ca
+            pattern_keys = [
+                f"{int(flag)}:" + "".join(map(str, row))
+                for flag, row in zip(distinct[:, 6], pattern_ca, strict=True)
+            ]
+            new_ca: dict[str, tuple[np.ndarray, int]] = {}
+            for key, row, flag in zip(pattern_keys, pattern_ca, distinct[:, 6], strict=True):
+                if key not in ca_to_pattern:
+                    new_ca[key] = (row, int(flag))
+            if new_ca:
+                keys = list(new_ca)
+                trajectories = _trajectories_from_ca(
+                    np.stack([new_ca[key][0] for key in keys]),
+                    config,
+                    work,
+                    np.asarray([new_ca[key][1] for key in keys], dtype=np.int32),
+                )
+                work._check_memory(
+                    trajectories.nbytes + 2 * config.steps * config.cells * 4,
+                    message="pattern hash buffers exceed the execution memory budget",
+                )
+                for key, trajectory in zip(keys, trajectories, strict=True):
+                    ca_to_pattern[key] = _pattern_id(trajectory, protocol)
+                del trajectories, trajectory
+            for code, ca_key, pattern_key in zip(active, ca_keys, pattern_keys, strict=True):
+                amount = int(counts[code])
+                grn = _descriptor_key(int(code))
+                histograms["logic_histogram"][grn[:6]] += amount
+                histograms["grn_histogram"][grn] += amount
+                histograms["ca_histogram"][ca_key] += amount
+                histograms["pattern_histogram"][ca_to_pattern[pattern_key]] += amount
+            total_weight += int(weights.sum()) * 256
+            cursor = int(ids[-1]) + 1
+            tiles += 1
+            del responses, present, descriptors, flat, row_weights, codes, counts, active
+            del distinct, ca, pattern_ca, new_ca, row, ids, left, right, weights
         if checkpoint_callback is not None and (
             tiles % checkpoint_interval_tiles == 0
             or cursor == end

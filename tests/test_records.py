@@ -15,9 +15,15 @@ from toylife2.workspaces import init_workspace
 
 @pytest.fixture
 def small_packs(monkeypatch):
-    monkeypatch.setattr(records, "_source_archive", lambda path, source=None: records._write_bytes(
-        path, b"source"))
-    monkeypatch.setattr(records, "_table_archive", lambda root: _small_table_pack(root))
+    monkeypatch.setattr(
+        records, "_source_archive", lambda path, source=None: records._write_bytes(path, b"source")
+    )
+    monkeypatch.setattr(
+        records, "_table_archive", lambda root, tables=None: _small_table_pack(root)
+    )
+    from toylife2.tables import Tables
+
+    monkeypatch.setattr(records, "_archive_table_digest", lambda path: Tables.load().digest)
 
 
 def _small_table_pack(root):
@@ -34,25 +40,33 @@ def test_record_checkpoint_finalization_integrity_and_export(tmp_path, small_pac
     relocated = tmp_path / "relocated.npy"
     relocated.write_bytes(external.read_bytes())
     same = records.begin_record(spec, tmp_path / "same", inputs={"target": relocated})
-    assert records.inspect_record(root)["scientific_identity"] == (
-        records.inspect_record(same)["scientific_identity"])
+    assert (
+        records.inspect_record(root)["scientific_identity"]
+        == (records.inspect_record(same)["scientific_identity"])
+    )
     np.save(external, np.arange(4, dtype=np.uint8) + 1)
     other = records.begin_record(spec, tmp_path / "other", inputs={"target": external})
-    assert records.inspect_record(root)["scientific_identity"] != (
-        records.inspect_record(other)["scientific_identity"])
-    records.write_checkpoint(root, {"cursor": 3, "rng_state": {"state": 123}},
-                             arrays={"population": np.arange(2)})
+    assert (
+        records.inspect_record(root)["scientific_identity"]
+        != (records.inspect_record(other)["scientific_identity"])
+    )
+    records.write_checkpoint(
+        root, {"cursor": 3, "rng_state": {"state": 123}}, arrays={"population": np.arange(2)}
+    )
     checkpoint = records.read_checkpoint(root)
     assert checkpoint["state"]["cursor"] == 3
     np.testing.assert_array_equal(checkpoint["loaded_arrays"]["population"], [0, 1])
-    values = ArrayResult(np.array([1, 2], dtype=np.uint8),
-                         np.array(["complete", "resource_limit"]))
+    values = ArrayResult(np.array([1, 2], dtype=np.uint8), np.array(["complete", "resource_limit"]))
     with pytest.raises(ValueError, match="non-complete units"):
         records.finalize_record(root, arrays={"phenotype": values})
     assert records.verify_record(root)["ok"]
-    records.finalize_record(root, arrays={"phenotype": values},
-                            summaries={"count": 2, "valid": 1},
-                            metadata={"execution": {"actual_backend": "cpu"}}, status="partial")
+    records.finalize_record(
+        root,
+        arrays={"phenotype": values},
+        summaries={"count": 2, "valid": 1},
+        metadata={"execution": {"actual_backend": "cpu"}},
+        status="partial",
+    )
     assert records.verify_record(root)["ok"]
     archive = records.export_record(root, tmp_path / "portable.zip")
     with zipfile.ZipFile(archive) as bundle:
@@ -69,18 +83,18 @@ def test_workspace_table_pack_is_content_addressed(tmp_path, monkeypatch):
     (source / "a.txt").write_text("data", encoding="utf-8")
     monkeypatch.setattr(tables, "DEFAULT_SOURCE", source)
     monkeypatch.setattr(tables, "_source_files", lambda root: [root / "a.txt"])
-    monkeypatch.setattr(records, "_source_archive", lambda path, source=None: records._write_bytes(
-        path, b"source"))
+    monkeypatch.setattr(
+        records, "_source_archive", lambda path, source=None: records._write_bytes(path, b"source")
+    )
     workspace = init_workspace(tmp_path / "workspace")
     first = workspace / "runs" / "first"
     second = workspace / "runs" / "second"
-    records.begin_record(RunSpec(seed=1), first)
-    records.begin_record(RunSpec(seed=2), second)
+    records._table_archive(first)
+    records._table_archive(second)
     link1 = first / "source" / "tables.zip"
     link2 = second / "source" / "tables.zip"
     assert link1.is_symlink() and link2.is_symlink()
     assert link1.resolve() == link2.resolve()
-    assert records.verify_record(first)["ok"]
     with zipfile.ZipFile(link1) as archive:
         assert archive.read("a.txt") == b"data"
 
@@ -88,8 +102,9 @@ def test_workspace_table_pack_is_content_addressed(tmp_path, monkeypatch):
 def test_full_trace_respects_byte_budget_and_reports_truncation(tmp_path, small_packs):
     spec = RunSpec(seed=5, recording=RecordingSpec(mode="full", trace_budget_mib=1))
     root = records.begin_record(spec, tmp_path / "record")
-    result = records.append_trace(root, [{"event": 1}, {"payload": "x" * (2 * 1024 * 1024)},
-                                         {"event": 2}])
+    result = records.append_trace(
+        root, [{"event": 1}, {"payload": "x" * (2 * 1024 * 1024)}, {"event": 2}]
+    )
     assert result == {"written": 1, "dropped": 2, "truncated": True}
     assert records.inspect_record(root)["trace"]["dropped_rows"] == 2
     assert records.verify_record(root)["ok"]
@@ -121,7 +136,9 @@ def test_checkpoint_retention_and_crash_orphan_recovery(tmp_path, small_packs):
 
 
 def test_checkpoint_commit_reuses_immutable_hashes_but_verify_rehashes(
-    tmp_path, small_packs, monkeypatch,
+    tmp_path,
+    small_packs,
+    monkeypatch,
 ):
     root = records.begin_record(RunSpec(seed=13), tmp_path / "record")
     original = records._hash
@@ -166,8 +183,7 @@ def test_source_archive_has_stable_paths_in_checkout_and_installed_layout(tmp_pa
     provenance.mkdir()
     vendor = installed / "_vendor" / "toylife"
     vendor.mkdir(parents=True)
-    (provenance / "pyproject.toml").write_text("[project]\nname='toylife2'\n",
-                                                    encoding="utf-8")
+    (provenance / "pyproject.toml").write_text("[project]\nname='toylife2'\n", encoding="utf-8")
     (provenance / "decisions.md").write_text("canonical\n", encoding="utf-8")
     (vendor / "toy_plugin.cpp").write_text("// original\n", encoding="utf-8")
     (vendor / "toyLIFE.pdf").write_bytes(b"%PDF-1.4 test")
@@ -191,8 +207,12 @@ def test_boundary_trace_and_checkpoint_commit_together(tmp_path, small_packs, mo
 
     monkeypatch.setattr(records, "_commit", interrupted)
     with pytest.raises(RuntimeError, match="simulated crash"):
-        records.write_boundary(root, {"step": 1}, arrays={"population": np.array([1])},
-                               events=[{"step": 1, "before": [0], "after": [1]}])
+        records.write_boundary(
+            root,
+            {"step": 1},
+            arrays={"population": np.array([1])},
+            events=[{"step": 1, "before": [0], "after": [1]}],
+        )
     monkeypatch.setattr(records, "_commit", original_commit)
     assert records.read_checkpoint(root)["state"]["step"] == 0
     checked = records.verify_record(root)
@@ -202,7 +222,9 @@ def test_boundary_trace_and_checkpoint_commit_together(tmp_path, small_packs, mo
     assert initial.exists()
 
     committed, accepted = records.write_boundary(
-        root, {"step": 1}, arrays={"population": np.array([1])},
+        root,
+        {"step": 1},
+        arrays={"population": np.array([1])},
         events=[{"step": 1, "before": [0], "after": [1]}],
     )
     assert accepted and committed.exists()

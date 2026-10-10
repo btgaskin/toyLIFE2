@@ -28,10 +28,12 @@ def pair_promoter_matrix(
         raise ValueError("protein_pairs must be nonempty [pair,2]")
     if np.any(pairs < 0) or np.any(pairs >= len(tables.protein_perimeter)):
         raise ValueError("protein ID outside table range")
+    engine._available_bytes(
+        table_names=engine._REGULATORY_TABLES,
+        minimum_bytes=len(pairs) * (16 + 2 * (16 * 6 * 4 + 4)),
+        message="pair response matrix exceeds the execution memory budget",
+    )
     table_buffers = engine._regulatory_tables()[1:]
-    budget = engine.execution.memory_budget_mib * 1024 * 1024
-    if engine._table_bytes + len(pairs) * (8 + 16 * 6 * 4 + 4) > budget:
-        raise MemoryError("pair response matrix exceeds the execution memory budget")
     device_pairs = engine._i32(pairs.shape, pairs)
     responses = engine._i32((len(pairs), 16, 6))
     present = engine._i32((len(pairs),))
@@ -57,6 +59,14 @@ def response_descriptors(
     leading = genes.shape[:-1]
     flat = genes.reshape(-1, 2)
     work = engine or Engine(tables, execution)
+    # Validated inputs, duplicated genes, both truth arrays, descriptors and
+    # vectorized protein/dimer indexing scratch remain live across nested assays.
+    with work._temporary_bytes(len(flat) * 256 + len(tables.protein_perimeter) * 4,
+                               message="spatial descriptors exceed the execution memory budget"):
+        return _response_descriptors(tables, flat, leading, work)
+
+
+def _response_descriptors(tables, flat, leading, work):
     with_extra_a = np.concatenate((flat, flat[:, :1]), axis=1)
     with_extra_b = np.concatenate((flat, flat[:, 1:2]), axis=1)
     a = work.regulatory(with_extra_a).values
@@ -126,7 +136,15 @@ def compile_ca(
     """Compile one 64- or 216-entry local transition table per genotype."""
     if diffusion not in ("none", "A", "B", "both", "all"):
         raise ValueError("unknown diffusion mode")
-    descriptors = response_descriptors(tables, genotypes, execution, engine=engine)
+    if input_states not in (4, 6):
+        raise ValueError("input_states must be 4 or 6")
+    work = engine or Engine(tables, execution)
+    descriptors = response_descriptors(tables, genotypes, execution, engine=work)
+    work._available_bytes(
+        fixed_bytes=descriptors.nbytes,
+        minimum_bytes=descriptors.size // 7 * input_states**3 * 8,
+        message="cellular automata exceed the execution memory budget",
+    )
     return ca_from_descriptors(descriptors, diffusion, input_states=input_states)
 
 
@@ -195,18 +213,14 @@ def _trajectories_from_ca(
     config: SpatialSpec,
     work: Engine,
     dimer_flags: np.ndarray | None = None,
+    *,
+    owned_result: bool = False,
 ) -> np.ndarray:
     """Advance distinct local rules in Quadrants without recompiling chemistry."""
     from ._kernels import spatial_trajectory
 
-    budget = work.execution.memory_budget_mib * 1024 * 1024
-    output_bytes = len(ca) * config.steps * config.cells * 4
-    if output_bytes > budget:
-        raise MemoryError("tissue output exceeds the execution memory budget")
+    output_bytes = (2 if owned_result else 1) * len(ca) * config.steps * config.cells * 4
     morphogen_bytes = config.steps * config.cells * 4
-    if morphogen_bytes > budget:
-        raise MemoryError("morphogen schedule exceeds the execution memory budget")
-    morphogen = _morphogen(config)
     input_states = 4 if ca.shape[1] == 64 else 6
     if ca.shape[1] not in (64, 216):
         raise ValueError("CA rows require 64 or 216 entries")
@@ -216,10 +230,16 @@ def _trajectories_from_ca(
         dimer_flags = np.zeros(len(ca), dtype=np.int32)
     if len(dimer_flags) != len(ca):
         raise ValueError("one dimer flag is required per CA")
-    per_sample = 4 * (ca.shape[1] + 1 + config.cells * (config.steps + 2))
-    available = budget - work._table_bytes - morphogen.nbytes - output_bytes - ca.nbytes
-    if available < per_sample:
-        raise MemoryError("one tissue trajectory exceeds the execution memory budget")
+    # Device trajectory and its host readback overlap; morphogen lives on both.
+    per_sample = 4 * (ca.shape[1] + 2 + config.cells * (2 * config.steps + 3))
+    fixed_bytes = (
+        2 * morphogen_bytes + output_bytes + ca.nbytes + dimer_flags.nbytes + config.cells * 4
+    )
+    available = work._available_bytes(
+        fixed_bytes=fixed_bytes, minimum_bytes=per_sample,
+        message="one tissue trajectory exceeds the execution memory budget",
+    )
+    morphogen = _morphogen(config)
     batch = min(work.execution.batch_size, available // per_sample)
     output = np.empty((len(ca), config.steps, config.cells), dtype=np.int32)
     device_morphogen = work._i32(morphogen.shape, morphogen)
@@ -246,6 +266,7 @@ def _trajectories_from_ca(
             input_states,
         )
         output[start : start + len(part)] = trajectory.to_numpy()
+        del device_ca, device_dimer, initial, state, next_state, trajectory
     return output
 
 
@@ -261,13 +282,29 @@ def patterns(
     work = engine or Engine(tables, execution)
     genes = validate(genotypes)
     leading = genes.shape[:-1]
+    if genes.shape[-1] != 2:
+        raise ValueError("spatial phenotypes require exactly two genes")
     flat = genes.reshape(-1, 2)
-    if len(flat) * config.steps * config.cells * 4 > work.execution.memory_budget_mib * 1024 * 1024:
-        raise MemoryError("tissue output exceeds the execution memory budget")
+    rule_size = 216 if _requires_extended_inputs(config) else 64
+    work._available_bytes(
+        table_names=work._REGULATORY_TABLES,
+        minimum_bytes=len(flat) * (config.steps * config.cells * 8 + 160 + 8 + 28 + rule_size * 8),
+        message="tissue output exceeds the execution memory budget",
+    )
+    with work._temporary_bytes(genes.nbytes + len(flat) * 160,
+                               message="tissue inputs exceed the execution memory budget"):
+        return _patterns(tables, flat, leading, config, work)
+
+
+def _patterns(tables, flat, leading, config, work):
     descriptors = response_descriptors(tables, flat, engine=work)
     input_states = 6 if _requires_extended_inputs(config) else 4
     ca = ca_from_descriptors(descriptors, config.diffusion, input_states=input_states)
-    output = _trajectories_from_ca(ca, config, work, descriptors[:, 6])
+    with work._temporary_bytes(descriptors.nbytes,
+                               message="tissue descriptors exceed the execution memory budget"):
+        output = _trajectories_from_ca(
+            ca, config, work, descriptors[:, 6], owned_result=True
+        )
     return ArrayResult(
         output.reshape((*leading, config.steps, config.cells)),
         np.full(leading or (), "complete", dtype="<U20"),

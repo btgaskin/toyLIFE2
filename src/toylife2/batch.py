@@ -89,6 +89,27 @@ class BatchRunner:
                     and session.seed == (spec.seed or 0)
                     and session.agent_axis == spec.task.config.get("agent_axis")
                 )
+            matches = (
+                matches and session.limits == spec.limits and session.recording == spec.recording
+            )
+            if record is not None:
+                from .records import inspect_record, load_session_inputs
+                from .specs import digest
+
+                declared = inspect_record(record)
+                matches = (
+                    matches
+                    and declared.get("table_source_digest", self.model.tables.digest)
+                    == self.model.tables.digest
+                )
+                if session.kind == "rollout":
+                    inputs = load_session_inputs(record)
+                    from .rollout import _plain
+
+                    matches = matches and session.panel == inputs.get("panel", 0)
+                    matches = matches and digest(_plain(session.identities)) == digest(
+                        _plain(inputs.get("identities"))
+                    )
             if not matches:
                 if record is not None:
                     from .records import finalize_record
@@ -103,11 +124,12 @@ class BatchRunner:
                 raise ValueError("interactive session differs from RunSpec; use from_spec")
         reserved = getattr(self.model.engine, "_reserved_session_bytes", 0)
         required = getattr(session, "buffer_bytes", 0)
-        budget = self.execution.memory_budget_mib * 1024 * 1024
-        if reserved + required + self.model.engine._table_bytes > budget:
-            raise MemoryError("live sessions exceed the runner numerical memory budget")
+        self.model.engine._check_memory(
+            required, message="live sessions exceed the runner numerical memory budget"
+        )
         self.model.engine._reserved_session_bytes = reserved + required
         self._reservations[id(session)] = required
+        session._memory_reserved_bytes = required
         self._sessions.append(session)
         if (
             not nested
@@ -116,7 +138,12 @@ class BatchRunner:
         ):
             if spec is None:
                 raise ValueError("recording an interactive session requires a RunSpec")
-            record = self._begin(spec, destination, parent)
+            inputs = (
+                {"panel": session.panel, "identities": session.identities}
+                if session.kind == "rollout"
+                else None
+            )
+            record = self._begin(spec, destination, parent, session_inputs=inputs)
         if record is not None:
             from .records import write_boundary
 
@@ -170,7 +197,7 @@ class BatchRunner:
             session._boundary(force=True)
         return session
 
-    def _begin(self, spec, destination=None, parent=None):
+    def _begin(self, spec, destination=None, parent=None, session_inputs=None):
         if spec.operation == "external" and not spec.task.config.get("adapter_entrypoint"):
             raise ValueError("recorded external optimizers require an adapter_entrypoint factory")
         from .components import input_files
@@ -178,7 +205,14 @@ class BatchRunner:
         from .workspaces import new_record_path
 
         path = destination or new_record_path(self.workspace or "workspaces/default", spec)
-        return begin_record(spec, path, inputs=input_files(spec), parent=parent)
+        return begin_record(
+            spec,
+            path,
+            inputs=input_files(spec),
+            parent=parent,
+            tables=self.model.tables,
+            session_inputs=session_inputs,
+        )
 
     def chemistry(
         self,
@@ -193,6 +227,10 @@ class BatchRunner:
     ):
         self._check_open()
         from .chemistry import ChemistrySession
+
+        controller = controller or (spec.controller if spec else None)
+        limits = limits or (spec.limits if spec else None)
+        recording = recording or (spec.recording if spec else None)
 
         record = (
             self._begin(spec, destination)
@@ -216,6 +254,10 @@ class BatchRunner:
         self._check_open()
         from .tissue import TissueSession
 
+        spatial = spatial or (spec.spatial if spec else None)
+        limits = limits or (spec.limits if spec else None)
+        recording = recording or (spec.recording if spec else None)
+
         record = (
             self._begin(spec, destination)
             if spec is not None and (destination is not None or self.workspace is not None)
@@ -233,7 +275,7 @@ class BatchRunner:
         *,
         limits=None,
         recording=None,
-        seed=0,
+        seed=None,
         panel=0,
         agent_axis=None,
         identities=None,
@@ -244,8 +286,19 @@ class BatchRunner:
         self._check_open()
         from .rollout import RolloutSession
 
+        task = task or (spec.task if spec else None)
+        protocol = protocol or (spec.episode if spec else None)
+        controller = controller or (spec.controller if spec else None)
+        seed = (spec.seed or 0) if seed is None and spec else (seed or 0)
+        if agent_axis is None and spec:
+            agent_axis = spec.task.config.get("agent_axis")
+        limits = limits or (spec.limits if spec else None)
+        recording = recording or (spec.recording if spec else None)
+
         record = (
-            self._begin(spec, destination)
+            self._begin(
+                spec, destination, session_inputs={"panel": panel, "identities": identities}
+            )
             if spec is not None and (destination is not None or self.workspace is not None)
             else None
         )
@@ -292,6 +345,7 @@ class BatchRunner:
         if id(session) in self._records:
             raise ValueError("finish a recorded session before releasing its buffers")
         released = self._reservations.pop(id(session), 0)
+        session._memory_reserved_bytes = 0
         self.model.engine._reserved_session_bytes = max(
             0, getattr(self.model.engine, "_reserved_session_bytes", 0) - released
         )
@@ -366,6 +420,9 @@ class BatchRunner:
             if any(type(n) is not int or n <= 0 for n in shape) or np.prod(shape) != len(genes):
                 raise ValueError("task.config.batch_shape must contain every sampled genotype")
             genes = genes.reshape(*shape, spec.model.genes)
+        from .records import load_session_inputs
+
+        captured = load_session_inputs(record) if record is not None else {}
         common: dict[str, Any] = dict(
             limits=spec.limits, recording=spec.recording, checkpoint=checkpoint
         )
@@ -387,6 +444,8 @@ class BatchRunner:
                 spec.episode,
                 spec.controller,
                 seed=spec.seed or 0,
+                panel=captured.get("panel", 0),
+                identities=captured.get("identities"),
                 agent_axis=spec.task.config.get("agent_axis"),
                 **common,
             )
@@ -498,6 +557,8 @@ class BatchRunner:
             getattr(self.model.engine, "_reserved_session_bytes", 0)
             - sum(self._reservations.values()),
         )
+        for session in self._sessions:
+            session._memory_reserved_bytes = 0
         self._reservations.clear()
         self._closed = True
 
@@ -541,6 +602,11 @@ class BatchRunner:
             import json
 
             prior = json.loads(index_path.read_text())
+            if (
+                prior.get("table_source_digest", self.model.tables.digest)
+                != self.model.tables.digest
+            ):
+                raise ValueError("batch molecular tables differ from the captured index")
             if prior.get("scientific_identity", prior["spec_sha256"]) != scientific:
                 raise ValueError("batch specifications differ from the captured index")
         queue = list(specs)
@@ -565,6 +631,7 @@ class BatchRunner:
                 index_path,
                 {
                     "batch_schema": 2,
+                    "table_source_digest": self.model.tables.digest,
                     "spec_sha256": identity,
                     "scientific_identity": scientific,
                     "specs": {name: plain(spec) for name, spec in specs.items()},
@@ -582,10 +649,19 @@ class BatchRunner:
                     path = directory / name
                     cp = None
                     parent = None
+                    session_inputs = None
                     if (path / "manifest.json").exists():
                         from .runner import _check_source
 
                         _check_source(path)
+                        manifest = inspect_record(path)
+                        if (
+                            manifest.get("table_source_digest", manifest.get("table_digest"))
+                            != self.model.tables.digest
+                        ):
+                            raise ValueError(
+                                "batch molecular tables differ from the captured child"
+                            )
                         if inspect_record(path)["status"] == "complete":
                             outputs[name] = path
                             continue
@@ -612,9 +688,10 @@ class BatchRunner:
                         if name in outputs:
                             continue
                         path = directory / f"{name}-continuation-{generation}"
-                        from .records import _hash
+                        from .records import _hash, load_session_inputs
                         from .runner import _captured_spec
 
+                        session_inputs = load_session_inputs(source)
                         spec = dataclasses.replace(
                             _captured_spec(source),
                             execution=self.execution,
@@ -638,7 +715,7 @@ class BatchRunner:
                     }:
                         from .records import finalize_record
                         from .results import ArrayResult
-                        from .runner import _evaluate, _genotypes
+                        from .runner import _evaluate, _fixed_artifacts, _genotypes
 
                         def assay_key(value):
                             return digest(
@@ -667,27 +744,45 @@ class BatchRunner:
                         inputs = [_genotypes(item) for _, item, _ in members]
                         genes = np.concatenate(inputs)
                         try:
-                            value = _evaluate(self.model, spec, genes)
-                            offset = 0
-                            for (child, _, _), record, original in zip(
-                                members, records, inputs, strict=True
+                            with self.model.engine._temporary_bytes(
+                                genes.nbytes + sum(item.nbytes for item in inputs),
+                                message="coalesced inputs exceed memory budget",
                             ):
-                                stop = offset + len(original)
-                                sliced = ArrayResult(
-                                    value.values[offset:stop],
-                                    value.status[offset:stop],
-                                    value.metadata,
-                                )
-                                outputs[child] = finalize_record(
-                                    record,
-                                    arrays={"genotypes": original, "phenotypes": sliced},
-                                    status="complete" if sliced.complete else "partial",
-                                    summaries={
-                                        "samples": len(original),
-                                        "coalesced_runs": len(members),
-                                    },
-                                )
-                                offset = stop
+                                value = _evaluate(self.model, spec, genes)
+                                retained = value.values.nbytes + value.status.nbytes
+                                with self.model.engine._temporary_bytes(
+                                    retained, message="coalesced results exceed memory budget"
+                                ):
+                                    offset = 0
+                                    for (child, child_spec, _), record, original in zip(
+                                        members, records, inputs, strict=True
+                                    ):
+                                        stop = offset + len(original)
+                                        self.model.engine._check_memory(
+                                            value.values[offset:stop].nbytes
+                                            + value.status[offset:stop].nbytes,
+                                            message="coalesced child results exceed memory budget",
+                                        )
+                                        sliced = ArrayResult(
+                                            value.values[offset:stop],
+                                            value.status[offset:stop],
+                                            value.metadata,
+                                        )
+                                        arrays, summary, status = _fixed_artifacts(
+                                            self.model, child_spec, original, sliced
+                                        )
+                                        outputs[child] = finalize_record(
+                                            record,
+                                            arrays=arrays,
+                                            status=status,
+                                            summaries=summary,
+                                            metadata={
+                                                "table_digest": self.model.tables.digest,
+                                                "coalesced_runs": len(members),
+                                            },
+                                        )
+                                        del arrays, summary, sliced
+                                        offset = stop
                         except BaseException as error:
                             for record in records:
                                 finalize_record(
@@ -695,7 +790,7 @@ class BatchRunner:
                                 )
                             raise
                         continue
-                    record = self._begin(spec, path, parent)
+                    record = self._begin(spec, path, parent, session_inputs=session_inputs)
                     from .runner import _captured_spec
 
                     child_spec = _captured_spec(record)
@@ -733,6 +828,7 @@ class BatchRunner:
                         outputs[name] = self.finish(session)
                         active.pop(name)
                         released = self._reservations.pop(id(session), 0)
+                        session._memory_reserved_bytes = 0
                         self.model.engine._reserved_session_bytes -= released
                         self._sessions.remove(session)
                 publish()

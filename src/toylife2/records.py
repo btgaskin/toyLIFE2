@@ -14,9 +14,11 @@ import os
 import platform
 import shutil
 import sys
+import tempfile
 import uuid
 import zipfile
 from collections.abc import Mapping
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from importlib import metadata as importlib_metadata
 from pathlib import Path
@@ -69,8 +71,12 @@ def _write_bytes(path: Path, payload: bytes) -> None:
 
 
 def _write_json(path: Path, value: Any) -> None:
-    _write_bytes(path, (json.dumps(_jsonable(value), indent=2, sort_keys=True,
-                                  allow_nan=False) + "\n").encode("utf-8"))
+    _write_bytes(
+        path,
+        (json.dumps(_jsonable(value), indent=2, sort_keys=True, allow_nan=False) + "\n").encode(
+            "utf-8"
+        ),
+    )
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -83,14 +89,23 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 def _source_archive(path: Path, source: Path | None = None) -> None:
     package = (source or Path(__file__).resolve().parent).resolve()
-    checkout = next((candidate for candidate in package.parents
-                     if (candidate / "pyproject.toml").is_file()
-                     and (candidate / "src" / "toylife2").resolve() == package), None)
+    checkout = next(
+        (
+            candidate
+            for candidate in package.parents
+            if (candidate / "pyproject.toml").is_file()
+            and (candidate / "src" / "toylife2").resolve() == package
+        ),
+        None,
+    )
     provenance = package / "_provenance"
     archive_files: dict[str, Path] = {}
     for item in package.rglob("*.py"):
-        if ("__pycache__" not in item.parts and "_vendor" not in item.parts
-                and "_provenance" not in item.parts):
+        if (
+            "__pycache__" not in item.parts
+            and "_vendor" not in item.parts
+            and "_provenance" not in item.parts
+        ):
             archive_files["src/toylife2/" + item.relative_to(package).as_posix()] = item
     for relative in ("pyproject.toml", "uv.lock", "docs/decisions.md", "LICENSE"):
         candidates = []
@@ -110,10 +125,12 @@ def _source_archive(path: Path, source: Path | None = None) -> None:
     author_source = next((candidate for candidate in author_candidates if candidate.is_dir()), None)
     if author_source:
         for item in author_source.rglob("*"):
-            if (item.is_file() and ".git" not in item.parts and
-                    "results" not in item.relative_to(author_source).parts and
-                    (item.suffix in {".cpp", ".h", ".md", ".pdf"}
-                     or item.name == "Makefile")):
+            if (
+                item.is_file()
+                and ".git" not in item.parts
+                and "results" not in item.relative_to(author_source).parts
+                and (item.suffix in {".cpp", ".h", ".md", ".pdf"} or item.name == "Makefile")
+            ):
                 name = "upstream/toylife/" + item.relative_to(author_source).as_posix()
                 archive_files[name] = item
     buffer = io.BytesIO()
@@ -126,24 +143,28 @@ def _source_archive(path: Path, source: Path | None = None) -> None:
     _write_bytes(path, buffer.getvalue())
 
 
-def _table_archive(record: Path) -> Path:
+def _table_archive(record: Path, tables=None) -> Path:
     """Deduplicate immutable table packs in a workspace, retaining portable links."""
     from .tables import DEFAULT_SOURCE, _source_digest, _source_files
 
-    source = DEFAULT_SOURCE.resolve()
+    source = Path(tables.source if tables is not None else DEFAULT_SOURCE).resolve()
     files = _source_files(source)
     source_digest = _source_digest(source, files)
     workspace = record.parent.parent
     shared = (workspace / "workspace.json").is_file()
-    target = (workspace / "packs" / f"tables-{source_digest}.zip" if shared
-              else record / "source" / "tables.zip")
+    target = (
+        workspace / "packs" / f"tables-{source_digest}.zip"
+        if shared
+        else record / "source" / "tables.zip"
+    )
     if not target.is_file():
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_name(target.name + ".tmp")
         with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for item in files:
-                info = zipfile.ZipInfo(item.relative_to(source).as_posix(),
-                                       date_time=(1980, 1, 1, 0, 0, 0))
+                info = zipfile.ZipInfo(
+                    item.relative_to(source).as_posix(), date_time=(1980, 1, 1, 0, 0, 0)
+                )
                 info.compress_type = zipfile.ZIP_DEFLATED
                 info.external_attr = 0o644 << 16
                 archive.writestr(info, item.read_bytes())
@@ -156,14 +177,119 @@ def _table_archive(record: Path) -> Path:
     return target
 
 
+_ARCHIVE_DIGESTS: dict[str, str] = {}
+
+
+def _archive_table_digest(path: Path) -> str:
+    """Hash archived source in canonical order; memoize by compressed content."""
+    from .tables import _CACHE_VERSION
+
+    archive_hash = _hash(path)
+    if archive_hash in _ARCHIVE_DIGESTS:
+        return _ARCHIVE_DIGESTS[archive_hash]
+    with zipfile.ZipFile(path) as archive:
+        names = archive.namelist()
+        if len(names) != len(set(names)) or any(
+            Path(name).is_absolute() or ".." in Path(name).parts for name in names
+        ):
+            raise ValueError("invalid table archive paths")
+        ordered = [
+            "data/" + name
+            for name in (
+                "protein_gene.txt",
+                "proteins_with_perimeter.txt",
+                "proteins.txt",
+                "perimeters.txt",
+                "dimers.txt",
+                "metabolites.txt",
+            )
+        ]
+        ordered += sorted(name for name in names if Path(name).match("promoters/*_bind_prom*.txt"))
+        ordered += sorted(name for name in names if Path(name).match("prot_metabolism/[4-8]_*.txt"))
+        ordered += sorted(name for name in names if Path(name).match("dim_metabolism/[4-8]_*.txt"))
+        ordered += ["prot_metabolism/prot_breaking.txt"]
+        if len(ordered) < 300 or set(ordered) != set(names):
+            raise ValueError("incomplete or unexpected table archive contents")
+        sha = hashlib.sha256(f"canonical-tenths-{_CACHE_VERSION}\n".encode())
+        for name in ordered:
+            sha.update(name.encode() + b"\0")
+            with archive.open(name) as stream:
+                for chunk in iter(lambda: stream.read(1 << 20), b""):
+                    sha.update(chunk)
+    result = sha.hexdigest()
+    if len(_ARCHIVE_DIGESTS) >= 8:
+        _ARCHIVE_DIGESTS.pop(next(iter(_ARCHIVE_DIGESTS)))
+    _ARCHIVE_DIGESTS[archive_hash] = result
+    return result
+
+
+def _record_identity(spec_id, input_hashes, components, table_digest, session_inputs):
+    return digest(
+        {
+            "spec": spec_id,
+            "inputs": input_hashes,
+            "components": components,
+            "tables": table_digest,
+            "session_inputs": session_inputs,
+        }
+    )
+
+
+def load_session_inputs(record: str | Path) -> dict:
+    from .sessions import unpack
+
+    root = Path(record)
+    captured = _read_json(root / "manifest.json").get("session_inputs")
+    if captured is None:
+        return {}
+    arrays = {
+        name: np.load(root / item["path"], allow_pickle=False)
+        for name, item in captured["arrays"].items()
+    }
+    return unpack(captured["state"], arrays)
+
+
+@contextmanager
+def captured_tables(record: str | Path):
+    """Restore the executed molecular source, including alternate table packs."""
+    from .tables import Tables
+
+    root = Path(record)
+    spec = load_record_spec(root)
+    expected = _archive_table_digest(root / "source" / "tables.zip")
+    current = None
+    try:
+        candidate = Tables.load(cache_dir=spec.execution.cache_dir)
+        if candidate.digest == expected:
+            candidate.verify_source()
+            current = candidate
+    except (ValueError, OSError):
+        # The portable pack remains authoritative if local source/cache is unavailable.
+        pass
+    if current is not None:
+        yield current
+        return
+    with tempfile.TemporaryDirectory() as temporary:
+        source = Path(temporary)
+        with zipfile.ZipFile(root / "source" / "tables.zip") as archive:
+            for entry in archive.infolist():
+                if not (source / entry.filename).resolve().is_relative_to(source.resolve()):
+                    raise ValueError("unsafe table archive path")
+            archive.extractall(source)
+        tables = Tables.load(source=source, cache_dir=spec.execution.cache_dir)
+        tables.verify_source()
+        yield tables
+
+
 def _record_files(record: Path):
     for file in sorted(record.rglob("*")):
         if file.is_file() and file.name != "manifest.json" and not file.name.endswith(".tmp"):
             yield file, file.relative_to(record).as_posix()
 
 
-def _inventory(record: Path, manifest: Mapping[str, Any] | None = None,
-               changed: set[str] | None = None) -> dict[str, dict[str, Any]]:
+def _inventory(
+    record: Path, manifest: Mapping[str, Any] | None = None, changed: set[str] | None = None
+) -> dict[str, dict[str, Any]]:
     previous = (manifest or {}).get("files", {})
     retained = set((manifest or {}).get("checkpoint_revisions", []))
     committed_traces = set((manifest or {}).get("trace", {}).get("chunks", []))
@@ -186,8 +312,11 @@ def _inventory(record: Path, manifest: Mapping[str, Any] | None = None,
             else:
                 raise ValueError(f"committed record file changed: {relative}")
         else:
-            inventory[relative] = {"sha256": _hash(file), "bytes": stat.st_size,
-                                   "mtime_ns": stat.st_mtime_ns}
+            inventory[relative] = {
+                "sha256": _hash(file),
+                "bytes": stat.st_size,
+                "mtime_ns": stat.st_mtime_ns,
+            }
     for relative in set(previous) - set(inventory):
         parts = Path(relative).parts
         if len(parts) > 1 and parts[0] == "checkpoints" and parts[1] not in retained:
@@ -220,9 +349,14 @@ def _software_environment() -> dict[str, Any]:
         dependencies[name] = distribution.version
         record = distribution.read_text("RECORD")
         distributions[name] = hashlib.sha256(record.encode()).hexdigest() if record else None
-    details = {"python": sys.version, "implementation": platform.python_implementation(),
-               "platform": platform.platform(), "machine": platform.machine(),
-               "dependencies": dependencies, "distribution_records_sha256": distributions}
+    details = {
+        "python": sys.version,
+        "implementation": platform.python_implementation(),
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "dependencies": dependencies,
+        "distribution_records_sha256": distributions,
+    }
     details["environment_sha256"] = digest(details)
     return details
 
@@ -234,12 +368,19 @@ def begin_record(
     inputs: Mapping[str, str | Path] | None = None,
     source: Path | None = None,
     parent: Mapping[str, Any] | None = None,
+    tables=None,
+    session_inputs: Mapping[str, Any] | None = None,
 ) -> Path:
     """Create a replayable record before executing an experiment.
 
     ``inputs`` are copied and hashed, so replay never depends on mutable source
     paths. The source archive includes the executed package and lock file.
     """
+    from .sessions import pack
+    from .tables import Tables
+
+    tables = tables if tables is not None else Tables.load(cache_dir=spec.execution.cache_dir)
+    tables.verify_source()
     record = Path(destination).expanduser().resolve()
     if record.exists() and any(record.iterdir()):
         raise FileExistsError(f"record directory is not empty: {record}")
@@ -247,7 +388,9 @@ def begin_record(
     _write_json(record / "spec.json", plain(spec))
     _write_bytes(record / "spec.toml", dump_spec(spec).encode("utf-8"))
     _source_archive(record / "source" / "source.zip", source)
-    table_archive = _table_archive(record)
+    table_archive = _table_archive(record, tables)
+    if _archive_table_digest(table_archive) != tables.digest:
+        raise ValueError("captured table source differs from executing tables")
     input_metadata = {}
     for name, source_path in (inputs or {}).items():
         source_file = Path(source_path).expanduser().resolve()
@@ -256,8 +399,11 @@ def begin_record(
         target = record / "inputs" / _safe_name(name) / source_file.name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source_file, target)
-        input_metadata[name] = {"path": target.relative_to(record).as_posix(),
-                                "source_path": str(source_file), "sha256": _hash(target)}
+        input_metadata[name] = {
+            "path": target.relative_to(record).as_posix(),
+            "source_path": str(source_file),
+            "sha256": _hash(target),
+        }
     spec_scientific_id = scientific_identity(spec)
     input_hashes = {name: value["sha256"] for name, value in input_metadata.items()}
     from .components import capture
@@ -265,15 +411,30 @@ def begin_record(
     captured = capture(spec) if spec.schema_version == 2 else None
     if captured is not None:
         _write_bytes(record / "source" / "components.zip", captured[0])
-    record_scientific_id = (
-        digest({"spec": spec_scientific_id, "inputs": input_hashes,
-                "components": captured[1]["identity"]}) if captured is not None else
-        digest({"spec": spec_scientific_id, "inputs": input_hashes}) if input_hashes else
-        spec_scientific_id)
+    session_arrays = {}
+    session_state = pack(dict(session_inputs or {}), session_arrays)
+    session_metadata = {"state": session_state, "arrays": {}}
+    for name, values in session_arrays.items():
+        path = record / "inputs" / "session" / f"{name}.npy"
+        _array(path, values)
+        session_metadata["arrays"][name] = {
+            "path": path.relative_to(record).as_posix(),
+            "sha256": _hash(path),
+        }
+    record_scientific_id = _record_identity(
+        spec_scientific_id,
+        input_hashes,
+        captured[1]["identity"] if captured else None,
+        tables.digest,
+        session_metadata,
+    )
     package = (source or Path(__file__).resolve().parent).resolve()
-    lock_candidates = [candidate / "uv.lock" for candidate in package.parents
-                       if (candidate / "pyproject.toml").is_file()
-                       and (candidate / "src" / "toylife2").resolve() == package]
+    lock_candidates = [
+        candidate / "uv.lock"
+        for candidate in package.parents
+        if (candidate / "pyproject.toml").is_file()
+        and (candidate / "src" / "toylife2").resolve() == package
+    ]
     lock_candidates.append(package / "_provenance" / "uv.lock")
     lock = next((candidate for candidate in lock_candidates if candidate.is_file()), None)
     manifest = {
@@ -281,6 +442,9 @@ def begin_record(
         "status": "running",
         "created_at": _now(),
         "scientific_identity": record_scientific_id,
+        "scientific_identity_scheme": "spec-inputs-components-tables-session-v1",
+        "table_source_digest": tables.digest,
+        "session_inputs": session_metadata,
         "spec_scientific_identity": spec_scientific_id,
         "spec_sha256": digest(spec),
         "ruleset": spec.model.rules,
@@ -291,9 +455,12 @@ def begin_record(
         "table_pack_sha256": _hash(table_archive),
         "dependency_lock_sha256": _hash(lock) if lock else None,
         "inputs": input_metadata,
-        "execution": {"requested_backend": spec.execution.backend,
-                      "actual_backend": None, "platform": platform.platform(),
-                      "machine": platform.machine()},
+        "execution": {
+            "requested_backend": spec.execution.backend,
+            "actual_backend": None,
+            "platform": platform.platform(),
+            "machine": platform.machine(),
+        },
         "software_environment": _software_environment(),
         "status_units": {},
         "checkpoint_revisions": [],
@@ -340,11 +507,13 @@ def write_boundary(
         spec = load_record_spec(root)
         if spec.recording.mode != "full":
             raise ValueError("event traces require recording.mode='full'")
-        trace = manifest.setdefault("trace", {"bytes": 0, "rows": 0,
-                                               "dropped_rows": 0, "truncated": False,
-                                               "chunks": []})
-        lines = [(json.dumps(_jsonable(dict(event)), sort_keys=True,
-                             allow_nan=False) + "\n").encode() for event in pending]
+        trace = manifest.setdefault(
+            "trace", {"bytes": 0, "rows": 0, "dropped_rows": 0, "truncated": False, "chunks": []}
+        )
+        lines = [
+            (json.dumps(_jsonable(dict(event)), sort_keys=True, allow_nan=False) + "\n").encode()
+            for event in pending
+        ]
         payload = b"".join(lines)
         budget = spec.recording.trace_budget_mib * 1024 * 1024
         accepted = trace["bytes"] + len(payload) <= budget
@@ -358,8 +527,11 @@ def write_boundary(
             committed_state.pop("trace_event", None)
             committed_state.pop("recording_limit", None)
         else:
-            committed_state["pending_trace"] = _jsonable(dict(pending[0])) if len(pending) == 1 \
+            committed_state["pending_trace"] = (
+                _jsonable(dict(pending[0]))
+                if len(pending) == 1
                 else [_jsonable(dict(event)) for event in pending]
+            )
             committed_state["recording_limit"] = "trace_budget"
             trace["truncated"] = True
             trace["pending_rows"] = len(pending)
@@ -370,8 +542,15 @@ def write_boundary(
         _array(path, values)
         array_paths[name] = path.name
     checkpoint = root / "checkpoints" / revision / "checkpoint.json"
-    _write_json(checkpoint, {"created_at": _now(), "revision": revision,
-                             "state": committed_state, "arrays": array_paths})
+    _write_json(
+        checkpoint,
+        {
+            "created_at": _now(),
+            "revision": revision,
+            "state": committed_state,
+            "arrays": array_paths,
+        },
+    )
     manifest["artifacts"]["checkpoint"] = checkpoint.relative_to(root).as_posix()
     previous = manifest.get("checkpoint_revisions", [])
     manifest["checkpoint_revisions"] = [*previous, revision][-2:]
@@ -406,9 +585,9 @@ def append_trace(record: str | Path, events: list[Mapping[str, Any]]) -> dict[st
     spec = load_record_spec(root)
     if spec.recording.mode != "full":
         raise ValueError("event traces require recording.mode='full'")
-    trace = manifest.setdefault("trace", {"bytes": 0, "rows": 0,
-                                           "dropped_rows": 0, "truncated": False,
-                                           "chunks": []})
+    trace = manifest.setdefault(
+        "trace", {"bytes": 0, "rows": 0, "dropped_rows": 0, "truncated": False, "chunks": []}
+    )
     budget = spec.recording.trace_budget_mib * 1024 * 1024
     remaining = max(0, budget - trace["bytes"])
     accepted = []
@@ -481,12 +660,16 @@ def finalize_record(
         values = result.values if isinstance(result, ArrayResult) else result
         path = root / "arrays" / f"{name}.npy"
         _array(path, np.asarray(values))
-        description = {"path": path.relative_to(root).as_posix(),
-                       "shape": list(np.shape(values)), "dtype": str(np.asarray(values).dtype)}
+        description = {
+            "path": path.relative_to(root).as_posix(),
+            "shape": list(np.shape(values)),
+            "dtype": str(np.asarray(values).dtype),
+        }
         if isinstance(result, ArrayResult):
             labels, counts = np.unique(result.status, return_counts=True)
-            status_counts = {str(label): int(count) for label, count in
-                             zip(labels, counts, strict=True)}
+            status_counts = {
+                str(label): int(count) for label, count in zip(labels, counts, strict=True)
+            }
             manifest["status_units"][name] = status_counts
             status_path = root / "arrays" / f"{name}_status.npy"
             _array(status_path, result.status)
@@ -497,8 +680,11 @@ def finalize_record(
         summary_path = root / "summary.json"
         _write_json(summary_path, summaries)
         manifest["artifacts"]["summary"] = "summary.json"
-        scalar = {key: value for key, value in summaries.items()
-                  if isinstance(value, (str, int, float, bool)) or value is None}
+        scalar = {
+            key: value
+            for key, value in summaries.items()
+            if isinstance(value, (str, int, float, bool)) or value is None
+        }
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(("metric", "value"))
@@ -506,9 +692,23 @@ def finalize_record(
         _write_bytes(root / "summary.csv", output.getvalue().encode("utf-8"))
     if metadata:
         for key, value in metadata.items():
-            if key in {"record_schema", "files", "spec_sha256", "scientific_identity",
-                       "spec_scientific_identity", "source_sha256", "table_pack_sha256",
-                       "dependency_lock_sha256", "inputs", "artifacts"}:
+            if key == "table_digest" and manifest.get("table_source_digest") != value:
+                raise ValueError("executing tables differ from the captured source")
+            if key in {
+                "scientific_identity_scheme",
+                "table_source_digest",
+                "session_inputs",
+                "record_schema",
+                "files",
+                "spec_sha256",
+                "scientific_identity",
+                "spec_scientific_identity",
+                "source_sha256",
+                "table_pack_sha256",
+                "dependency_lock_sha256",
+                "inputs",
+                "artifacts",
+            }:
                 raise ValueError(f"cannot overwrite record identity: {key}")
             manifest[key] = _jsonable(value)
     manifest["status"] = status
@@ -516,12 +716,31 @@ def finalize_record(
     return root
 
 
-_IDENTITY_FIELDS = frozenset({"record_schema", "files", "spec_sha256",
-                              "scientific_identity", "spec_scientific_identity",
-                              "source_sha256", "table_pack_sha256",
-                              "dependency_lock_sha256", "inputs", "artifacts",
-                              "checkpoint_revisions", "status", "created_at",
-                              "updated_at", "status_units", "trace", "execution"})
+_IDENTITY_FIELDS = frozenset(
+    {
+        "scientific_identity_scheme",
+        "table_source_digest",
+        "session_inputs",
+        "table_digest",
+        "record_schema",
+        "files",
+        "spec_sha256",
+        "scientific_identity",
+        "spec_scientific_identity",
+        "source_sha256",
+        "table_pack_sha256",
+        "dependency_lock_sha256",
+        "inputs",
+        "artifacts",
+        "checkpoint_revisions",
+        "status",
+        "created_at",
+        "updated_at",
+        "status_units",
+        "trace",
+        "execution",
+    }
+)
 
 
 def annotate_record(record: str | Path, metadata: Mapping[str, Any]) -> Path:
@@ -560,6 +779,16 @@ def verify_record(record: str | Path) -> dict[str, Any]:
             errors.append(f"missing: {relative}")
         elif path.stat().st_size != expected["bytes"] or _hash(path) != expected["sha256"]:
             errors.append(f"changed: {relative}")
+    files = manifest.get("files", {})
+    if files.get("source/tables.zip", {}).get("sha256") != manifest.get("table_pack_sha256"):
+        errors.append("table archive identity changed")
+    captured_inputs = [
+        *manifest.get("inputs", {}).values(),
+        *manifest.get("session_inputs", {}).get("arrays", {}).values(),
+    ]
+    for item in captured_inputs:
+        if files.get(item["path"], {}).get("sha256") != item["sha256"]:
+            errors.append(f"input identity changed: {item['path']}")
     retained = set(manifest.get("checkpoint_revisions", []))
     untracked = set()
     orphan_revisions = set()
@@ -583,16 +812,46 @@ def verify_record(record: str | Path) -> dict[str, Any]:
         errors.append("spec scientific identity changed")
     input_hashes = {name: value["sha256"] for name, value in manifest.get("inputs", {}).items()}
     expected_scientific_id = (
-        digest({"spec": spec_scientific_id, "inputs": input_hashes,
-                "components": manifest["components"]["identity"]}) if "components" in manifest else
-        digest({"spec": spec_scientific_id, "inputs": input_hashes}) if input_hashes else
-        spec_scientific_id)
+        digest(
+            {
+                "spec": spec_scientific_id,
+                "inputs": input_hashes,
+                "components": manifest["components"]["identity"],
+            }
+        )
+        if "components" in manifest
+        else digest({"spec": spec_scientific_id, "inputs": input_hashes})
+        if input_hashes
+        else spec_scientific_id
+    )
+    if manifest.get("scientific_identity_scheme") == "spec-inputs-components-tables-session-v1":
+        expected_scientific_id = _record_identity(
+            spec_scientific_id,
+            input_hashes,
+            manifest.get("components", {}).get("identity"),
+            manifest.get("table_source_digest"),
+            manifest.get("session_inputs"),
+        )
+    elif manifest.get("scientific_identity_scheme") is not None:
+        errors.append("unsupported scientific identity scheme")
+    try:
+        actual_tables = _archive_table_digest(root / "source" / "tables.zip")
+        if manifest.get("table_source_digest", actual_tables) != actual_tables:
+            errors.append("captured table source differs from scientific identity")
+        if manifest.get("table_digest", actual_tables) != actual_tables:
+            errors.append("executing tables differ from captured source")
+    except (ValueError, OSError, zipfile.BadZipFile) as error:
+        errors.append(f"invalid table archive: {error}")
     if expected_scientific_id != manifest.get("scientific_identity"):
         errors.append("scientific identity changed")
-    return {"ok": not errors, "errors": errors, "status": manifest.get("status"),
-            "scientific_identity": manifest.get("scientific_identity"),
-            "uncommitted_checkpoint_revisions": sorted(orphan_revisions),
-            "uncommitted_trace_chunks": sorted(orphan_traces)}
+    return {
+        "ok": not errors,
+        "errors": errors,
+        "status": manifest.get("status"),
+        "scientific_identity": manifest.get("scientific_identity"),
+        "uncommitted_checkpoint_revisions": sorted(orphan_revisions),
+        "uncommitted_trace_chunks": sorted(orphan_traces),
+    }
 
 
 def export_record(record: str | Path, destination: str | Path) -> Path:
