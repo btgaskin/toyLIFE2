@@ -76,9 +76,9 @@ this host. All four histograms summed to `2**40`; the run found 1,955 logic
 signatures, 2,183 seven-symbol GRNs, 557 local CAs, and 191 tissue patterns.
 The ignored `qualification/full-map-cpu.json` contains the full histograms,
 rule-to-pattern associations, protocol and table digests, and execution
-metadata. These are counts for the canonical ruleset in this package; they
-differ from the published GRN and CA totals and are being assessed against
-the documented rule corrections.
+metadata. These are counts for the canonical ruleset in this package. The
+[completed source comparison](parity.md) explains their difference from the
+published totals through isolated promoter-rule changes.
 
 The complete recorded Metal map took 79.09 seconds with the same 2,048-pair
 tiles, 4,096 batch size, and 1 GiB budget. Its histograms and rule-to-pattern

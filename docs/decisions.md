@@ -12,8 +12,14 @@ automata from two-gene regulatory networks.
 **Canonical interpretation and published parity.** The accepted decisions
 below define an executable, versioned interpretation. Complete CPU enumeration
 of this interpretation gives 2,183 GRNs, 557 automata, and 191 default patterns,
-while the final 2020 article reports 2,152, 453, and 176. Strict publication
-parity therefore remains open. The molecular lookup source is pinned to author
+while the final 2020 article reports 2,152, 453, and 176. The
+[spatial reconciliation](parity.md) recovers the publication totals by restoring
+the author's missing state-4 break, then reproduces every canonical histogram
+weight with three isolated competition changes. The product follows one
+canonical chemistry, defined by the [scientific contract](model.md#scientific-contract).
+Historical source behaviour is retained in qualification tools to explain
+results and isolate implementation differences. The molecular lookup source is
+pinned to author
 commit `9e17c92ea05f2e3dd63bf437400ddd8e61694ff9`; regeneration and phenotype
 tests establish the comparisons they cover. [qualification.md](qualification.md)
 records the completed map and the remaining scientific gates.
@@ -23,7 +29,9 @@ records the completed map and the remaining scientific gates.
 | Folding | Use the supplied revised protein IDs, and independently regenerate the 38 compact fold classes and revised perimeter tie rule | `toyLIFE.pdf`, pp. 2–4; `data/protein_gene.txt`; `data/perimeters.txt` |
 | Energies | Store integer tenths and compare exactly | The HP contacts are −2, −0.3, and 0; the source's `d_equal` and `d_less` tolerate floating error at `1e-8` (`helper_functions.cpp:41–47`) |
 | Binding threshold | An interaction must be strictly below −2.6, hence at most −2.7 in tenth units | `toyLIFE.pdf`, p. 4; curated lookup entries |
-| Promoters | Include polymerase as a real candidate; tied strongest identities annihilate, then reconsider the next energy group | PDF annihilation rule, pp. 4–5; C++ `toy_plugin.cpp:361–435` excludes weaker-than-polymerase binders and does not explicitly resolve a polymerase tie |
+| Promoters | Include polymerase as a real candidate; exclude tied strongest identities from that promoter evaluation, then reconsider the next energy group; tie exclusion does not consume molecules | PDF annihilation rule, pp. 4–5; C++ `toy_plugin.cpp:361–435` excludes weaker-than-polymerase binders and does not explicitly resolve a polymerase tie |
+| Promoter admission | Admit only molecules with a valid negative promoter contact before ranking complete bound energies | `patterns/patternsplugin.cpp:372–373`, `411–412`, and related branches rank nonbinders before checking contact; the isolated admission fix explains the 453→557 CA and 176→191 pattern count changes |
+| Promoter identity | Group copies of the same protein as one competing identity | PDF identity rule; the spatial source can annihilate same-ID nondimerizing copies; the isolated fix changes 24 GRN abundance bins |
 | Promoter resources | Evaluate every promoter against one snapshot; binders are released, then each active gene yields one product | PDF dynamics, p. 7; C++ `toy_plugin.cpp:362–449` |
 | Unfolded coding | Preserve the active gene bit and omit functional protein ID zero from chemical inventories | `data/protein_gene.txt`; C++ `toy_plugin.cpp:438–449` keeps expression bits while inserting protein zero |
 | Dimers | A same-ID dimer consumes two copies and has capacity `floor(count/2)` | PDF identity and stoichiometric rules, pp. 4–5; C++ candidate multiplicity incorrectly uses `count` (`toy_plugin.cpp:487–525`, `591–602`) |
@@ -41,7 +49,7 @@ The exact C++ execution trace is not a portable model target where it erases
 `693–716`, `750–765`). The model keeps the stated biological decision rule and
 tests it with a deterministic reference implementation.
 
-**Published aggregate comparison to resolve.** The committed
+**Published aggregate comparison reconciled.** The committed
 `patterns/results/GRN_abundance.txt` contains 1,472 seven-symbol GRNs, while
 the final [2020 paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC7328398/)
 reports 2,152. Both give 453 cellular automata for the P1-diffusion setting.
@@ -51,9 +59,13 @@ response. Its state-4 and state-5 branches also read dimer energy at index
 `-1` before checking whether a homodimer exists (`:405`, `:473`). A
 lookup-backed counterexample uses proteins 47 and 264, heterodimer 44, and
 promoter 3: the intended state-4 response is zero, while fallthrough makes it
-one. These findings demonstrate a wrong regulatory truth table. An exhaustive
-corrected enumeration must establish whether they explain the full 680-GRN
-difference. The 453-CA count alone does not validate CA IDs or abundances.
+one. Exhaustive enumeration with safe index checks and the missing break
+restored gives exactly 2,152 GRNs, 453 CAs, and 176 patterns. The 453-CA total
+contains 442 historical rules, removes 11, and adds 11. Adding valid-contact
+admission, same-identity grouping, and dimer/polymerase tie annihilation to the
+copied author code gives exact agreement with all four canonical weighted
+histograms. [parity.md](parity.md) records the six isolated variants, concrete
+counterexamples, and the remaining final-source identity comparison.
 
 **Published example files.** The source abundance program writes
 `GRN_abundance.txt` and `GRN_ca_1.txt` (`patterns/grn_abundance.cpp:480–493`),
@@ -88,8 +100,10 @@ geometry matches every one of 1,522,172 supplied breaker rows whose perceived
 sequence appears in a dimer–metabolite binding. The curated dimer and
 ligand-binding tables additionally encode symmetry and ambiguity choices;
 their IDs, orientation fields, and source digest remain part of the canonical
-input. Validation of all published GRN and pattern aggregate counts is an
-explicit qualification gate for the full batched implementation.
+input. Qualification of the full batched implementation checks agreement with
+the scalar rules, complete weighted-map coverage, exact multiplicity conservation,
+backend agreement, and reproducibility. Published aggregates provide a separate
+source comparison whose rule differences are recorded explicitly.
 
 The additional binding check reconstructs all listed dimer bond energies,
 all protein–promoter energies, and all protein–metabolite energies exactly.

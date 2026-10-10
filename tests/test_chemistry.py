@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from toylife2 import Model
-from toylife2.chemistry import ChemistrySession, advance_batch
+from toylife2.chemistry import ChemistrySession, _BatchChemistry, advance_batch
 from toylife2.protocols import ControllerSpec, PortSpec, ReadoutSpec, WorkLimits
 from toylife2.reference import CellState, ReferenceModel
 from toylife2.specs import ExecutionSpec
@@ -87,6 +87,77 @@ def test_candidate_eligibility_is_phase_start_snapshot(model):
     expected = ReferenceModel(model.tables).step(genes, state)
     assert actual[0].key() == expected.state.key()
     assert expression == expected.expression
+
+
+@pytest.mark.parametrize("copies", [1, 2])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_equal_energy_reaction_demand_is_simultaneous(model, monkeypatch, copies, reverse):
+    # These two real dimers have equal total energy and compete for protein 21.
+    initial = CellState(proteins=Counter({21: copies, 2579: 1, 2623: 1}))
+    oracle = ReferenceModel(model.tables)
+    candidates = oracle._binding_candidates(initial)
+    assert len(candidates) == 2
+    assert [c.energy for c in candidates] == [-281, -281]
+    if reverse:
+        original = oracle._binding_candidates
+        monkeypatch.setattr(oracle, "_binding_candidates",
+                            lambda state: list(reversed(original(state))))
+    expected, events = oracle.react(initial)
+    assert not events
+    if copies == 1:
+        assert expected.key() == initial.key()
+    else:
+        assert not expected.proteins
+        assert expected.dimers == Counter({(21, 2579): 1, (21, 2623): 1})
+
+    genes = np.zeros((1, 3), np.int32)
+    batch = _BatchChemistry(model, genes, ControllerSpec(), [initial])
+    if reverse:
+        reactions = batch.arrays[2].to_numpy()
+        group = np.flatnonzero(reactions[0, :, 0] == -281)
+        assert len(group) == 2
+        reactions[0, group] = reactions[0, group[::-1]]
+        batch.arrays[2].from_numpy(reactions)
+    batch.step()
+    assert batch.inventories("after_input")[0].key() == expected.key()
+    full_step = oracle.step(genes[0], initial)
+    assert batch.inventories()[0].key() == full_step.state.key()
+    assert batch.expressions()[0] == full_step.expression
+    assert initial.proteins == Counter({21: copies, 2579: 1, 2623: 1})
+
+
+def test_distinct_protein_promoter_tie_preserves_inventory(model):
+    # Bind distinct proteins at -20.0, stronger than polymerase at -13.9.
+    # Both protein candidates leave competition; polymerase can then activate.
+    a, b, promoter = 47, 1303, 14
+    tables = model.tables
+    assert tables.dimer_for(a, b) == -1
+    perimeters = tables.protein_perimeter[[a, b]]
+    assert perimeters[0] != perimeters[1]
+    energy = tables.protein_promoter_energy.copy()
+    pol = tables.protein_promoter_pol.copy()
+    for protein, perimeter in zip((a, b), perimeters, strict=True):
+        energy[promoter, perimeter] = -200 - int(tables.protein_energy[protein])
+        pol[promoter, perimeter] = False
+    tied = replace(tables, protein_promoter_energy=energy, protein_promoter_pol=pol)
+    altered = Model(tables=tied, execution=model.execution)
+    oracle = ReferenceModel(tied)
+    coding = [int(np.flatnonzero(tied.gene_to_protein == protein)[0]) for protein in (a, b)]
+    genes = np.asarray([(promoter << 16) | code for code in coding], np.int32)
+    initial = CellState(proteins=Counter({a: 1, b: 1}))
+    before = initial.key()
+    assert not oracle.promoter_active(promoter, CellState(proteins=Counter({a: 1})))
+    assert not oracle.promoter_active(promoter, CellState(proteins=Counter({b: 1})))
+    assert oracle.promoter_response(genes, initial.proteins) == 3
+    assert initial.key() == before
+    assert altered.regulatory(genes).values[3] == 3
+
+    batch = _BatchChemistry(altered, genes[None], ControllerSpec(), [initial])
+    batch.step()
+    assert batch.inventories("after_input")[0].key() == before
+    assert batch.expressions()[0] == 3
+    assert batch.inventories()[0].key() == oracle.step(genes, initial).state.key()
+    assert initial.key() == before
 
 
 def test_session_inputs_owned_snapshots_and_checkpoint_resume(model):

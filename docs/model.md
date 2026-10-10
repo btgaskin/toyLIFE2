@@ -7,6 +7,43 @@ define folding, binding geometry, and metabolite interactions. The loader
 converts every energy to an integer number of tenths and checks table shape and
 perimeter consistency. The original source remains unchanged.
 
+## Scientific contract
+
+The product model is `toylife-canonical-v1`. Only a molecule with a valid
+interaction enters energy competition. A protein ID, a sorted pair of protein
+IDs for a dimer, or polymerase identifies one promoter competitor. Multiple
+copies of that species establish its presence; they do not create additional
+competing identities. Copy counts determine reaction capacity, including two
+copies for each homodimer.
+
+Reaction candidates are admitted from the inventory at the start of a phase.
+Energy groups are processed from strongest to weakest. Each group calculates
+all candidate capacities and their combined resource demand against the current
+inventory before accepting or applying any reaction. A candidate requiring an
+over-demanded reactant is rejected. Capacities for later groups use the updated
+inventory, so products can contribute to already admitted reactions. Additional
+reaction types wait until the next phase. Promoter competition evaluates exact
+integer energies: a tied strongest group is excluded from that evaluation and
+the next group is considered. The
+molecules remain in the inventory. Reaction conflicts and promoter ties thus
+have explicit rules for their respective contexts.
+
+Every promoter reads the same post-reaction snapshot. Translation then replaces
+the free protein inventory before the second reaction phase. The spatial assay
+can begin with preformed AB and an extra free A or B; that assembled input is
+held fixed during promoter evaluation. These are defined starting conditions
+for the same binding rules.
+
+Scalar, batched, and persistent execution implement this contract. Leading
+batch axes retain independent states; chunking and backend placement preserve
+the logical chemistry. Runs record scientific parameters and logical random
+addresses separately from execution settings. Historical author-source variants
+live in qualification tools and explain earlier results. The
+[model decisions](decisions.md) record the detailed rules and source-table
+exceptions, and [qualification](qualification.md) records their validation.
+
+## Tables and scalar interface
+
 `Tables.load(source=None, cache_dir=None)` reads the bundled source by default.
 The installed wheel carries the lookup files in
 `toylife2/_vendor/toylife`; a source checkout reads `upstream/toylife`.

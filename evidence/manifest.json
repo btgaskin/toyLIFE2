@@ -48,6 +48,12 @@
       "source": "qualification/metabolic-gene-scaling/comparison.json",
       "source_sha256": "07bc5185a5a6490dac9d1d129e0fcac44be8d89eb5ee6cfa979267a9cb660464"
     },
+    "parity-reconciliation.json": {
+      "checkout_path_redacted": false,
+      "export_sha256": "ddddc32d1f8736825bfba98dc8ff104decc86fa3c4c524ff5a1863d9d81a97bb",
+      "source": "qualification/parity-source/reconciliation.json",
+      "source_sha256": "ddddc32d1f8736825bfba98dc8ff104decc86fa3c4c524ff5a1863d9d81a97bb"
+    },
     "sessions-cpu.json": {
       "checkout_path_redacted": false,
       "export_sha256": "ae8f0cdf64b215421de8f8aad4a701f3f6f9299ae11b5540a228e8025168a520",

@@ -205,6 +205,45 @@ def test_pair_matrix_all_promoters_matches_fixed_inventory_reference(tmp_path) -
                 )
 
 
+def test_lookup_backed_parity_rule_counterexamples(tmp_path) -> None:
+    """Real source-table cases pin the rules isolated by the full-map experiment."""
+    tables = Tables.load(cache_dir=tmp_path / "tables")
+    cases = [
+        # A valid repressor wins over a more stable protein with no promoter contact.
+        (47, 1303, 14, [1, 1, 0, 0, 1, 0]),
+        # A valid activator wins over a more stable nonbinding protein.
+        (47, 180, 3, [0, 1, 0, 1, 1, 1]),
+        # Identical, nondimerizing activators remain one competing identity.
+        (174, 174, 3, [0, 1, 1, 1, 1, 1]),
+        # Dimer/polymerase annihilation leaves A repressing in AB+A and B activating in AB+B.
+        (90, 2350, 5, [1, 1, 1, 0, 0, 1]),
+        # AB+A and AB+B have separate outputs (the author's missing-break example).
+        (47, 264, 3, [0, 1, 0, 0, 0, 1]),
+    ]
+    pairs = np.asarray([(a, b) for a, b, _, _ in cases], dtype=np.int32)
+    engine = Engine(tables, ExecutionSpec(cache_dir=str(tmp_path / "qd")))
+    responses, _ = pair_promoter_matrix(tables, pairs, engine=engine)
+    reference = ReferenceModel(tables)
+    genotypes = []
+    for index, (a, b, promoter, expected) in enumerate(cases):
+        np.testing.assert_array_equal(responses[index, promoter], expected)
+        coding = [int(np.flatnonzero(tables.gene_to_protein == x)[0]) for x in (a, b)]
+        genotype = np.asarray([(promoter << 16) | c for c in coding], dtype=np.int32)
+        genotypes.append(genotype)
+        np.testing.assert_array_equal(reference.spatial_descriptor(genotype)[:6],
+                                      np.asarray(expected) * 3)
+    np.testing.assert_array_equal(
+        response_descriptors(tables, np.stack(genotypes), engine=engine)[:, :6],
+        np.asarray([expected for _, _, _, expected in cases]) * 3,
+    )
+    assert tables.dimer_for(174, 174) == -1
+    tied_dimer = tables.dimer_for(90, 2350)
+    assert (int(tables.dimer_energy[tied_dimer]) + int(tables.protein_energy[90])
+            + int(tables.protein_energy[2350])
+            + int(tables.dimer_promoter_energy[5, tied_dimer])) == -150
+    assert int(tables.polymerase_energy[5]) == -150
+
+
 def test_later_injection_enters_preformed_ab_state_four(tmp_path) -> None:
     tables = Tables.load(cache_dir=tmp_path / "tables")
     coding_a = 33177 & 65535

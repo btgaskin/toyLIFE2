@@ -14,14 +14,17 @@ results are preserved. Captured source identities describe the measured version.
 | [Gene scaling](metabolic-gene-scaling.json) | Two through 32 genes in fixed metabolic assays |
 | [Evolution scaling](evolution-scaling.json) | Population requests, cache reuse, and batching controls |
 | [Complete CPU map](full-map-cpu.json) | Weighted histograms and enumeration protocol |
+| [Spatial parity reconciliation](parity-reconciliation.json) | Six exhaustive author-source variants, historical mappings and trajectories, exact canonical histogram agreement, and sanitizer checks |
 | [CPU–Metal comparison](cpu-metal-comparison.json) | Saved map equality and backend timings |
 | [CPU sessions](sessions-cpu.json) | Integrated control, population, and checkpoint checks |
 | [Metal sessions](sessions-metal.json) | Physical Metal checks for the same session qualification |
 
 The [benchmark guide](../docs/cpp-benchmark.md) defines timing boundaries,
 C++ repairs, agreement selection, hardware, and reproduction commands.
-[Scientific qualification](../docs/qualification.md) tracks model validation
-and the outstanding differences from published aggregate counts.
+[Scientific qualification](../docs/qualification.md) tracks model validation.
+The [parity investigation](../docs/parity.md) explains the aggregate differences
+through isolated diagnostic source variants. The research runtime uses one
+canonical chemistry.
 
 The generated `qualification/` directory contains full local run records,
 inputs, arrays, compiler products, and logs. It is excluded from Git. These

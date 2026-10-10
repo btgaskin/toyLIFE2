@@ -59,12 +59,15 @@ The entry points `python -m toylife2` and `toylife2` are equivalent. Use
 
 ## Configuration fields
 
-The top-level fields are `schema_version` (currently 1), `operation`, `seed`,
+The top-level fields are `schema_version` (1 or 2; default 1), `operation`, `seed`,
 `samples`, and `genotypes`. An explicit `genotypes` list contains binary
 strings of length `20 * model.genes`; seeded sampling fills other workflows.
-Supported operations are `regulatory`, `metabolic`, `neighbourhood`,
+Schema-1 operations are `regulatory`, `metabolic`, `neighbourhood`,
 `patterns`, `weighted_map`, `wright_fisher`, `sswm`, `cell`, and `neutral_walk`.
-The workflow validates operation-specific constraints before execution.
+Schema 2 also supports `chemistry`, `tissue`, `rollout`, and `external`, plus
+generalized evolutionary sessions. The workflow validates operation-specific
+constraints before execution. See [Temporal and batch runs](#temporal-and-batch-runs)
+and the [runner guide](runner.md) for schema-2 fields and protocols.
 
 | TOML table | Fields and meaning |
 | --- | --- |

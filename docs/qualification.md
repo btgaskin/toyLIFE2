@@ -1,8 +1,9 @@
 # Scientific qualification
 
-Qualification connects three kinds of evidence: geometry regenerated from
-first principles, genotype-level agreement between scalar and batched rules,
-and aggregate agreement with the published two-gene map. Each result is tied
+Qualification connects geometry regenerated from first principles, genotype-level
+agreement between scalar and batched rules, complete weighted-map coverage,
+and reproducibility across execution paths. Historical source comparisons
+explain the relationship to published results. Each result is tied
 to a source digest, protocol, backend, and completed work interval. A run is
 scientifically qualified for a claim only when the gate for that claim passes.
 Selected saved results are included in [recorded evidence](../evidence/README.md),
@@ -13,7 +14,8 @@ along with their export manifest and backend identities.
 | Fold and contact geometry | All 65,536 coding sequences and relevant breaking contacts reproduce the bundled source, including the revised folding tie rule | Implemented and targeted checks pass; run `toylife2 qualify` for a saved report |
 | Binding energies | All listed dimer, protein–promoter, and protein–metabolite energies match independently computed contacts; three known polymerase annotations retain source values | Implemented and checked; curated assembly and ligand ambiguity stays source-pinned |
 | Scalar vs batched phenotype | Regulatory, metabolic, cell, diffusion, and map-shard fixtures agree with the independent reference at exact integer energies and statuses | Targeted CPU tests pass; fixture coverage is reported separately from exhaustive map coverage |
-| Full two-gene map | Complete `2**40` weighted genomes; conservation in every histogram; reconcile published GRN, CA, and pattern counts and identities | Enumeration complete; **publication parity open**: canonical totals are 2,183 GRNs, 557 CAs, and 191 patterns |
+| Full two-gene map | Complete `2**40` weighted genomes; exact weight conservation in every histogram; canonical outputs reproduce across recorded CPU and Metal runs | Passed: 2,183 GRNs, 557 CAs, and 191 patterns; all four weighted histograms agree across CPU and Metal |
+| Historical source diagnosis | Pin isolated source variants, identify rule differences, and compare descriptors, local rules, trajectories, and exact weights | Complete: break-fixed author variant recovers 2,152 / 453 / 176; three further changes reproduce every canonical histogram weight |
 | Metal execution | Physical device initializes Quadrants and matches CPU outputs over representative and full-map shards | Passed outside the sandbox: numerical contracts, recorded oracle checks, and the complete map match CPU |
 | Reproduction | Portable record verifies exact source, tables, dependency identity, inputs, checkpoints, and output arrays | CPU run/resume/reproduce checks pass; a fresh installed wheel reproduces a CPU record and matches checkout tables and source archive |
 
@@ -34,11 +36,13 @@ The final [2020 article](https://doi.org/10.1098/rsif.2019.0843) reports
 two-gene setting. The pinned [2019 author
 code](https://github.com/PabloCatalan/toylife/tree/9e17c92ea05f2e3dd63bf437400ddd8e61694ff9)
 contains a preprint-stage GRN abundance file with 1,472 classes; its
-associated preprint reported 172 patterns. The author-code aggregate is a
-historical comparison artifact, while the final publication is the gate for
-the final protocol. The local implementation corrects specified source-code
-fallthrough and undefined-iterator cases according to the written model, so
-matching any aggregate requires a term-by-term protocol and rule comparison.
+associated preprint reported 172 patterns. These are historical comparison
+targets whose relationship to the canonical chemistry is documented separately.
+The [completed reconciliation](parity.md) restores one
+missing `break` in an isolated safe source copy and recovers the final
+2,152 / 453 / 176 totals. Three further promoter-competition changes recover
+every canonical histogram weight. The original lookup tables and production
+runtime remain unchanged.
 
 Run or continue the CPU enumeration from the repository root:
 
@@ -84,13 +88,28 @@ differs between the map summaries. Both Metal records pass integrity checks.
 The earlier sandboxed attempt failed during device initialization with
 `maxBufferLength=0`; elevated execution successfully accesses the GPU.
 
-These canonical results differ from the final article's 2,152/453/176
-GRN/CA/pattern totals. The accepted polymerase tie interpretation, corrected
-homodimer stoichiometry, and corrected six-state dynamics remain explicit
-rule choices in [decisions.md](decisions.md). They require a comparison with
-the final authors' generating code or complete supplementary protocol before
-publication parity can be claimed. The implementation retains this discrepancy
-as an open scientific gate; it does not modify rules to force aggregate counts.
+On 10 October 2026, six complete isolated author-source enumerations accounted
+for the count difference. Safe historical code gives 1,472 / 453 / 172;
+restoring the state-4 break gives the final paper's 2,152 / 453 / 176.
+Valid-contact admission, same-identity grouping, and dimer/polymerase tie
+annihilation then give exact equality with all four canonical histograms.
+All 1,472 historical descriptor-to-CA mappings and all 453 historical CA
+trajectories also match. The [saved reconciliation](../evidence/parity-reconciliation.json)
+contains complete comparisons and six passing ASan/UBSan smoke intervals.
+
+The runtime uses one canonical chemistry. The copied author-source variants
+remain qualification diagnostics. Checking the final publication's class
+identities and abundances would require its final generating source or data
+for a separate publication-reproduction claim. [parity.md](parity.md) gives the
+reproduction commands and isolated rule comparisons.
+
+The rule fixtures cover valid binding admission, competing identity,
+protein and dimer ties, simultaneous reaction demand, and phase boundaries.
+In particular, two real equal-energy dimers competing for protein 21 both
+fail when only one copy is available and both form when two copies are
+available. Reversing candidate order preserves the result in the scalar and
+batched reaction paths. A controlled distinct-protein promoter tie verifies
+fallback to polymerase with both molecules retained in the promoter inventory.
 
 ## Other checks and claim levels
 
@@ -115,9 +134,11 @@ specified workloads; timings from one host describe that host and workload.
 
 A phenotype result with `complete` status is a result under the recorded
 canonical rules and resource limits. A partial result states which units or
-traces remain unfinished. Aggregate publication parity requires the full-map
-gate above. Accelerated-backend parity requires a device that successfully
-initializes and runs the kernels. These distinctions keep each scientific
+traces remain unfinished. Full-map qualification requires complete coverage,
+weight conservation, and reproducible canonical outputs. A claim of exact
+publication reproduction additionally requires matching that publication's
+rules and class definitions. Accelerated-backend parity requires a device that
+successfully initializes and runs the kernels. These distinctions keep each scientific
 claim tied to the work actually completed.
 
 ## Persistent session qualification
