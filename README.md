@@ -47,8 +47,8 @@ interfaces. [Model decisions](docs/decisions.md) document the canonical rules an
 ## Install and run
 
 Use Python 3.12 or 3.13 and [uv](https://docs.astral.sh/uv/). CPU is the default;
-Metal requires a compatible Apple device. The repository is currently private,
-so cloning requires access. Model data and author source are pinned in a Git submodule:
+Metal requires a compatible Apple device. The public repository can be cloned
+with the command below. Model data and author source are pinned in a Git submodule:
 
 ```sh
 git clone --recurse-submodules https://github.com/btgaskin/toyLIFE2.git
