@@ -136,3 +136,46 @@ fixed assays may coalesce into a larger cohort. Their child records preserve the
 same result arrays and summaries as standalone runs, and record cohort size as
 execution metadata. A named batch keeps the same molecular source pack on
 recovery; ordinary child-record resume restores the archived pack automatically.
+
+## Persistent molecular controllers
+
+Chemistry sessions compile immutable host plans once per distinct genome,
+controller specification, table digest, and explicit initial inventory. One Engine
+shares these plans across sessions. Active batches pin their plans; an LRU retains
+idle plans within the smaller of 32 MiB and one sixteenth of the execution budget.
+Plan storage participates in Engine admission, including construction estimates.
+
+Within a cohort, identical plans share device reaction and promoter metadata.
+Each lane keeps its own inventory, expression, reaction diagnostics, and stage
+counts. Reaction energy groups, promoter order, and readout selections are compiled
+once. Readout kernels return the selected values without downloading whole
+inventories. Host state is materialised when requested by inspection, full traces,
+or checkpoint serialization.
+
+Replayable execution groups up to eight chemical updates in one dispatch when a
+conserved-mass bound proves count and demand safety for every update. The block
+ends at the decision boundary, remaining work quota, or safe admission prefix.
+Full traces retain one-update boundaries. When the conservative bound cannot
+admit a block, the existing exact inventory admission handles the next update.
+Pulse inputs enter the first update of a decision; replenished inputs are set at
+each update. Readout stage and chemical work counters retain their original meaning.
+
+Completed state and candidate state have separate buffers. Counts and diagnostics
+commit together after successful readout. Rollouts retain committed and reset
+chemistry in reusable device buffers, and capture a candidate before recording
+publication. Failed transfers or retention leave the preceding committed state
+available for inspection and retry. Checkpoints materialise these buffers through
+the existing payload schema.
+
+Scenario-addressed Philox draws compute each unique scenario address once and
+expand to the original episode layout. The random stream, tick, role, width, and
+returned values remain unchanged.
+
+Use `benchmarks/runtime_optimisation.py` for cold construction, warm chemistry,
+complete run/tumble decisions, and optional complete Wright–Fisher campaigns.
+Run each backend in a fresh process. `--block-size 1`, `--metadata-layout replicated`,
+and `--buckets` expose internal benchmark alternatives. Production uses shared
+metadata, an eight-update maximum, and one unsplit cohort: measured size buckets
+reduced buffer storage but increased execution time on the tested workloads.
+See [runtime optimisation measurements](runtime-optimisation.md) for the recorded
+workloads, raw samples, and validation.

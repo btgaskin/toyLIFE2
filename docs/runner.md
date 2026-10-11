@@ -205,3 +205,11 @@ so the record can capture the experiment's complete configuration. Unrecorded fu
 sessions expose `drain_trace()` for an enclosing evaluator to collect committed rows.
 Requested neutral descriptors contain ordered discrete actions and messages; reward
 scores stay outside the descriptor.
+
+Chemistry plan sharing and device residency apply automatically to persistent
+sessions and evolutionary populations. Reuse one `BatchRunner` to retain tables
+and compiled host plans between evaluations. Episode lanes keep independent state
+while sharing a genome's immutable reaction metadata. Inspection and durable
+checkpointing materialise host copies when required. See
+[performance](performance.md#persistent-molecular-controllers) for admission,
+update blocks, and the benchmark command.

@@ -111,7 +111,7 @@ def _state_restore(payload):
     return state
 
 
-def _graph(t, genes, spec, extra_states=()):
+def _graph(t, genes, spec, extra_states=(), *, admit=None):
     """Close the admitted vocabulary under binding and all fragment splits.
 
     Chemistry decisions remain on device. Host compilation uses immutable table
@@ -165,18 +165,26 @@ def _graph(t, genes, spec, extra_states=()):
     bound = set(initial.bound)
     for state in extra_states:
         bound.update(state.bound)
+
+    def add_bound(complex_):
+        bound.add(complex_)
+        if len(keys) + len(bound) > spec.capacity:
+            raise OverflowError("closed species vocabulary exceeds controller.capacity")
+        if admit is not None and len(bound) % 128 == 0:
+            admit(len(genes) * 128 + (len(keys) + len(bound)) * (1024 + len(genes) * 48))
+
     for p in ps:
         perimeter = int(t.protein_perimeter[p])
         for m in sorted(mets):
             mi = t.met_index.get(m)
             if mi is not None and t.protein_met_energy[mi, perimeter] < 0:
-                bound.add(("P", p, -1, m))
+                add_bound(("P", p, -1, m))
     for a, b in sorted(pairs):
         di = t.dimer_for(a, b)
         for m in sorted(mets):
             mi = t.met_index.get(m)
             if mi is not None and t.dimer_met_energy[mi, di] < 0:
-                bound.add(("D", a, b, m))
+                add_bound(("D", a, b, m))
     keys += [("B", b) for b in sorted(bound)]
     if len(keys) > spec.capacity:
         raise OverflowError("closed species vocabulary exceeds controller.capacity")
@@ -199,6 +207,8 @@ def _graph(t, genes, spec, extra_states=()):
         fissions.append(event)
         if len(reactions) > spec.capacity:
             raise OverflowError("reaction candidate capacity exceeds controller.capacity")
+        if admit is not None and len(reactions) % 128 == 0:
+            admit(len(genes) * 128 + len(keys) * (1024 + len(genes) * 48) + len(reactions) * 512)
 
     for pair in sorted(pairs):
         a, b = pair
@@ -257,6 +267,8 @@ def _graph(t, genes, spec, extra_states=()):
     fissions = [fissions[i] for i in order]
     if max(len(keys), len(reactions)) > spec.capacity:
         raise OverflowError("closed chemistry vocabulary or candidates exceed controller.capacity")
+    if admit is not None:
+        admit(len(genes) * 128 + len(keys) * (1024 + len(genes) * 48) + len(reactions) * 512)
     promoters = np.full((len(genes), len(keys), 2), _MAX, dtype=np.int32)
     polymers = np.empty(len(genes), dtype=np.int32)
     for g, gene in enumerate(genes):
@@ -284,7 +296,55 @@ def _graph(t, genes, spec, extra_states=()):
                         + contact,
                         int(t.dimer_promoter_pol[prom, di]),
                     )
-    return keys, index, reactions, fissions, promoters, polymers, initial
+    return (
+        tuple(keys),
+        MappingProxyType(index),
+        tuple(reactions),
+        tuple(fissions),
+        _owned(promoters),
+        _owned(polymers),
+        tuple(_items(initial)),
+    )
+
+
+def _kernel_plan(tables, genes, graph):
+    """Compile ordered groups once per host graph, independently of lane padding."""
+    keys, index, reactions, _, promoters, polymers = graph[:6]
+    ends = np.zeros(max(1, len(reactions)), np.int32)
+    cursor = 0
+    while cursor < len(reactions):
+        end = cursor + 1
+        while end < len(reactions) and reactions[end][0] == reactions[cursor][0]:
+            end += 1
+        ends[cursor:end] = end
+        cursor = end
+    competitors = np.full((len(genes), len(keys) + 1, 2), -1, np.int32)
+    promoter_ends = np.zeros((len(genes), len(keys) + 1), np.int32)
+    lengths = np.zeros(len(genes), np.int32)
+    products = np.full(len(genes), -1, np.int32)
+    for gene in range(len(genes)):
+        entries = [
+            (int(energy), species, int(active))
+            for species, (energy, active) in enumerate(promoters[gene])
+            if energy != _MAX
+        ]
+        if polymers[gene] < 0:
+            entries.append((int(polymers[gene]), -1, 1))
+        entries.sort()
+        lengths[gene] = len(entries)
+        cursor = 0
+        while cursor < len(entries):
+            end = cursor + 1
+            while end < len(entries) and entries[end][0] == entries[cursor][0]:
+                end += 1
+            promoter_ends[gene, cursor:end] = end
+            cursor = end
+        for c, (_, species, active) in enumerate(entries):
+            competitors[gene, c] = (species, active)
+        protein = int(tables.gene_to_protein[int(genes[gene]) & 65535])
+        if protein:
+            products[gene] = index[("P", protein)]
+    return tuple(_owned(array) for array in (ends, competitors, promoter_ends, lengths, products))
 
 
 class _BatchChemistry:
@@ -295,46 +355,126 @@ class _BatchChemistry:
         genes = self.genotypes.reshape(-1, self.genotypes.shape[-1])
         if states is not None and len(states) != len(genes):
             raise ValueError("one CellState is required per genotype row")
-        self.graphs = [
-            _graph(model.tables, row, spec, (() if states is None else (states[i],)))
-            for i, row in enumerate(genes)
-        ]
+        # Counts in explicit states affect initialization; their complete key also
+        # protects the extra vocabulary admitted by advance_batch.
+        cache = model.engine._chemistry_cache
+        context = digest(asdict(spec))
+        self._plans = []
+        local = {}
+        for i, row in enumerate(genes):
+            extra = () if states is None else (states[i],)
+            key = (
+                str(model.tables.digest),
+                context,
+                tuple(map(int, row)),
+                None if states is None else _checked_state(model.tables, states[i]).key(),
+            )
+            plan = local.get(key)
+            if plan is None:
+                plan = cache.get(key)
+                if plan is None:
+
+                    def admit(required):
+                        model.engine._check_memory(
+                            required, message="chemistry graph construction exceeds memory budget"
+                        )
+
+                    graph = _graph(model.tables, row, spec, extra, admit=admit)
+                    plan = cache.put(key, graph, _kernel_plan(model.tables, row, graph))
+                local[key] = plan
+            self._plans.append(plan)
+        self.graphs = [plan.graph for plan in self._plans]
         self.species = max(1, *(len(g[0]) for g in self.graphs))
         self.candidates = max(1, *(len(g[2]) for g in self.graphs))
         lanes, ng = genes.shape
-        kinds = np.zeros((lanes, self.species), np.int32)
+        self._shape = (lanes, self.species)
+        layout = getattr(model.engine, "_chemistry_metadata_layout", "shared")
+        unique = list(dict.fromkeys(self._plans)) if layout == "shared" else self._plans
+        plan_index = {id(plan): i for i, plan in enumerate(unique)}
+        lane_graph = np.asarray([plan_index[id(plan)] for plan in self._plans], np.int32)
+        if layout != "shared":
+            lane_graph = np.arange(lanes, dtype=np.int32)
+        self.metadata_layout = layout
+        self._lane_graph_host = lane_graph
+        representatives = np.full(len(unique), -1, np.intp)
+        for lane, plan in enumerate(lane_graph):
+            if representatives[plan] < 0:
+                representatives[plan] = lane
+        self._representatives = representatives
+        metadata = [plan.graph for plan in unique]
+        nplans = len(metadata)
+        self._readout_plan = self._compile_readouts(metadata, genes, lane_graph)
+        static_bytes = nplans * (
+            self.species * 8 + self.candidates * 36 + ng * 8 + ng * (self.species + 1) * 12 + 8
+        )
+        static_bytes += lane_graph.nbytes + sum(a.nbytes for a in self._readout_plan)
+        # Static upload overlaps its host staging arrays; dynamic mirrors and
+        # admission/input scratch are included before allocating the cohort.
+        projected = (
+            static_bytes * 2
+            + lanes * self.species * 92
+            + lanes * self.candidates * 32
+            + lanes * ng * 32
+            + lanes * (max(1, len(spec.ports.readouts)) * 20 + 12)
+        )
+        model.engine._check_memory(
+            projected, message="persistent chemistry construction exceeds memory budget"
+        )
+        kinds = np.zeros((nplans, self.species), np.int32)
         release = np.zeros_like(kinds)
-        rx = np.full((lanes, self.candidates, 8), -1, np.int32)
+        rx = np.full((nplans, self.candidates, 8), -1, np.int32)
         rx[:, :, 0] = _MAX
-        promoters = np.full((lanes, ng, self.species, 2), _MAX, np.int32)
-        polymerase = np.empty((lanes, ng), np.int32)
-        products = np.full((lanes, ng), -1, np.int32)
-        initial = np.zeros_like(kinds)
-        for lane, (keys, idx, reactions, _, prom, poly, state) in enumerate(self.graphs):
-            for s, (kind, key) in enumerate(keys):
-                kinds[lane, s] = {"P": 1, "D": 2, "M": 3, "B": 4}[kind]
+        products = np.full((nplans, ng), -1, np.int32)
+        lengths = np.zeros((nplans, 2), np.int32)
+        ends = np.zeros((nplans, self.candidates), np.int32)
+        competitors = np.full((nplans, ng, self.species + 1, 2), -1, np.int32)
+        promoter_ends = np.zeros((nplans, ng, self.species + 1), np.int32)
+        promoter_lengths = np.zeros((nplans, ng), np.int32)
+        initial = np.zeros(self._shape, np.int32)
+        for plan, (keys, idx, reactions, _, _prom, _poly, _) in enumerate(metadata):
+            lengths[plan] = (len(keys), len(reactions))
+            for species, (kind, key) in enumerate(keys):
+                kinds[plan, species] = {"P": 1, "D": 2, "M": 3, "B": 4}[kind]
                 if kind == "B":
-                    release[lane, s] = idx[("M", key[3])]
+                    release[plan, species] = idx[("M", key[3])]
             if reactions:
-                rx[lane, : len(reactions)] = reactions
-            promoters[lane, :, : len(keys)] = prom
-            polymerase[lane] = poly
-            for g, gene in enumerate(genes[lane]):
-                protein = int(model.tables.gene_to_protein[int(gene) & 65535])
-                if protein:
-                    products[lane, g] = idx[("P", protein)]
-            for key, count in _items(state if states is None else states[lane]):
+                rx[plan, : len(reactions)] = reactions
+            rx_ends, ordered, ordered_ends, ordered_lengths, gene_products = unique[plan].compiled
+            ends[plan, : len(rx_ends)] = rx_ends
+            competitors[plan, :, : ordered.shape[1]] = ordered
+            promoter_ends[plan, :, : ordered_ends.shape[1]] = ordered_ends
+            promoter_lengths[plan] = ordered_lengths
+            products[plan] = gene_products
+        for lane, graph in enumerate(self.graphs):
+            entries = graph[-1] if states is None else _items(states[lane])
+            for key, count in entries:
                 if count > _MAX:
                     raise OverflowError("molecule counts exceed signed device representation")
-                initial[lane, idx[key]] = count
+                initial[lane, graph[1][key]] = count
+        static = (
+            kinds,
+            release,
+            rx,
+            products,
+            lengths,
+            ends,
+            competitors,
+            promoter_ends,
+            promoter_lengths,
+            lane_graph,
+        )
         # Include all arrays and two state buffers in execution budget before allocation.
-        device_bytes = sum(a.nbytes for a in (kinds, release, rx, promoters, polymerase, products))
-        device_bytes += initial.nbytes * 7 + lanes * self.candidates * 16 + lanes * ng * 4
-        # Numerical host buffers plus peak input/working/readout transfer arrays.
-        # Python graph metadata and user-requested snapshots are separate.
-        host_bytes = initial.nbytes * 8 + lanes * self.candidates * 8 + lanes * ng * 4
+        device_bytes = sum(a.nbytes for a in (*static, *self._readout_plan))
+        device_bytes += initial.nbytes * 9 + lanes * self.candidates * 24 + lanes * ng * 8
+        device_bytes += lanes * max(1, len(spec.ports.readouts)) * 4
+        # Lazy mirrors, mass bounds, input preparation, and checked-admission
+        # scratch overlap at inspection/fallback. The engine bills host plans.
+        host_bytes = initial.nbytes * 14 + lanes * self.candidates * 8 + lanes * ng * 8
         host_bytes += self.genotypes.nbytes * 2 + lanes * ng * 4
         host_bytes += lanes * len(spec.ports.readouts) * 16
+        host_bytes += lanes * 12 + representatives.nbytes
+        host_bytes += sum(array.nbytes for array in (*static, *self._readout_plan))
+        host_bytes = max(host_bytes, projected - device_bytes)
         self.buffer_memory = {
             "device": device_bytes,
             "host": host_bytes,
@@ -342,33 +482,189 @@ class _BatchChemistry:
         }
         needed = self.buffer_memory["total"]
         engine = model.engine
-        engine._check_memory(
-            needed, message="persistent chemistry exceeds execution memory budget"
-        )
+        engine._check_memory(needed, message="persistent chemistry exceeds execution memory budget")
         self._admit(initial)
-        self.arrays = [
-            engine._i32(a.shape, a) for a in (kinds, release, rx, products, promoters, polymerase)
-        ]
+        self.arrays = [engine._i32(a.shape, a) for a in static]
+        self._readout_arrays = [engine._i32(a.shape, a) for a in self._readout_plan]
+        self._readout_values = engine._i32((lanes, max(1, len(spec.ports.readouts))))
         self.source = engine._i32(initial.shape, initial)
-        self.target = engine._i32(initial.shape)
+        self.target = engine._i32(initial.shape, np.zeros_like(initial))
         self.inputs = engine._i32(initial.shape)
         bits = np.zeros((lanes, ng), np.int32)
         for g in range(ng):
             bits[:, g] = bool(spec.initial_expression & (1 << (ng - g - 1)))
         self.expression = engine._i32(bits.shape, bits)
-        self.after_input = engine._i32(initial.shape)
-        self.after_output = engine._i32(initial.shape)
+        self.after_input = engine._i32(initial.shape, initial)
+        self.after_output = engine._i32(initial.shape, initial)
         self.eligible = engine._i32((lanes, self.candidates))
         self.capacity = engine._i32((lanes, self.candidates))
         self.demand = engine._i32(initial.shape)
         self.events = engine._i32((lanes, self.candidates))
         self.generated = engine._i32(initial.shape)
         self.first_events = engine._i32((lanes, self.candidates))
-        self.host = initial
-        self.bits = bits
-        self.last_events = np.zeros((lanes, self.candidates), np.int32)
-        self.first_event_counts = self.last_events.copy()
-        self.stages = {"boundary": initial.copy()}
+        self._candidate_records = (
+            engine._i32(bits.shape, bits),
+            engine._i32((lanes, self.candidates)),
+            engine._i32((lanes, self.candidates)),
+            engine._i32(initial.shape, initial),
+            engine._i32(initial.shape, initial),
+        )
+        self._host = initial
+        self._bits = bits
+        self._last_events = np.zeros((lanes, self.candidates), np.int32)
+        self._first_event_counts = self._last_events.copy()
+        self._stages = {"boundary": initial}
+        self._dirty = set()
+        self._input_slots = {}
+        weights = np.zeros(self._shape, np.int64)
+        for lane, graph in enumerate(self.graphs):
+            for species, (kind, key) in enumerate(graph[0]):
+                weights[lane, species] = (
+                    1
+                    if kind == "P"
+                    else 2
+                    if kind == "D"
+                    else len(key)
+                    if kind == "M"
+                    else len(key[3]) + (1 if key[0] == "P" else 2)
+                )
+        self._mass_weights = weights
+        self._mass_bound = np.sum(weights * initial, axis=1)
+
+    def _materialise(self, field):
+        if field in self._dirty:
+            device = {
+                "host": self.source,
+                "bits": self.expression,
+                "last_events": self.events,
+                "first_event_counts": self.first_events,
+            }
+            if field == "stages":
+                self._stages = {
+                    "boundary": self.host,
+                    "after_input": self.after_input.to_numpy(),
+                    "after_output": self.after_output.to_numpy(),
+                }
+            else:
+                setattr(self, "_" + field, device[field].to_numpy())
+            self._dirty.discard(field)
+        return getattr(self, "_" + field)
+
+    @property
+    def host(self):
+        return self._materialise("host")
+
+    @host.setter
+    def host(self, value):
+        self._host = value
+        self._dirty.discard("host")
+
+    @property
+    def bits(self):
+        return self._materialise("bits")
+
+    @bits.setter
+    def bits(self, value):
+        self._bits = value
+        self._dirty.discard("bits")
+
+    @property
+    def last_events(self):
+        return self._materialise("last_events")
+
+    @last_events.setter
+    def last_events(self, value):
+        self._last_events = value
+        self._dirty.discard("last_events")
+
+    @property
+    def first_event_counts(self):
+        return self._materialise("first_event_counts")
+
+    @first_event_counts.setter
+    def first_event_counts(self, value):
+        self._first_event_counts = value
+        self._dirty.discard("first_event_counts")
+
+    @property
+    def stages(self):
+        return self._materialise("stages")
+
+    @stages.setter
+    def stages(self, value):
+        self._stages = value
+        self._dirty.discard("stages")
+
+    def _compile_readouts(self, graphs, genes, lane_graph):
+        # Bound both Python selection lists and dense arrays before building them.
+        readouts = max(1, len(self.spec.ports.readouts))
+        width_bound = max(1, *(max(len(g[0]), len(g[2])) for g in graphs))
+        self.model.engine._check_memory(
+            len(graphs) * readouts * (width_bound * 40 + 128) + readouts * 8,
+            message="chemistry readout construction exceeds memory budget",
+        )
+        selections = []
+        descriptors = np.zeros((max(1, len(self.spec.ports.readouts)), 2), np.int32)
+        for r, readout in enumerate(self.spec.ports.readouts):
+            if readout.gene >= genes.shape[1]:
+                raise ValueError("readout gene outside genotype")
+            met = None if readout.metabolite is None else canonical_metabolite(readout.metabolite)
+            pair = None if readout.dimer is None else tuple(sorted(readout.dimer))
+            mode = (
+                0
+                if readout.kind in ("expression", "functional_expression")
+                else 2
+                if readout.kind == "fission"
+                else 1
+            )
+            stage = {"boundary": 0, "after_input": 1, "after_output": 2}[readout.stage]
+            descriptors[r] = (mode, stage)
+            rows = []
+            for plan, graph in enumerate(graphs):
+                keys, index, _, events = graph[:4]
+                gene = int(genes[self._representatives[plan], readout.gene])
+                protein = int(self.model.tables.gene_to_protein[gene & 65535])
+                indices = []
+                if mode == 0:
+                    if readout.kind == "expression" or protein > 0:
+                        indices = [readout.gene]
+                elif readout.kind == "protein":
+                    species = index.get(
+                        ("P", protein if readout.protein is None else readout.protein)
+                    )
+                    if species is not None:
+                        indices = [species]
+                elif readout.kind == "dimer":
+                    if pair is None:
+                        raise ValueError("dimer readout requires a dimer pair")
+                    species = index.get(("D", pair))
+                    if species is not None:
+                        indices = [species]
+                elif readout.kind == "bound":
+                    indices = [
+                        s
+                        for s, (kind, key) in enumerate(keys)
+                        if kind == "B"
+                        and (met is None or key[3] == met)
+                        and (readout.protein is None or key[1] == readout.protein)
+                        and (pair is None or (key[0] == "D" and key[1:3] == pair))
+                    ]
+                elif mode == 2:
+                    indices = [
+                        c
+                        for c, event in enumerate(events)
+                        if event is not None and (met is None or event[0] == met)
+                    ]
+                rows.append(indices)
+            selections.append(rows)
+        width = max(1, *(len(row) for rows in selections for row in rows))
+        indices = np.full((len(graphs), len(descriptors), width), -1, np.int32)
+        sizes = np.zeros(indices.shape[:2], np.int32)
+        for r, rows in enumerate(selections):
+            for plan, row in enumerate(rows):
+                sizes[plan, r] = len(row)
+                indices[plan, r, : len(row)] = row
+        return indices, sizes, descriptors
 
     def _admit(self, counts):
         # Host int64 admission gives a provable i32 bound for molecule creation,
@@ -380,7 +676,7 @@ class _BatchChemistry:
 
     def _input_counts(self, inputs):
         lanes = len(self.graphs)
-        result = np.full(self.host.shape, -1, np.int64)
+        result = np.full(self._shape, -1, np.int64)
         if inputs is None:
             return result
         if isinstance(inputs, Mapping):
@@ -405,10 +701,13 @@ class _BatchChemistry:
                     ) from error
                 if np.any(values < 0) or np.any(values > self.spec.ports.max_dose):
                     raise ValueError("input count outside configured max_dose")
-                for lane, graph in enumerate(self.graphs):
-                    if key not in graph[1]:
+                slots = self._input_slots.get(key)
+                if slots is None:
+                    if any(key not in graph[1] for graph in self.graphs):
                         raise ValueError("input molecule outside declared chemistry vocabulary")
-                    result[lane, graph[1][key]] = int(values[lane])
+                    slots = np.asarray([graph[1][key] for graph in self.graphs], np.intp)
+                    self._input_slots[key] = slots
+                result[np.arange(lanes), slots] = values
         else:
             states = [inputs] if isinstance(inputs, CellState) else list(inputs)
             if len(states) != lanes:
@@ -423,115 +722,110 @@ class _BatchChemistry:
                     result[lane, self.graphs[lane][1][key]] = count
         return result
 
-    def step(self, inputs=None):
+    def _safe_steps(self, injection, requested=1, pulse=False):
+        added = np.sum(np.maximum(injection, 0) * self._mass_weights, axis=1)
+        bound = self._mass_bound.copy()
+        maximum = _MAX // max(16, self.candidates * 16)
+        steps = 0
+        for tick in range(requested):
+            extra = added if tick == 0 or not pulse else 0
+            if np.any(bound + extra + self.genotypes.shape[-1] > maximum):
+                break
+            bound += extra + self.genotypes.shape[-1]
+            steps += 1
+        return steps, bound
+
+    def step(self, inputs=None, *, steps=1, pulse=False):
         from ._chemistry_kernels import canonical_step
 
         injection = self._input_counts(inputs)
-        self.last_inputs = injection.copy()
-        combined = self.host.astype(np.int64)
-        mask = injection >= 0
-        if self.spec.ports.input_mode == "replenish":
-            combined[mask] = injection[mask]
-        else:
-            combined[mask] += injection[mask]
-        self._admit(combined)
+        safe, bound = self._safe_steps(injection, steps, pulse)
+        if safe < steps:
+            if steps > 1:
+                raise ValueError("chemistry block requires a proven admission bound")
+            combined = self.host.astype(np.int64)
+            mask = injection >= 0
+            if self.spec.ports.input_mode == "replenish":
+                combined[mask] = injection[mask]
+            else:
+                combined[mask] += injection[mask]
+            self._admit(combined)
+            bound = np.sum(combined * self._mass_weights, axis=1) + self.genotypes.shape[-1]
+        self.last_inputs = injection
         self.inputs.from_numpy(injection.astype(np.int32))
-        kernel = cast(Any, canonical_step)
-        kernel(
+        static = self.arrays
+        bits, events, first, before, after = self._candidate_records
+        cast(Any, canonical_step)(
             self.source,
             self.inputs,
             self.target,
-            *self.arrays,
+            *static[:4],
             self.expression,
-            self.after_input,
-            self.after_output,
+            bits,
+            before,
+            after,
             self.eligible,
             self.capacity,
             self.demand,
-            self.events,
+            events,
             self.generated,
-            self.first_events,
+            first,
+            *static[4:],
+            steps,
+            int(pulse),
             int(self.spec.ports.input_mode == "replenish"),
             int(self.spec.mode == "regulatory"),
         )
-        # Transfer only completed results; source remains the previous complete
-        # boundary until all device execution and validation has succeeded.
-        host = self.target.to_numpy()
-        bits = self.expression.to_numpy()
-        events = self.events.to_numpy()
-        first_events = self.first_events.to_numpy()
-        stages = {
-            "after_input": self.after_input.to_numpy(),
-            "after_output": self.after_output.to_numpy(),
-            "boundary": host,
-        }
-        if np.any(host < 0):
-            raise OverflowError("device molecule counts overflowed")
-        self.first_event_counts = first_events
+        # Readout dispatch and transfer are part of the transaction. Completed
+        # counts and diagnostics remain untouched until all results succeed.
+        readouts = self.readouts((self.target, bits, events, first, before, after))
+        old_records = (
+            self.expression,
+            self.events,
+            self.first_events,
+            self.after_input,
+            self.after_output,
+        )
         self.source, self.target = self.target, self.source
-        self.host, self.bits, self.last_events, self.stages = host, bits, events, stages
-        return self.readouts()
+        self.expression, self.events, self.first_events, self.after_input, self.after_output = (
+            self._candidate_records
+        )
+        self._candidate_records = old_records
+        self._mass_bound = bound
+        self._dirty.update(("host", "bits", "last_events", "first_event_counts", "stages"))
+        return readouts
 
-    def readouts(self):
-        answer = {}
-        genes = self.genotypes.reshape(-1, self.genotypes.shape[-1])
-        for readout in self.spec.ports.readouts:
-            if readout.gene >= genes.shape[1]:
-                raise ValueError("readout gene outside genotype")
-            values = np.zeros(len(genes), np.int64)
-            stage = self.stages.get(readout.stage, self.host)
-            for lane, graph in enumerate(self.graphs):
-                if readout.kind in ("expression", "functional_expression"):
-                    values[lane] = self.bits[lane, readout.gene]
-                    if readout.kind == "functional_expression":
-                        values[lane] *= (
-                            int(
-                                self.model.tables.gene_to_protein[
-                                    int(genes[lane, readout.gene]) & 65535
-                                ]
-                            )
-                            > 0
-                        )
-                elif readout.kind == "protein":
-                    protein = readout.protein
-                    if protein is None:
-                        protein = int(
-                            self.model.tables.gene_to_protein[
-                                int(genes[lane, readout.gene]) & 65535
-                            ]
-                        )
-                    s = graph[1].get(("P", protein))
-                    values[lane] = 0 if s is None else stage[lane, s]
-                elif readout.kind == "dimer":
-                    if readout.dimer is None:
-                        raise ValueError("dimer readout requires a dimer pair")
-                    s = graph[1].get(("D", tuple(sorted(readout.dimer))))
-                    values[lane] = 0 if s is None else stage[lane, s]
-                elif readout.kind == "bound":
-                    for s, (kind, key) in enumerate(graph[0]):
-                        if kind == "B" and (
-                            readout.metabolite is None
-                            or key[3] == canonical_metabolite(readout.metabolite)
-                        ):
-                            if readout.protein is None or key[1] == readout.protein:
-                                if readout.dimer is None or (
-                                    key[0] == "D" and key[1:3] == tuple(sorted(readout.dimer))
-                                ):
-                                    values[lane] += stage[lane, s]
-                elif readout.kind == "fission":
-                    for c, event in enumerate(graph[3]):
-                        if event is not None and (
-                            readout.metabolite is None
-                            or event[0] == canonical_metabolite(readout.metabolite)
-                        ):
-                            event_counts = (
-                                self.first_event_counts
-                                if readout.stage == "after_input"
-                                else self.last_events
-                            )
-                            values[lane] += event_counts[lane, c]
-            answer[readout.name] = _owned(values.reshape(self.leading))
-        return answer
+    def readouts(self, devices=None):
+        from ._chemistry_kernels import compact_readouts
+
+        boundary, bits, events, first, before, after = (
+            (
+                self.source,
+                self.expression,
+                self.events,
+                self.first_events,
+                self.after_input,
+                self.after_output,
+            )
+            if devices is None
+            else devices
+        )
+        cast(Any, compact_readouts)(
+            boundary,
+            before,
+            after,
+            bits,
+            events,
+            first,
+            self.arrays[-1],
+            *self._readout_arrays,
+            self._readout_values,
+        )
+        values = self._readout_values.to_numpy()
+        return {
+            r.name: _owned(values[:, i].astype(np.int64).reshape(self.leading))
+            for i, r in enumerate(self.spec.ports.readouts)
+        }
 
     def inventories(self, stage="boundary"):
         counts = self.stages.get(stage, self.host)
@@ -569,6 +863,98 @@ class _BatchChemistry:
             )
             for lane, graph in enumerate(self.graphs)
         ]
+
+
+class _RetainedChemistry:
+    """Reusable device copy of a committed or warmed chemistry boundary."""
+
+    def __init__(self, session):
+        self.session = session
+        batch = session._batch
+        self.shapes = (
+            batch._shape,
+            batch._bits.shape,
+            (batch._shape[0], batch.candidates),
+            (batch._shape[0], batch.candidates),
+            batch._shape,
+            batch._shape,
+        )
+        # Device retention, lazy host materialisation and export's owning copies.
+        self.buffer_bytes = sum(int(np.prod(shape)) * 4 for shape in self.shapes) * 3
+        self.buffer_bytes += session.genotypes.nbytes * 2 + batch._shape[0] * 8
+        self.buffers = [session.model.engine._i32(shape) for shape in self.shapes]
+        self._view = None
+        self.capture()
+
+    @staticmethod
+    def _devices(batch):
+        return (
+            batch.source,
+            batch.expression,
+            batch.events,
+            batch.first_events,
+            batch.after_input,
+            batch.after_output,
+        )
+
+    def capture(self):
+        from ._chemistry_kernels import copy_chemistry_state
+        from .sessions import owned
+
+        batch = self.session._batch
+        cast(Any, copy_chemistry_state)(*self._devices(batch), *self.buffers)
+        self.update = self.session.update
+        self.mass_bound = batch._mass_bound.copy()
+        self.trace = owned(self.session._unrecorded_trace)
+        self.trace_bytes = self.session._trace_bytes
+        self._view = None
+
+    def restore(self):
+        from ._chemistry_kernels import copy_chemistry_state
+        from .sessions import owned
+
+        batch = self.session._batch
+        cast(Any, copy_chemistry_state)(*self.buffers, *self._devices(batch))
+        batch._mass_bound = self.mass_bound.copy()
+        batch._dirty.update(("host", "bits", "last_events", "first_event_counts", "stages"))
+        self.session.update = self.update
+        self.session._unrecorded_trace = owned(self.trace)
+        self.session._trace_bytes = self.trace_bytes
+        # Reset-per-decision previously created a fresh child session before
+        # restoring its warmed payload. Keep those child-clock semantics.
+        self.session._used = dict.fromkeys(self.session._used, 0)
+        self.session._total = dict.fromkeys(self.session._total, 0)
+        self.session._boundaries = 0
+        self.session._status, self.session._reason = "ready", None
+        self.session.last_readouts = MappingProxyType(batch.readouts())
+
+    def view(self):
+        if self._view is None:
+            session = self.session
+            self._view = {
+                "identity": session.identity,
+                "table_digest": str(session.model.tables.digest),
+                "ruleset": RULESET,
+                "spec": asdict(session.spec),
+                "update": self.update,
+                "genotypes": session.genotypes,
+                "unrecorded_trace": self.trace,
+                "trace_bytes": self.trace_bytes,
+                **{
+                    name: buffer.to_numpy()
+                    for name, buffer in zip(
+                        ("counts", "bits", "events", "first_events", "after_input", "after_output"),
+                        self.buffers,
+                        strict=True,
+                    )
+                },
+            }
+        return self._view
+
+    def payload(self):
+        from .sessions import owned
+
+        return owned(self.view())
 
 
 def advance_batch(genotypes, states, inputs, model, spec=None):
@@ -612,9 +998,7 @@ class ChemistrySession(SessionBase):
         self.last_readouts = MappingProxyType(self._batch.readouts())
         if checkpoint is not None:
             self.restore_payload(checkpoint.payload["payload"])
-        for _ in range(max(0, spec.warmup - self.update)):
-            if self.step().status == "partial":
-                break
+        self.run(max(0, spec.warmup - self.update))
 
     @property
     def buffer_bytes(self):
@@ -681,14 +1065,16 @@ class ChemistrySession(SessionBase):
         self.update += 1
         self._consume("chemical_updates", units)
         self._status, self._reason = "ready", None
-        events = [
-            {
-                "type": "chemical_update",
-                "update": self.update,
-                "expression": self._batch.expressions().tolist(),
-                "fissions": self._batch.fissions(),
-            }
-        ]
+        events = []
+        if self.recording.mode == "full":
+            events = [
+                {
+                    "type": "chemical_update",
+                    "update": self.update,
+                    "expression": self._batch.expressions().tolist(),
+                    "fissions": self._batch.fissions(),
+                }
+            ]
         if self.recording.mode == "full":
             events[0].update(
                 {
@@ -724,11 +1110,43 @@ class ChemistrySession(SessionBase):
         if type(steps) is not int or steps < 0:
             raise ValueError("steps must be a nonnegative integer")
         report = self._report({"chemical_update": self.update}, transition={"advanced": False})
-        for _ in range(steps):
-            report = self.step()
+        remaining = steps
+        while remaining:
+            report = self._step_block(None, remaining)
+            remaining -= int((report.transition or {}).get("updates", 1))
             if report.status in {"partial", "complete", "failed"}:
                 break
         return report
+
+    def _step_block(self, inputs, maximum, *, pulse=False):
+        """Advance a proven prefix; recording and uncertain admission use step()."""
+        count = min(maximum, getattr(self.model.engine, "_chemistry_block_size", 1))
+        units = self._batch._shape[0]
+        limit = self.limits.max_chemical_updates
+        if limit is not None:
+            count = min(count, max(0, (limit - self._used["chemical_updates"]) // units))
+        if (
+            count <= 1
+            or self.recording.mode == "full"
+            or self._record_callback is not None
+            or self._status != "ready"
+            or self._pending_trace
+        ):
+            return self.step(inputs)
+        injection = self._batch._input_counts(inputs)
+        count, _ = self._batch._safe_steps(injection, count, pulse)
+        if count <= 1:
+            return self.step(inputs)
+        readouts = self._batch.step(inputs, steps=count, pulse=pulse)
+        self.last_readouts = MappingProxyType(readouts)
+        self.update += count
+        self._consume("chemical_updates", units * count)
+        self._boundaries += count
+        return self._report(
+            {"chemical_update": self.update},
+            {"readouts": dict(readouts)},
+            {"advanced": True, "updates": count},
+        )
 
     def snapshot(self, fields=None, include_pending=False):
         from .sessions import owned
@@ -743,7 +1161,7 @@ class ChemistrySession(SessionBase):
         }
         # Expression construction overlaps its source and immutable owning copy.
         sizes = {name: 0 for name in factories}
-        sizes["state"] = len(self._batch.host) * 16
+        sizes["state"] = self._batch._shape[0] * 16
         sizes["genotypes"] = self.genotypes.nbytes
         if include_pending:
             factories["pending_trace"] = lambda: owned(self._pending_trace)
@@ -854,6 +1272,11 @@ class ChemistrySession(SessionBase):
         }
         self._batch.source.from_numpy(self._batch.host)
         self._batch.expression.from_numpy(self._batch.bits)
+        self._batch.events.from_numpy(self._batch.last_events)
+        self._batch.first_events.from_numpy(self._batch.first_event_counts)
+        self._batch.after_input.from_numpy(self._batch.stages["after_input"])
+        self._batch.after_output.from_numpy(self._batch.stages["after_output"])
+        self._batch._mass_bound = np.sum(self._batch.host * self._batch._mass_weights, axis=1)
         from .sessions import owned
 
         self._unrecorded_trace = owned(payload.get("unrecorded_trace", []))

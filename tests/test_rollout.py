@@ -101,7 +101,9 @@ def test_genome_episode_and_explicit_agent_shapes(model):
 
 def test_pulse_and_replenish_are_explicit_chemical_ports(model):
     for mode in ("pulse", "replenish"):
-        controller = ControllerSpec(ports=PortSpec(metabolites=("1",), input_mode=mode))
+        controller = ControllerSpec(
+            mode="regulatory", ports=PortSpec(metabolites=("1",), input_mode=mode)
+        )
         session = RolloutSession(
             model,
             [0, 0],
@@ -109,18 +111,8 @@ def test_pulse_and_replenish_are_explicit_chemical_ports(model):
             EpisodeSpec(horizon=2, chemical_updates=2),
             controller,
         )
-        updates = []
-        original = session.chemistry.step
-
-        def capture(inputs, updates=updates, original=original):
-            updates.append(dict(inputs))
-            return original(inputs)
-
-        session.chemistry.step = capture
         session.run()
-        assert [bool(x) for x in updates] == (
-            [True, False, True, False] if mode == "pulse" else [True, True, True, True]
-        )
+        assert session.chemistry.inventories[0].metabolites["1"] == (2 if mode == "pulse" else 1)
         assert session.chemistry.update == 4
 
 

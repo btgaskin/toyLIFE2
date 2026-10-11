@@ -32,6 +32,19 @@ class SharedBudgetTests(unittest.TestCase):
             ExecutionSpec(memory_budget_mib=mib, cache_dir=self.directory.name), tables=self.tables
         )
 
+    def fill(self, runner, leave=0):
+        """Fill using measured fixed/per-lane storage of the current layout."""
+        sizes = []
+        for lanes in (1, 2):
+            probe = runner.chemistry(np.zeros((lanes, 2), np.uint32), self.controller)
+            sizes.append(probe.buffer_bytes)
+            runner.release(probe)
+        per_lane = sizes[1] - sizes[0]
+        fixed = sizes[0] - per_lane
+        available = runner.model.engine._available_bytes()
+        lanes = (available - fixed - leave) // per_lane
+        return runner.chemistry(np.zeros((lanes, 2), np.uint32), self.controller), per_lane
+
     def test_live_session_rejects_lazy_tables_then_release_admits_assay(self):
         with self.runner(5) as runner:
             engine = runner.model.engine
@@ -59,9 +72,9 @@ class SharedBudgetTests(unittest.TestCase):
         first = BatchRunner(model=model)
         second = BatchRunner(model=model)
         a = first.chemistry(np.zeros((9000, 2), np.uint32), self.controller)
-        b = second.chemistry(np.zeros((10784, 2), np.uint32), self.controller)
+        b, per_lane = self.fill(second)
         before = model.engine._reserved_session_bytes
-        self.assertLess(4 * 1024 * 1024 - before, 212)
+        self.assertLess(model.engine._available_bytes(), per_lane)
         with self.assertRaises(MemoryError):
             first.chemistry(np.zeros((1, 2), np.uint32), self.controller)
         self.assertEqual(model.engine._reserved_session_bytes, before)
@@ -125,7 +138,7 @@ class SharedBudgetTests(unittest.TestCase):
 
     def test_snapshot_fields_are_admitted_before_copying(self):
         with self.runner(4) as runner:
-            session = runner.chemistry(np.zeros((19784, 2), np.uint32), self.controller)
+            session, _ = self.fill(runner)
             with patch(
                 "toylife2.chemistry._owned", side_effect=AssertionError("copy before admit")
             ):
@@ -137,10 +150,7 @@ class SharedBudgetTests(unittest.TestCase):
     def test_tissue_snapshot_accounts_for_other_live_sessions(self):
         with self.runner(5) as runner:
             tissue = runner.tissue(np.zeros((100, 2), np.uint32), SpatialSpec(cells=31, steps=1))
-            engine = runner.model.engine
-            available = engine._available_bytes()
-            lanes = (available - 13000) // 212
-            chemistry = runner.chemistry(np.zeros((lanes, 2), np.uint32), self.controller)
+            chemistry, _ = self.fill(runner, leave=13000)
             with self.assertRaises(MemoryError):
                 tissue.snapshot()
             selected = tissue.snapshot(fields=("tissue",))
@@ -154,12 +164,12 @@ class SharedBudgetTests(unittest.TestCase):
 
         with self.runner(1) as runner:
             rollout = runner.rollout(
-                np.zeros((4, 2), np.uint32), protocol=EpisodeSpec(horizon=1),
+                np.zeros((4, 2), np.uint32),
+                protocol=EpisodeSpec(horizon=1),
                 controller=self.controller,
             )
             engine = runner.model.engine
-            lanes = engine._available_bytes() // 212
-            runner.chemistry(np.zeros((lanes, 2), np.uint32), self.controller)
+            self.fill(runner)
             with self.assertRaises(MemoryError):
                 rollout.snapshot(include_pending=True)
             self.assertEqual(rollout.snapshot(fields=("tick",)), {"tick": 0})

@@ -195,7 +195,17 @@ class RolloutSession(SessionBase):
         self._warmup_event_bytes = 0
         self._pending = None
         self._publishing = False
-        self._committed_chemistry = self.chemistry.payload()
+        from .chemistry import _RetainedChemistry
+
+        retained_bytes = (self.chemistry._batch._shape[0]
+                          * (self.chemistry._batch.species * 3
+                             + self.chemistry._batch.candidates * 2
+                             + self._controller_genes.shape[-1]) * 12)
+        retained_bytes += self.chemistry.genotypes.nbytes * 2 + self._chemical_work * 8
+        self._admit_memory(self.buffer_bytes + retained_bytes * 3)
+        self._committed_chemistry = _RetainedChemistry(self.chemistry)
+        self._commit_storage = _RetainedChemistry(self.chemistry)
+        self._reset_storage = _RetainedChemistry(self.chemistry)
         self._warmup_done = 0
         self._reset_chemistry = None
         if self.task.kind == "signalling_game" and "rounds" in self.task.config:
@@ -238,7 +248,9 @@ class RolloutSession(SessionBase):
             getattr(self, "_unrecorded_trace", None),
             self._pending_trace,
         )
-        return self.chemistry.buffer_bytes + self._world_peak_bytes + _array_bytes(trees)
+        retained = sum(getattr(getattr(self, name, None), "buffer_bytes", 0)
+                       for name in ("_committed_chemistry", "_commit_storage", "_reset_storage"))
+        return self.chemistry.buffer_bytes + self._world_peak_bytes + _array_bytes(trees) + retained
 
     @property
     def status(self) -> np.ndarray:
@@ -331,12 +343,13 @@ class RolloutSession(SessionBase):
         return owned(numerical(self.world.observe(numerical(self._world_state))))
 
     def snapshot(self, fields=None, include_pending: bool = False) -> dict:
+        fields = None if fields is None else tuple(fields)
         # Borrow existing arrays first; derived arrays and all owning copies are
         # allocated only after the selected fields pass shared admission.
         result = {
             "tick": self.tick,
             "world": self._world_state,
-            "chemistry": self._committed_chemistry,
+            "chemistry": None,
             "codec": self._codec_state,
             "actions": self._actions,
             "channels": self.channels,
@@ -346,14 +359,14 @@ class RolloutSession(SessionBase):
             "status": None,
             "success": None,
         }
-        if include_pending:
+        if include_pending and (fields is None or "pending" in fields):
             result["pending"] = (
                 None
                 if self._pending is None and self._warmup_done >= self.controller.warmup
                 else {
                     **(self._pending or {}),
                     "warmup_done": self._warmup_done,
-                    "chemistry": self.chemistry._payload_view(),
+                    "chemistry": None,
                 }
             )
         if fields is not None:
@@ -368,7 +381,17 @@ class RolloutSession(SessionBase):
         if "success" in result and "scores" not in result:
             scratch += self.reward_sum.nbytes
         required = self.model.engine._snapshot_bytes(result) + 2 * derived_bytes + scratch
+        if "chemistry" in result:
+            required += getattr(self._committed_chemistry, "buffer_bytes", 0)
+        if result.get("pending") is not None:
+            required += self._committed_chemistry.buffer_bytes
+
         self.model.engine._check_snapshot_memory(self, required)
+        if "chemistry" in result:
+            result["chemistry"] = self._committed_chemistry.view()
+        selected_pending = result.get("pending")
+        if selected_pending is not None:
+            selected_pending["chemistry"] = self.chemistry._payload_view()
         scores = None
         if "scores" in result or "success" in result:
             scores = np.divide(
@@ -444,7 +467,11 @@ class RolloutSession(SessionBase):
                 return self._report({"tick": self.tick})
             if not self._allow("chemical_updates", self._chemical_work):
                 return self._report({"tick": self.tick}, {"scores": self.scores})
-            warmup_report = self.chemistry.step({})
+            remaining = self.controller.warmup - self._warmup_done
+            available = self.remaining("chemical_updates")
+            if available is not None:
+                remaining = min(remaining, available // self._chemical_work)
+            warmup_report = self.chemistry._step_block({}, remaining)
             warmup_rows = self._drain_chemical_events()
             self._warmup_events.extend(warmup_rows)
             self._warmup_event_bytes += _trace_size(warmup_rows)
@@ -454,24 +481,17 @@ class RolloutSession(SessionBase):
                     self._warmup_done += 1
                 self._status, self._reason = warmup_report.status, warmup_report.reason
                 return self._report({"tick": self.tick})
-            self._consume("chemical_updates", self._chemical_work)
-            self._warmup_done += 1
+            advanced = int((warmup_report.transition or {}).get("updates", 1))
+            self._consume("chemical_updates", self._chemical_work * advanced)
+            self._warmup_done += advanced
         if not self._trace_admitted(self._warmup_event_bytes):
             return self._report({"tick": self.tick})
         if self._reset_chemistry is None:
-            self._reset_chemistry = self.chemistry.payload()
+            self._reset_storage.capture()
+            self._reset_chemistry = self._reset_storage
         if self._pending is None:
             if self.protocol.reset_per_decision:
-                from .chemistry import ChemistrySession
-
-                self.chemistry = ChemistrySession(
-                    self.model,
-                    self._controller_genes,
-                    self._chemistry_spec,
-                    WorkLimits(),
-                    self.recording,
-                )
-                self.chemistry.restore_payload(self._reset_chemistry)
+                self._reset_chemistry.restore()
             observation = numerical(self.world.observe(numerical(self._world_state)))
             inputs, codec = self._encode(observation, self._codec_state)
             self._pending = {
@@ -499,7 +519,15 @@ class RolloutSession(SessionBase):
             inject = (
                 self.controller.ports.input_mode == "replenish" or pending["chemical_cursor"] == 0
             )
-            report = self.chemistry.step(pending["inputs"] if inject else {})
+            remaining = self.protocol.chemical_updates - pending["chemical_cursor"]
+            limit = self.limits.max_chemical_updates
+            if limit is not None:
+                remaining = min(remaining, (limit - self._used["chemical_updates"])
+                                // self._chemical_work)
+            report = self.chemistry._step_block(
+                pending["inputs"] if inject else {}, remaining,
+                pulse=self.controller.ports.input_mode == "pulse",
+            )
             chemical_rows = self._drain_chemical_events()
             pending["chemical_events"].extend(chemical_rows)
             pending["chemical_bytes"] += _trace_size(chemical_rows)
@@ -511,8 +539,9 @@ class RolloutSession(SessionBase):
                 return self._report(
                     {"tick": self.tick, "chemical_cursor": pending["chemical_cursor"]}
                 )
-            pending["chemical_cursor"] += 1
-            self._consume("chemical_updates", self._chemical_work)
+            advanced = int((report.transition or {}).get("updates", 1))
+            pending["chemical_cursor"] += advanced
+            self._consume("chemical_updates", self._chemical_work * advanced)
         if not self._trace_admitted(pending["chemical_bytes"]):
             return self._report({"tick": self.tick})
         actions, codec = self._decode(self.chemistry.last_readouts, pending["codec"])
@@ -579,6 +608,9 @@ class RolloutSession(SessionBase):
             ):
                 self._status, self._reason = "partial", "descriptor_budget"
                 return self._report({"tick": self.tick}, {"scores": self.scores})
+        # Retain candidate state before any recording publication; retries may
+        # recapture it safely while the committed snapshot remains intact.
+        self._commit_storage.capture()
         # A failed full trace is flushed at the top of step(). Its world update is
         # already staged, so decode/advance/randomness never repeat on retry.
         if prepared["boundary_waiting"] and not self._pending_trace:
@@ -605,7 +637,9 @@ class RolloutSession(SessionBase):
         self.reward_sum += prepared["reward"] * prepared["judged"]
         self.reward_count += prepared["judged"]
         self.tick += 1
-        self._committed_chemistry = self.chemistry.payload()
+        self._committed_chemistry, self._commit_storage = (
+            self._commit_storage, self._committed_chemistry
+        )
         self._pending = None
         self._consume("world_ticks", self._world_work)
         self._unrecorded_trace.extend(unrecorded_rows)
@@ -660,7 +694,7 @@ class RolloutSession(SessionBase):
             "tick": self.tick,
             "world": self._world_state,
             "chemistry": self.chemistry.payload(),
-            "committed_chemistry": self._committed_chemistry,
+            "committed_chemistry": self._committed_chemistry.payload(),
             "codec": self._codec_state,
             "pending": self._pending,
             "actions": self._actions,
@@ -674,7 +708,9 @@ class RolloutSession(SessionBase):
             "warmup_events": self._warmup_events,
             "warmup_event_bytes": self._warmup_event_bytes,
             "warmup_done": self._warmup_done,
-            "reset_chemistry": self._reset_chemistry,
+            "reset_chemistry": (
+                None if self._reset_chemistry is None else self._reset_chemistry.payload()
+            ),
         }
         if self._publishing:
             assert self._pending is not None
@@ -717,6 +753,12 @@ class RolloutSession(SessionBase):
             return super().checkpoint()
         finally:
             self._status, self._used, self._total = status, used, total
+
+    def _load_retained(self, retained, payload):
+        working = self.chemistry.payload()
+        self.chemistry.restore_payload(payload)
+        retained.capture()
+        self.chemistry.restore_payload(working)
 
     def _restore_payload(self, payload: dict) -> None:
         tick = payload["tick"]
@@ -765,7 +807,8 @@ class RolloutSession(SessionBase):
         self.tick = tick
         self._world_state = numerical(payload["world"])
         self.chemistry.restore_payload(payload["chemistry"])
-        self._committed_chemistry = numerical(payload["committed_chemistry"])
+        self._committed_chemistry._view = numerical(payload["committed_chemistry"])
+        self._load_retained(self._committed_chemistry, self._committed_chemistry._view)
         self._codec_state = numerical(payload["codec"])
         self._pending = numerical(payload["pending"])
         self._actions = np.array(payload["actions"], copy=True)
@@ -779,4 +822,6 @@ class RolloutSession(SessionBase):
         self._warmup_events = numerical(payload.get("warmup_events", []))
         self._warmup_event_bytes = int(payload.get("warmup_event_bytes", 0))
         self._warmup_done = warmup
-        self._reset_chemistry = numerical(payload.get("reset_chemistry"))
+        if payload.get("reset_chemistry") is not None:
+            self._reset_chemistry = self._reset_storage
+            self._load_retained(self._reset_chemistry, payload["reset_chemistry"])

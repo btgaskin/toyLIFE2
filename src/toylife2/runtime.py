@@ -77,6 +77,10 @@ class Engine:
         self.qd = qd
         self._buffers: dict[str, object] = {}
         self._table_bytes = 0
+        from ._chemistry_cache import GraphCache
+
+        self._chemistry_cache = GraphCache(self.execution.memory_budget_mib * 1024 * 1024)
+        self._chemistry_block_size = 8
 
     _REGULATORY_TABLES = (
         "gene_to_protein", "protein_perimeter", "protein_energy", "dimer_id",
@@ -113,6 +117,8 @@ class Engine:
             - self._table_bytes - self._reserved_session_bytes - self._reserved_assay_bytes
         )
         table_peak = self._missing_table_bytes(table_names, peak=True)
+        self._chemistry_cache.reclaim(available - fixed_bytes - minimum_bytes - table_peak)
+        available -= self._chemistry_cache.bytes
         if table_peak > available:
             raise MemoryError("immutable table pack exceeds the execution memory budget")
         available -= table_peak + fixed_bytes

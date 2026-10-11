@@ -43,13 +43,17 @@ class ScenarioRandom:
             raise ValueError("panel must be a nonnegative integer")
         self.stream = Stream(seed)
         self.panel = panel
-        self.scenarios = np.asarray(scenarios, dtype=np.uint64)
+        self.scenarios = np.array(scenarios, dtype=np.uint64, copy=True)
+        self.scenarios.flags.writeable = False
+        self._unique, inverse = np.unique(self.scenarios, return_inverse=True)
+        self._inverse = inverse.reshape(self.scenarios.shape)
 
     def uniform(self, tick: int, role: str, width: int | None = None) -> np.ndarray:
-        ids = self.scenarios
+        ids = self._unique
         if width is not None:
             ids = ids[..., None] * np.uint64(width) + np.arange(width, dtype=np.uint64)
-        return self.stream.uniform(ids, role=f"world:{role}", trial=self.panel, event=tick)
+        draws = self.stream.uniform(ids, role=f"world:{role}", trial=self.panel, event=tick)
+        return draws[self._inverse]
 
     def normal(self, tick: int, role: str, width: int | None = None) -> np.ndarray:
         u = self.uniform(tick, role + ":normal-radius", width)

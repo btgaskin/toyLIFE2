@@ -1,0 +1,75 @@
+{
+  "chemistry_buffer_bytes": {
+    "device": 3652616,
+    "host": 4295688,
+    "total": 7948304
+  },
+  "chemistry_first_step_s": 0.0096788750088308,
+  "chemistry_samples_s": [
+    0.03493675000208896,
+    0.020104957991861738,
+    0.019284834008431062,
+    0.019000375003088266,
+    0.019041249994188547,
+    0.019197583009372465,
+    0.019211209000786766,
+    0.019144000005326234,
+    0.01922108299913816,
+    0.01973520799947437
+  ],
+  "chemistry_setup_s": 0.12180645800253842,
+  "cohort_buffer_bytes": 7948304,
+  "cohorts": 1,
+  "generation_digests": [],
+  "generation_samples_s": [],
+  "graph_cache": {
+    "bytes": 3551878,
+    "hits": 1280,
+    "misses": 256
+  },
+  "lane_updates_per_sample": 32768,
+  "materialized_kernels": 9,
+  "parameters": {
+    "backend": "metal",
+    "block_size": 8,
+    "buckets": false,
+    "chemical_updates": 16,
+    "duplicate": false,
+    "episodes": 8,
+    "generations": 0,
+    "genes": 8,
+    "metadata_layout": "shared",
+    "population": 128,
+    "repeats": 10,
+    "threads": 1,
+    "updates": 32
+  },
+  "platform": "macOS-26.4.1-arm64-arm-64bit",
+  "rollout_digest": "9e49a59fb05ca761a1c209c62d8cb49d14964c14820fb30fd7f664a8d3d0524e",
+  "rollout_samples_s": [
+    0.12693808300537057,
+    0.12596754200058058,
+    0.12651229200128,
+    0.1266639999957988,
+    0.12574945799133275,
+    0.12614029200631194,
+    0.12680866700247861,
+    0.12526137501117773,
+    0.12509104100172408,
+    0.12581145801232196
+  ],
+  "rollout_setup_samples_s": [
+    0.06090679200133309,
+    0.02004287499585189,
+    0.019981165998615324,
+    0.019394666989683174,
+    0.020153666991973296,
+    0.019911250012228265,
+    0.020217416997184046,
+    0.02055408300657291,
+    0.02000137499999255,
+    0.019783791998634115,
+    0.019906666988390498
+  ],
+  "source_sha256": "7d6572d1dcb2ca49c04647bafed228b5361b1ea4b1183e0b2927c303cb372f93"
+}

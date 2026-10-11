@@ -1,0 +1,83 @@
+{
+  "astra_review": "no remaining blockers",
+  "baseline_revision": "88e9f0f56ce4eb88add62ae941c2c4e5b6961337",
+  "cpu_sessions": {
+    "backend": "cpu",
+    "checks": [
+      "temporal",
+      "run_tumble",
+      "signalling",
+      "population",
+      "pending_tick_replay",
+      "population_replay"
+    ],
+    "fallback": false,
+    "population_counts": {
+      "invocation": {
+        "chemical_updates": 42,
+        "evolution_updates": 4,
+        "world_ticks": 42
+      },
+      "total": {
+        "chemical_updates": 42,
+        "evolution_updates": 4,
+        "world_ticks": 42
+      }
+    },
+    "runtime": {
+      "backend": "cpu",
+      "evaluation_contexts": 1,
+      "live_session_buffer_bytes": 270424,
+      "sessions": 10,
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    }
+  },
+  "cpu_tests": {
+    "passed": 246,
+    "subtests_passed": 2
+  },
+  "date": "2026-10-11",
+  "metal_sessions": {
+    "backend": "metal",
+    "checks": [
+      "temporal",
+      "run_tumble",
+      "signalling",
+      "population",
+      "pending_tick_replay",
+      "population_replay"
+    ],
+    "fallback": false,
+    "population_counts": {
+      "invocation": {
+        "chemical_updates": 42,
+        "evolution_updates": 4,
+        "world_ticks": 42
+      },
+      "total": {
+        "chemical_updates": 42,
+        "evolution_updates": 4,
+        "world_ticks": 42
+      }
+    },
+    "runtime": {
+      "backend": "metal",
+      "evaluation_contexts": 1,
+      "live_session_buffer_bytes": 270424,
+      "sessions": 10,
+      "table_digest": "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+    }
+  },
+  "metal_tests": {
+    "fallback": false,
+    "passed": 80
+  },
+  "pyright": "passed",
+  "ruff": "passed",
+  "source_sha256": "7d6572d1dcb2ca49c04647bafed228b5361b1ea4b1183e0b2927c303cb372f93",
+  "wheel": {
+    "installed_replay": true,
+    "installed_tables": "match",
+    "source_archive": "match"
+  }
+}
