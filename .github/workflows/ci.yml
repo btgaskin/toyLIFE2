@@ -19,7 +19,7 @@ jobs:
           python-version: '3.12'
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
       - run: uv sync --locked --group dev
-      - run: uv run python -m pytest -q
+      - run: uv run python tests/check_cpu.py -q
       - run: uv run ruff check src/toylife2 tests examples
       - run: uv run python -m pyright
       - run: uv build --wheel

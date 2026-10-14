@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from .genotypes import decode, encode, neighbours, validate
+from .genotypes import GenomeBatch, decode, encode, neighbours, validate
 from .reference import CellState, ReferenceModel, StepResult
 from .results import ArrayResult
 from .runtime import Engine
-from .specs import ExecutionSpec, RunSpec, SpatialSpec
+from .specs import ExecutionSpec, GeneCopySpec, RunSpec, SpatialSpec
 from .tables import Tables
 
 __version__ = "0.1.0"
@@ -16,6 +16,8 @@ __all__ = [
     "ArrayResult",
     "CellState",
     "ExecutionSpec",
+    "GeneCopySpec",
+    "GenomeBatch",
     "Model",
     "ReferenceModel",
     "RunSpec",
@@ -83,7 +85,8 @@ class Model:
             ):
                 adjacent = self.neighbourhood(genes, phenotype=phenotype, environment=environment)
                 self.engine._check_memory(
-                    adjacent.status.nbytes + 5 * adjacent.values.nbytes
+                    adjacent.status.nbytes
+                    + 5 * adjacent.values.nbytes
                     + adjacent.values.size // adjacent.values.shape[-1] * 16,
                     message="robustness summary exceeds the execution memory budget",
                 )
@@ -113,6 +116,7 @@ from .protocols import (  # noqa: E402
     ObjectiveSpec,
     PortSpec,
     ReadoutSpec,
+    StructuralInterface,
     TaskSpec,
     WorkLimits,
 )
@@ -122,6 +126,7 @@ __all__ += [
     "BatchRunner",
     "Checkpoint",
     "ControllerSpec",
+    "StructuralInterface",
     "EpisodeSpec",
     "ObjectiveSpec",
     "PortSpec",

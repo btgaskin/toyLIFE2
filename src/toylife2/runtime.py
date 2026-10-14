@@ -51,7 +51,7 @@ class Engine:
                 if self.execution.cpu_threads is not None:
                     options["cpu_max_num_threads"] = self.execution.cpu_threads
                 qd.init(
-                    arch=qd.cpu if self.execution.backend == "cpu" else qd.metal,
+                    arch=getattr(qd, self.execution.backend),
                     default_ip=qd.i32,
                     fast_math=False,
                     enable_fallback=False,
@@ -64,7 +64,7 @@ class Engine:
             Engine._runtime_cpu_threads = self.execution.cpu_threads
         elif Engine._runtime_backend is None:
             actual = qd.lang.impl.current_cfg().arch
-            expected = qd.cpu if self.execution.backend == "cpu" else qd.metal
+            expected = getattr(qd, self.execution.backend)
             if actual != expected:
                 raise RuntimeError("Quadrants already uses a different backend")
         Engine._runtime_backend = self.execution.backend
@@ -81,15 +81,34 @@ class Engine:
 
         self._chemistry_cache = GraphCache(self.execution.memory_budget_mib * 1024 * 1024)
         self._chemistry_block_size = 8
+        from .resident_world import RandomBlockCache
+
+        self._world_block_size = 8
+        self._world_random_cache = RandomBlockCache(
+            min(16 * 1024 * 1024, self.execution.memory_budget_mib * 1024 * 1024 // 32),
+            engine=self,
+        )
 
     _REGULATORY_TABLES = (
-        "gene_to_protein", "protein_perimeter", "protein_energy", "dimer_id",
-        "dimer_energy", "protein_promoter_energy", "protein_promoter_pol",
-        "dimer_promoter_energy", "dimer_promoter_pol", "polymerase_energy",
+        "gene_to_protein",
+        "protein_perimeter",
+        "protein_energy",
+        "dimer_id",
+        "dimer_energy",
+        "protein_promoter_energy",
+        "protein_promoter_pol",
+        "dimer_promoter_energy",
+        "dimer_promoter_pol",
+        "polymerase_energy",
     )
     _METABOLIC_TABLES = (
-        "protein_met_energy", "dimer_met_energy", "dimer_met_seq", "dimer_met_pos",
-        "dimer_met_breakable", "breaking_seq_to_index", "breaking_energy",
+        "protein_met_energy",
+        "dimer_met_energy",
+        "dimer_met_seq",
+        "dimer_met_pos",
+        "dimer_met_breakable",
+        "breaking_seq_to_index",
+        "breaking_energy",
     )
 
     def _missing_table_bytes(self, names: tuple[str, ...], *, peak: bool = False) -> int:
@@ -114,11 +133,15 @@ class Engine:
         """Plan against live sessions, retained tables and enclosing assay scratch."""
         available = (
             self.execution.memory_budget_mib * 1024 * 1024
-            - self._table_bytes - self._reserved_session_bytes - self._reserved_assay_bytes
+            - self._table_bytes
+            - self._reserved_session_bytes
+            - self._reserved_assay_bytes
         )
         table_peak = self._missing_table_bytes(table_names, peak=True)
         self._chemistry_cache.reclaim(available - fixed_bytes - minimum_bytes - table_peak)
         available -= self._chemistry_cache.bytes
+        self._world_random_cache.reclaim(available - fixed_bytes - minimum_bytes - table_peak)
+        available -= self._world_random_cache.bytes
         if table_peak > available:
             raise MemoryError("immutable table pack exceeds the execution memory budget")
         available -= table_peak + fixed_bytes
@@ -161,8 +184,9 @@ class Engine:
 
     def _table_pack(self, names: tuple[str, ...]) -> tuple[object, ...]:
         # Admit the complete missing set before converting or uploading any table.
-        self._available_bytes(table_names=names,
-                              message="immutable table pack exceeds the execution memory budget")
+        self._available_bytes(
+            table_names=names, message="immutable table pack exceeds the execution memory budget"
+        )
         staged = {}
         for name in dict.fromkeys(names):
             if name not in self._buffers:
@@ -208,7 +232,8 @@ class Engine:
         # ArrayResult takes owned immutable copies of values and status.
         fixed_bytes = genes.nbytes + output_bytes
         available = self._available_bytes(
-            table_names=self._REGULATORY_TABLES, fixed_bytes=fixed_bytes,
+            table_names=self._REGULATORY_TABLES,
+            fixed_bytes=fixed_bytes,
             minimum_bytes=per_sample,
             message="one genotype truth table exceeds the execution memory budget",
         )
@@ -303,13 +328,14 @@ class Engine:
         per_sample = source_sample_bytes + len(env) * met_lane_bytes
         names = self._REGULATORY_TABLES + self._METABOLIC_TABLES
         available = self._available_bytes(
-            table_names=names, fixed_bytes=fixed,
+            table_names=names,
+            fixed_bytes=fixed,
             minimum_bytes=source_sample_bytes + met_lane_bytes,
             message="one metabolic assay exceeds the execution memory budget",
         )
         buffers = self._table_pack(names)
-        reg_tables = buffers[:len(self._REGULATORY_TABLES)]
-        met_tables = buffers[len(self._REGULATORY_TABLES):]
+        reg_tables = buffers[: len(self._REGULATORY_TABLES)]
+        met_tables = buffers[len(self._REGULATORY_TABLES) :]
         if available >= per_sample:
             chunk = min(self.execution.batch_size, available // per_sample)
             met_chunk = len(env)

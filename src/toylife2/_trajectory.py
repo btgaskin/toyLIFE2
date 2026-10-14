@@ -22,7 +22,7 @@ from .tables import canonical_metabolite
 
 
 def _single(engine, genes: np.ndarray, bits: np.ndarray,
-            tables: tuple[object, ...]) -> tuple[np.ndarray, ...]:
+            tables: tuple[object, ...], *, inventories: bool = True) -> tuple[np.ndarray, ...]:
     from ._trajectory_kernels import regulatory_single
 
     lanes, n_genes = genes.shape
@@ -35,6 +35,8 @@ def _single(engine, genes: np.ndarray, bits: np.ndarray,
     next_bits = engine._i32((lanes, n_genes))
     regulatory_single(device_genes, device_bits, *tables, pids, pcounts,
                       *candidates, next_bits)
+    if not inventories:
+        return (next_bits.to_numpy(),)
     return (next_bits.to_numpy(), pids.to_numpy(), pcounts.to_numpy(),
             candidates[0].to_numpy(), candidates[1].to_numpy(),
             candidates[2].to_numpy(), candidates[5].to_numpy())
@@ -99,7 +101,7 @@ def _reachable_cycles(engine, genes: np.ndarray,
         chunk_size = _regulatory_chunk(engine, n_genes, fixed_bytes + seen_bytes)
         for start in range(0, len(active), chunk_size):
             chunk = active[start:start + chunk_size]
-            next_bits = _single(engine, genes[chunk], current[chunk], tables)[0]
+            next_bits = _single(engine, genes[chunk], current[chunk], tables, inventories=False)[0]
             current[chunk] = next_bits
             del next_bits
     else:

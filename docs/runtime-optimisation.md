@@ -3,7 +3,9 @@
 Measured on 2026-10-11 on this arm64 Mac, using one CPU thread and physical
 Metal with backend fallback disabled. Baseline source is repository revision
 `88e9f0f56ce4eb88add62ae941c2c4e5b6961337`, extracted into an isolated source tree.
-The same benchmark script runs both source versions in fresh processes.
+The optimised source and benchmark script are archived at revision `bb00eae`.
+These historical results use the former run/tumble protocol; current chemotaxis
+benchmarks exercise the finite-duration spherical motion model.
 
 | Backend | Workload | Baseline median | Optimised median | Speedup |
 |---|---|---:|---:|---:|
@@ -30,7 +32,7 @@ fitness handling, selection, and mutation after benchmark kernels are warmed.
 Final population digests and rollout score/position digests match the baseline
 for every paired run. Scientific signalling interfaces remain a separate change.
 
-## Internal choices
+## Execution choices
 
 - Shared metadata: the eight-gene chemistry cohort reserves 7,948,304 bytes,
   versus 20,033,552 bytes with replicated device metadata, a 60.3% reduction.
@@ -62,23 +64,19 @@ and memory limits can change the balance.
 
 ## Reproduce and inspect
 
-```sh
-.venv/bin/python benchmarks/runtime_optimisation.py --backend cpu --threads 1
-.venv/bin/python benchmarks/runtime_optimisation.py --backend metal --threads 1
-.venv/bin/python benchmarks/runtime_optimisation.py --backend metal --threads 1 \
-  --chemical-updates 16 --block-size 8 --repeats 10
-.venv/bin/python benchmarks/runtime_optimisation.py --backend cpu --threads 1 \
-  --genes 2 --updates 16 --chemical-updates 4 --generations 3 --repeats 3
-```
-
-For baseline comparisons, extract the recorded revision and use its source:
+Use the archived benchmark with both recorded source revisions to reproduce
+these workloads. The current benchmark uses the current chemotaxis protocol.
 
 ```sh
-mkdir -p /tmp/toylife-runtime-baseline
+mkdir -p /tmp/toylife-runtime-optimised /tmp/toylife-runtime-baseline
+git archive bb00eae src benchmarks/runtime_optimisation.py | tar -x -C /tmp/toylife-runtime-optimised
 git archive 88e9f0f src | tar -x -C /tmp/toylife-runtime-baseline
+ln -s "$PWD/upstream" /tmp/toylife-runtime-optimised/upstream
 ln -s "$PWD/upstream" /tmp/toylife-runtime-baseline/upstream
+PYTHONPATH=/tmp/toylife-runtime-optimised/src .venv/bin/python \
+  /tmp/toylife-runtime-optimised/benchmarks/runtime_optimisation.py --backend cpu --threads 1
 PYTHONPATH=/tmp/toylife-runtime-baseline/src .venv/bin/python \
-  benchmarks/runtime_optimisation.py --backend cpu --threads 1
+  /tmp/toylife-runtime-optimised/benchmarks/runtime_optimisation.py --backend cpu --threads 1
 ```
 
 Raw parameters, timing samples, hashes, cache metrics, kernel counts,
@@ -96,7 +94,6 @@ The benchmark fingerprints sorted package Python sources:
   population, pending-decision replay, and population replay passed.
 - Wheel: installed tables and source archive match; installed replay passed.
 - Ruff, Pyright, and whitespace checks passed.
-- Astra reviewed the implementation and final allocation/retry fixes.
 
 Added tests cover immutable plan reuse and independent episodes; complete random
 addresses; scalar/block agreement for canonical and regulatory modes, pulse and

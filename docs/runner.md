@@ -33,7 +33,7 @@ genes = np.array([[907050, 1048465, 769001], [1005689, 644498, 941775]], np.int3
 with BatchRunner() as runner:
     session = runner.rollout(
         genes,
-        task=TaskSpec(kind="run_tumble"),
+        task=TaskSpec(kind="chemotaxis"),
         protocol=EpisodeSpec(horizon=1000, episodes=8, chemical_updates=2),
         limits=WorkLimits(max_world_ticks=160),
         seed=123,
@@ -110,22 +110,28 @@ for every scenario. The example declares 256 rounds and horizon 512; an explicit
 round count `R` requires horizon `2*R`, with horizon zero available for an empty
 episode. Mean reward divides by judged receive ticks.
 
-`run_tumble` uses a dimensionless periodic square of side 16. Default world time
-steps are 0.05, speed is 1, and rotational diffusion is 0.05. A high motor lowers
-the tumble hazard to 0.2; a low motor uses hazard 2. A tumble occupies two stationary
-ticks and draws a uniform new heading on completion. Four fixed Gaussian patches
-have width 1. Their amplitudes are sigmoids of unit-variance Ornstein–Uhlenbeck
-processes with time constant 5, updated by the exact discrete transition. The
-field has baseline 0.05, divides by 4.05, and supplies an absolute sensor dose
-`floor(8 * field)`. Reward samples the updated field at the resulting position;
-the mean exposure is the task score. Agents do not deplete the field.
+`chemotaxis` moves a cell through a periodic square, with a source field or a
+Fourier concentration field. The binary motor selects the run-to-tumble hazard.
+The cell swims with a three-dimensional orientation projected onto the square;
+finite tumbles pause swimming while rotational diffusion changes its direction.
+Motion carries orientation and remaining tumble duration across decisions.
+A Bernoulli cue samples the local exposure; mean exposure is the score.
+Fields can remain static or update their Fourier phases over time.
 
-Built-in numerical world kernels run on Quadrants CPU or Metal. World state and
-stochastic inputs currently pass through NumPy arrays at each decision; Metal use
-therefore includes host/device transfers. Habitat state uses float32, and reward
-aggregation uses float64. `session.profile` reports placement, axes, clocks, and
-logical work counts. Timing results for earlier fixed assays describe those
-measured workloads; the session API introduces no additional throughput claim.
+Automatic placement selects Metal on Apple hardware, CUDA where available, and
+native CPU otherwise. The concrete choice is saved in the run specification. Select `ExecutionSpec(backend="cpu")` or
+`--backend cpu` for CPU execution. Existing records retain their captured backend.
+New molecular chemotaxis profiles explicitly select Quadrants and float32 worlds.
+Undeclared legacy chemotaxis configurations retain NumPy and float64 worlds.
+Quadrants float64 worlds require CPU execution.
+
+For replayable structural controllers, `run()` keeps chemistry, readouts, and
+world state on the device across blocks of up to eight complete decisions.
+Routine block traffic consists of scenario random draws uploaded once and rewards
+downloaded once. `step()`, snapshots, checkpoints, and detailed recording expose
+owned host data at their requested boundaries. See the [device pipeline guide](device-pipeline.md)
+for placement and transfer boundaries. `run_tumble` has been retired;
+its saved configurations require an earlier release.
 
 Exogenous random draws use namespaces for panel, scenario, tick, and role. They
 omit candidate and genotype identities, which gives candidates common environmental

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from toylife2.protocols import TaskSpec
-from toylife2.worlds import RunTumble, ScenarioRandom, SignallingGame, make_world, numerical
+from toylife2.worlds import ScenarioRandom, SignallingGame, make_world, numerical
 
 
 def random(shape=(4,), seed=123, panel=0):
@@ -43,35 +43,6 @@ def test_signalling_balanced_rounds_and_common_candidate_randomness():
     assert np.any(bits != np.stack([different._private(i) for i in range(256)]))
 
 
-def test_habitat_two_tick_tumble_and_reward_at_new_field_position():
-    world = RunTumble({"low_motor_hazard": 1e6}, (4,), 1, random(), 0.05, False)
-    initial = world.reset()
-    first, reward, channels = world.advance(initial, np.zeros(4, np.int32))
-    np.testing.assert_array_equal(first["position"], initial["position"])
-    np.testing.assert_array_equal(first["tumble"], 1)
-    np.testing.assert_array_equal(channels["tumbling"], 1)
-    second, _, channels = world.advance(first, np.zeros(4, np.int32))
-    np.testing.assert_array_equal(second["position"], initial["position"])
-    np.testing.assert_array_equal(second["tumble"], 0)
-    np.testing.assert_array_equal(channels["tumbling"], 1)
-    assert np.any(second["theta"] != initial["theta"])
-    np.testing.assert_allclose(reward, world.field(first))
-    assert np.all((reward >= 0) & (reward <= 1))
-    assert np.any(first["latent"] != initial["latent"])
-
-
-def test_habitat_periodic_minimum_image_and_absolute_sensor():
-    world = RunTumble({}, (1,), 1, random((1,)), 0.05, False)
-    state = world.reset()
-    state["position"][:] = [4, 4]
-    state["latent"][:] = 0
-    reference = world.field(state)
-    state["position"] += 16
-    np.testing.assert_allclose(world.field(state), reference)
-    observation = world.observe(state)
-    np.testing.assert_array_equal(observation["dose"], np.floor(8 * reference))
-
-
 def test_numerical_callbacks_reject_opaque_nonfinite_state():
     with pytest.raises(ValueError, match="serialized numerical"):
         numerical({"opaque": object()})
@@ -86,7 +57,7 @@ def test_quadrants_builtin_worlds_match_host_reference(tmp_path):
     from toylife2.specs import ExecutionSpec
 
     Model(execution=ExecutionSpec(cache_dir=str(tmp_path / "qd")))
-    for cls, agents in ((SignallingGame, 2), (RunTumble, 1)):
+    for cls, agents in ((SignallingGame, 2),):
         host = cls({}, (8,), agents, random((8,)), 0.05, False)
         device = cls({}, (8,), agents, random((8,)), 0.05, True)
         a, b = host.reset(), device.reset()

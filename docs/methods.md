@@ -170,10 +170,12 @@ a declared reset policy restores initialized controller state. World `dt` and
 chemical updates per decision are separate settings.
 
 Built-in worlds provide delayed temporal decisions, two-agent signalling, and
-run/tumble motion in a fluctuating field. Ports, motor rules, reward, and world
+chemotaxis in source or fluctuating fields. Ports, motor rules, reward, and world
 dynamics are experimental choices documented in [the runner guide](runner.md).
-The locomotion task is a dimensionless control environment; it does not implement
-the E. coli biochemical transduction pathway. Importable worlds, codecs, and
+The locomotion task uses finite tumbles and a three-dimensional orientation
+projected onto a periodic square. The [molecular cells guide](molecular-cells.md)
+specifies its time and length scales. toyLIFE chemistry supplies the intracellular
+controller. Importable worlds, codecs, and
 objectives support other numerical tasks through the same state/checkpoint interface.
 
 An explicit agent axis joins controllers into a coupled world. Actions are decoded

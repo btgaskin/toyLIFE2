@@ -33,7 +33,7 @@ toylife2 run examples/pattern_2020.toml --set 'spatial.cells=61'
 ```
 
 `resume CHECKPOINT` resumes the exact saved scientific experiment. Pass
-`--destination PATH` for a new record and `--backend cpu|metal` only to change
+`--destination PATH` for a new record and `--backend auto|cpu|metal|cuda` only to change
 execution placement. `reproduce RECORD DESTINATION` verifies and reruns a saved
 record. `inspect RECORD` prints status, source and input hashes, actual backend,
 array inventory, and integrity results. `report RECORD` creates a static HTML
@@ -75,7 +75,7 @@ and the [runner guide](runner.md) for schema-2 fields and protocols.
 | `[assay]` | `phenotype` is `metabolic` or `regulatory`; `environment` lists 4–8-symbol binary metabolites for metabolic assays. |
 | `[spatial]` | `cells`, `steps`, `boundary` (`open` or `ring`), `diffusion` (`none`, `A`, `B`, `both`, `all`), `morphogen` (`none`, central A/B pulse or continuous input, or `explicit`), optional `initial_state` (one state per cell), `injections` (`[tick,cell,state]` triples for `explicit`), and optional `target` `.npy` path. |
 | `[evolution]` | `trials`, `trial_start`, `population_size`, `generations`, `mutation_probability`, `mutation`, `fitness_floor` (in `[0,1)`), `time_horizon`, and `initial` define the selected evolutionary protocol. |
-| `[execution]` | `backend` (`cpu` or `metal`), `batch_size`, `memory_budget_mib`, `max_steps`, `max_events`, `max_truth_states`, and `cache_dir` control placement and resource guards. |
+| `[execution]` | `backend` (`auto`, `cpu`, `metal`, or `cuda`; default `auto`), `batch_size`, `memory_budget_mib`, `max_steps`, `max_events`, `max_truth_states`, and `cache_dir` control placement and resource guards. |
 | `[recording]` | `mode` (`replayable` or `full`), `checkpoint_interval`, and `trace_budget_mib` control retained detail. |
 | `[cell]` | `steps`, `initial_expression`, and `metabolites` configure one-cell molecular dynamics. |
 | `[map]` | `start_pair`, optional `stop_pair`, and `tile_pairs` select a bounded weighted-map interval. |

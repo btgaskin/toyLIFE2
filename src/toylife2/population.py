@@ -11,10 +11,10 @@ import numpy as np
 
 from .evaluation import EvaluationResult, Evaluator
 from .evolution import _admit_population, _initial, _mutate, log_acceptance
-from .genotypes import mutation, neighbours
+from .genotypes import GenomeBatch, mutation, neighbours
 from .protocols import WorkLimits
 from .random import SCHEME, Stream
-from .sessions import SessionBase, owned
+from .sessions import Checkpoint, SessionBase, owned, pack
 from .specs import RunSpec, digest, plain, scientific_identity
 
 
@@ -81,6 +81,10 @@ class PopulationSession(SessionBase):
         ):
             raise ValueError("SSWM requires a fixed episodic panel")
         self.model, self.spec = model, spec
+        if evaluator is None and spec.evolution.gene_copy is not None:
+            from ._variable_evaluation import VariableGeneEvaluator
+
+            evaluator = VariableGeneEvaluator(model, spec, target=target)
         self.evaluator = evaluator or Evaluator(model, spec, target=target)
         self.algorithm = spec.operation
         self.stream = Stream(spec.seed)
@@ -117,6 +121,17 @@ class PopulationSession(SessionBase):
         self.populations = np.stack(
             [_initial(spec, self.stream, t, count) for t in range(len(self.replicates))]
         )
+        self.gene_counts = None
+        self.copy_statistics = None
+        self.gene_count_history = OrderedDict()
+        if spec.evolution.gene_copy is not None:
+            batch = GenomeBatch.from_fixed(self.populations, spec.evolution.gene_copy.max_genes)
+            self.populations = batch.genes.copy()
+            self.gene_counts = batch.gene_counts.copy()
+            self.copy_statistics = {
+                name: np.zeros((len(self.replicates), 4), np.int64)
+                for name in ("proposed", "applied", "blocked")
+            }
         size = len(self.replicates)
         self.cursors = np.zeros(size, np.int64)
         self.times = np.zeros(size, float)
@@ -143,7 +158,7 @@ class PopulationSession(SessionBase):
 
     def _restore_payload(self, data):
         if (
-            data.get("version") != 2
+            data.get("version") != (3 if self.gene_counts is not None else 2)
             or data.get("rng") != SCHEME
             or data.get("algorithm") != self.algorithm
         ):
@@ -159,6 +174,12 @@ class PopulationSession(SessionBase):
         ):
             raise ValueError("invalid checkpoint populations")
         self.populations[:] = pop
+        if self.gene_counts is not None:
+            copy = self.spec.evolution.gene_copy
+            batch = GenomeBatch(
+                pop, data["gene_counts"], min_genes=copy.min_genes, max_genes=copy.max_genes
+            )
+            self.gene_counts = batch.gene_counts.copy()
         for name in ("cursors", "times", "observed", "lane_status"):
             value = np.asarray(data[name])
             if value.shape != self.cursors.shape:
@@ -182,6 +203,8 @@ class PopulationSession(SessionBase):
         self.history = OrderedDict((tuple(key), row) for key, row in data["history"])
         if len(self.history) > self.history_capacity:
             raise ValueError("checkpoint history exceeds pinned retention")
+        if self.gene_counts is not None:
+            self._restore_gene_copy_history(data)
         self._conversion = data.get("conversion")
         self._evaluation_events = list(data.get("evaluation_events", []))
         self.round_robin = int(data["round_robin"])
@@ -189,6 +212,93 @@ class PopulationSession(SessionBase):
             raise ValueError("invalid scheduler cursor")
         if "evaluator" in data and hasattr(self.evaluator, "restore_payload"):
             self.evaluator.restore_payload(data["evaluator"])
+
+    def _restore_gene_copy_history(self, data):
+        statistics = data.get("copy_statistics")
+        names = {"proposed", "applied", "blocked"}
+        if not isinstance(statistics, dict) or set(statistics) != names:
+            raise ValueError("invalid gene-copy event counter names")
+        restored = {}
+        for name, value in statistics.items():
+            value = np.asarray(value)
+            if (
+                value.shape != (len(self.replicates), 4)
+                or value.dtype.kind not in "iu"
+                or np.any(value < 0)
+                or np.any(value > np.iinfo(np.int64).max)
+            ):
+                raise ValueError("invalid gene-copy event counters")
+            restored[name] = value.astype(np.int64, copy=True)
+        proposed, applied, blocked = (restored[name] for name in ("proposed", "applied", "blocked"))
+        if (
+            np.any(applied > proposed)
+            or np.any(blocked > proposed)
+            or np.any(proposed - applied != blocked)
+            or np.any(blocked[:, :2])
+            or any(
+                sum(map(int, proposed[lane])) != int(cursor) * self.spec.evolution.population_size
+                for lane, cursor in enumerate(self.cursors)
+            )
+        ):
+            raise ValueError("inconsistent gene-copy event counters")
+        rows = data.get("gene_count_history", [])
+        if not isinstance(rows, list) or len(rows) > self.history_capacity:
+            raise ValueError("invalid gene-count history retention")
+        history = OrderedDict()
+        cursors = dict(zip(map(int, self.replicates), map(int, self.cursors), strict=True))
+        for row in rows:
+            if not isinstance(row, (list, tuple)) or len(row) != 2:
+                raise ValueError("invalid gene-count history row")
+            key, value = row
+            if (
+                not isinstance(key, (list, tuple))
+                or len(key) != 2
+                or any(isinstance(x, bool) or not isinstance(x, (int, np.integer)) for x in key)
+                or key[0] not in cursors
+                or not 0 <= key[1] <= cursors[key[0]]
+                or tuple(key) in history
+            ):
+                raise ValueError("invalid gene-count history coordinates")
+            counts = np.asarray(value)
+            if (
+                counts.shape != (self.populations.shape[-1] + 1,)
+                or counts.dtype.kind not in "iu"
+                or np.any(counts < 0)
+                or any(counts[: self.spec.evolution.gene_copy.min_genes])
+                or sum(map(int, counts)) != self.spec.evolution.population_size
+            ):
+                raise ValueError("invalid gene-count history distribution")
+            history[tuple(key)] = counts.copy()
+        if list(history) != list(self.history):
+            raise ValueError("gene-count history differs from retained observations")
+        self.copy_statistics, self.gene_count_history = restored, history
+
+    def extension(self, generations: int) -> tuple[RunSpec, Checkpoint]:
+        """Fork a validated checkpoint with a larger generation target.
+
+        Population, evaluation cache, history and logical random coordinates are
+        retained. The original session and its record remain unchanged.
+        """
+        if self.algorithm not in {"wright_fisher", "neutral_walk"}:
+            raise ValueError("generation extension requires Wright–Fisher or neutral walk")
+        if type(generations) is not int or generations <= self.spec.evolution.generations:
+            raise ValueError("generation target must exceed the previous target")
+        spec = dataclasses.replace(
+            self.spec, evolution=dataclasses.replace(self.spec.evolution, generations=generations)
+        )
+        identity_spec = dataclasses.replace(
+            cast(RunSpec, getattr(self.evaluator, "identity_spec", None) or self.spec),
+            evolution=spec.evolution,
+        )
+        identity = digest([scientific_identity(identity_spec), self.evaluator.context])
+        payload = self.checkpoint().payload
+        payload["payload"]["spec"] = plain(spec)
+        lanes = payload["payload"]["lane_status"]
+        lanes[(lanes == "complete") & (payload["payload"]["cursors"] < generations)] = "ready"
+        payload["base"]["status"] = "ready"
+        payload["base"]["reason"] = None
+        arrays = {}
+        return spec, Checkpoint("population", identity, pack(payload, arrays), arrays)
 
     def _checkpoint_payload(self):
         result = dict(
@@ -214,6 +324,13 @@ class PopulationSession(SessionBase):
         )
         if hasattr(self.evaluator, "checkpoint_payload"):
             result["evaluator"] = self.evaluator.checkpoint_payload()
+        if self.gene_counts is not None:
+            result.update(
+                version=3,
+                gene_counts=self.gene_counts,
+                copy_statistics=self.copy_statistics,
+                gene_count_history=[[list(k), v] for k, v in self.gene_count_history.items()],
+            )
         return result
 
     def _evaluate(self, *args, population=False, **kwargs) -> EvaluationResult:
@@ -226,7 +343,11 @@ class PopulationSession(SessionBase):
             self.evaluator.set_work_limits(current)
         before = dict(getattr(self.evaluator, "metrics", {}))
         try:
-            method = self.evaluator.evaluate_population if population else self.evaluator.evaluate
+            method = (
+                cast(Evaluator, self.evaluator).evaluate_population
+                if population
+                else self.evaluator.evaluate
+            )
             return method(*args, **kwargs)
         finally:
             if hasattr(self.evaluator, "take_events"):
@@ -283,6 +404,13 @@ class PopulationSession(SessionBase):
         lanes = np.flatnonzero(
             ((self.observed < self.cursors) | missing_scores) & (self.lane_status != "complete")
         )
+        episode = getattr(self.spec, "episode", None)
+        if (
+            episode is not None
+            and episode.panel == "generation"
+            and hasattr(self.evaluator, "retain_cache_panels")
+        ):
+            self.evaluator.retain_cache_panels(self._panel(i) for i in range(len(self.cursors)))
         groups = {}
         for lane in lanes:
             groups.setdefault(self._panel(lane), []).append(int(lane))
@@ -309,7 +437,12 @@ class PopulationSession(SessionBase):
                 ]
                 evaluation = None
             else:
-                evaluation = self._evaluate(genes, ids, panel=panel)
+                genomes = (
+                    genes
+                    if self.gene_counts is None
+                    else GenomeBatch(genes, self.gene_counts[members])
+                )
+                evaluation = self._evaluate(genomes, ids, panel=panel)
                 member_results = None
             for offset, lane in enumerate(members):
                 if member_results is not None:
@@ -372,7 +505,17 @@ class PopulationSession(SessionBase):
                         int(self.cursors[lane]),
                         mean_score,
                         max_score,
-                        len(np.unique(self.populations[lane], axis=0)),
+                        (
+                            len(np.unique(self.populations[lane], axis=0))
+                            if self.gene_counts is None
+                            else len(
+                                set(
+                                    GenomeBatch(
+                                        self.populations[lane], self.gene_counts[lane]
+                                    ).keys()
+                                )
+                            )
+                        ),
                     ]
                 else:
                     row = [
@@ -385,6 +528,16 @@ class PopulationSession(SessionBase):
                     ]
                 if self.algorithm != "neutral_walk" and not already_observed:
                     self._retain(lane, row)
+                    if self.gene_counts is not None:
+                        key = (int(self.replicates[lane]), int(self.cursors[lane]))
+                        self.gene_count_history[key] = np.bincount(
+                            self.gene_counts[lane], minlength=self.populations.shape[-1] + 1
+                        )
+                        self.gene_count_history = OrderedDict(
+                            sorted(self.gene_count_history.items())
+                        )
+                        while len(self.gene_count_history) > self.history_capacity:
+                            self.gene_count_history.popitem(last=False)
                 elif already_observed:
                     key = (int(self.replicates[lane]), int(self.cursors[lane]))
                     if key in self.history:
@@ -420,6 +573,48 @@ class PopulationSession(SessionBase):
         result = self._current(lane)
         if result.weights is None or result.denominator is None:
             raise ValueError("Wright–Fisher requires explicit exact weights and denominator")
+        if self.gene_counts is not None:
+            from .variation import PROTOCOL, gene_copy_step
+
+            assert self.copy_statistics is not None
+            before = GenomeBatch(self.populations[lane], self.gene_counts[lane])
+            new, parents, proposals = gene_copy_step(
+                before,
+                result.weights,
+                stream=self.stream,
+                replicate=int(self.replicates[lane]),
+                generation=int(self.cursors[lane]),
+                mutation_probability=self.spec.evolution.mutation_probability,
+                gene_copy=self.spec.evolution.gene_copy,
+            )
+            for name, mask in (
+                ("proposed", np.ones(len(parents), bool)),
+                ("applied", ~proposals["blocked"]),
+                ("blocked", proposals["blocked"]),
+            ):
+                self.copy_statistics[name][lane] += np.bincount(
+                    proposals["operations"][mask], minlength=4
+                )
+            self.populations[lane] = new.genes
+            self.gene_counts[lane] = new.gene_counts
+            event = dict(
+                type="generation",
+                protocol=PROTOCOL,
+                replicate=int(self.replicates[lane]),
+                from_generation=int(self.cursors[lane]),
+                parents=parents.tolist(),
+                proposals={k: v.tolist() for k, v in proposals.items()},
+                before=before.genes.tolist(),
+                before_gene_counts=before.gene_counts.tolist(),
+                after=new.genes.tolist(),
+                after_gene_counts=new.gene_counts.tolist(),
+                parent_fitness_weights=result.weights.tolist(),
+                fitness_denominator=result.denominator,
+            )
+            self.cursors[lane] += 1
+            event["to_generation"] = int(self.cursors[lane])
+            self.observed[lane] = -1
+            return event
         new, parents, bits, gates = wright_fisher_step(
             self.populations[lane],
             result.weights,
@@ -637,7 +832,7 @@ class PopulationSession(SessionBase):
         history = np.asarray(list(self.history.values()))
         completed = int(np.count_nonzero(self.lane_status == "complete"))
         started = int(np.count_nonzero(self.observed >= 0))
-        summary = dict(
+        summary: dict[str, Any] = dict(
             arrivals=list(self.arrivals),
             completed_trials=completed,
             started_trials=started,
@@ -672,6 +867,18 @@ class PopulationSession(SessionBase):
         arrays = dict(
             populations=self.populations, founders=self.populations[:, 0], history=history
         )
+        if self.gene_counts is not None:
+            assert self.copy_statistics is not None
+            arrays.update(
+                gene_counts=self.gene_counts,
+                founder_gene_counts=self.gene_counts[:, 0],
+                gene_count_history=np.asarray(list(self.gene_count_history.values())),
+            )
+            summary.update(
+                gene_copy_protocol="point-gene-copy-single-event-v1",
+                gene_copy_statistics={k: v.tolist() for k, v in self.copy_statistics.items()},
+                gene_count_history_coordinates=[list(k) for k in self.gene_count_history],
+            )
         if fields is not None:
             names = [fields] if isinstance(fields, str) else list(fields)
             unknown = set(names) - arrays.keys()

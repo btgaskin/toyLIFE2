@@ -20,6 +20,10 @@ from .worlds import ScenarioRandom, make_world, numerical
 
 
 def _plain(value: Any) -> Any:
+    if isinstance(value, ControllerSpec):
+        from .specs import plain
+
+        return plain(value)
     if dataclasses.is_dataclass(value):
         return {f.name: _plain(getattr(value, f.name)) for f in dataclasses.fields(value)}
     if isinstance(value, Mapping):
@@ -79,6 +83,13 @@ class RolloutSession(SessionBase):
         if protocol is None and self.task.kind == "signalling_game":
             protocol = EpisodeSpec(horizon=2 * int(self.task.config.get("rounds", 256)))
         self.protocol = protocol or EpisodeSpec()
+        settling = self.task.config.get("settling_steps", 0)
+        if self.task.kind == "cue_reading" and (type(settling) is not int or settling < 0):
+            raise ValueError("settling_steps must be a nonnegative integer")
+        if self.task.kind == "cue_reading" and (
+            self.protocol.horizon is None or self.protocol.horizon <= settling
+        ):
+            raise ValueError("cue episodes require a finite horizon beyond settling_steps")
         self.controller = controller or ControllerSpec()
         self.seed, self.panel = seed, panel
         genes = validate(genotypes)
@@ -146,7 +157,7 @@ class RolloutSession(SessionBase):
             hashlib.sha256(json.dumps([seed, self.protocol.seed]).encode()).digest()[:8], "little"
         )
         rng = ScenarioRandom(world_seed, panel, scenarios)
-        self.world = make_world(
+        self.world: Any = make_world(
             self.task,
             self.world_shape,
             self.agents,
@@ -154,6 +165,13 @@ class RolloutSession(SessionBase):
             self.protocol.dt,
             kernels=not bool(self.task.config.get("reference_world", False)),
         )
+        if (
+            self.task.kind == "chemotaxis"
+            and self.world.engine == "quadrants"
+            and self.world.precision == "float64"
+            and model.execution.backend != "cpu"
+        ):
+            raise ValueError("Quadrants float64 chemotaxis requires the CPU backend")
         self._chemistry_spec = dataclasses.replace(self.controller, warmup=0)
         self.chemistry = ChemistrySession(
             model,
@@ -165,7 +183,10 @@ class RolloutSession(SessionBase):
         snapshot_bytes = _array_bytes(self.chemistry._payload_view())
         # Reserve peak world working arrays and persistent initialized/committed
         # chemistry copies before constructing the numerical world state.
-        self._world_peak_bytes = self._world_work * 200 + self._chemical_work * 16
+        world_bytes = 200
+        if self.task.kind == "chemotaxis":
+            world_bytes = 512 + 128 * len(self.task.config["modes"])
+        self._world_peak_bytes = self._world_work * world_bytes + self._chemical_work * 16
         required = (
             self.chemistry.buffer_bytes
             + snapshot_bytes * 3
@@ -197,10 +218,15 @@ class RolloutSession(SessionBase):
         self._publishing = False
         from .chemistry import _RetainedChemistry
 
-        retained_bytes = (self.chemistry._batch._shape[0]
-                          * (self.chemistry._batch.species * 3
-                             + self.chemistry._batch.candidates * 2
-                             + self._controller_genes.shape[-1]) * 12)
+        retained_bytes = (
+            self.chemistry._batch._shape[0]
+            * (
+                self.chemistry._batch.species * 3
+                + self.chemistry._batch.candidates * 2
+                + self._controller_genes.shape[-1]
+            )
+            * 12
+        )
         retained_bytes += self.chemistry.genotypes.nbytes * 2 + self._chemical_work * 8
         self._admit_memory(self.buffer_bytes + retained_bytes * 3)
         self._committed_chemistry = _RetainedChemistry(self.chemistry)
@@ -218,6 +244,13 @@ class RolloutSession(SessionBase):
                 raise ValueError("signalling rounds require horizon == 2 * rounds")
         if checkpoint is not None:
             self._restore_payload(checkpoint.payload["payload"])
+        self._resident = None
+        from .resident_world import ResidentDecisions
+
+        if ResidentDecisions.eligible(self):
+            self._admit_memory(self.buffer_bytes + ResidentDecisions.estimate(self))
+            self._resident = ResidentDecisions(self)
+            self._admit_memory(self.buffer_bytes)
         if self.protocol.horizon == 0:
             self._status = "complete"
         self._admit_memory(self.buffer_bytes)
@@ -228,29 +261,72 @@ class RolloutSession(SessionBase):
         )
 
     @property
+    def _world_state(self):
+        self._materialise_resident()
+        return self._host_world_state
+
+    @_world_state.setter
+    def _world_state(self, value):
+        self._host_world_state = value
+        resident = getattr(self, "_resident", None)
+        if resident is not None:
+            resident.dirty = False
+
+    @property
+    def channels(self):
+        self._materialise_resident()
+        return self._host_channels
+
+    @channels.setter
+    def channels(self, value):
+        self._host_channels = value
+
+    @property
+    def _actions(self):
+        self._materialise_resident()
+        return self._host_actions
+
+    @_actions.setter
+    def _actions(self, value):
+        self._host_actions = value
+
+    def _materialise_resident(self):
+        resident = getattr(self, "_resident", None)
+        if resident is not None and resident.dirty:
+            resident.materialise()
+
+    @property
     def buffer_bytes(self) -> int:
         """Conservative numeric allocation accounting without reading device fields."""
         trees = (
             self._source_genotypes,
             self.genotypes,
             self.identities,
-            getattr(self, "_world_state", None),
+            getattr(self, "_host_world_state", None),
             getattr(self, "_committed_chemistry", None),
             getattr(self, "_reset_chemistry", None),
             getattr(self, "_pending", None),
             getattr(self, "reward_sum", None),
             getattr(self, "reward_count", None),
-            getattr(self, "_actions", None),
-            getattr(self, "channels", None),
+            getattr(self, "_host_actions", None),
+            getattr(self, "_host_channels", None),
             getattr(self, "_codec_state", None),
             getattr(self, "_descriptor", None),
             getattr(self, "_warmup_events", None),
             getattr(self, "_unrecorded_trace", None),
             self._pending_trace,
         )
-        retained = sum(getattr(getattr(self, name, None), "buffer_bytes", 0)
-                       for name in ("_committed_chemistry", "_commit_storage", "_reset_storage"))
-        return self.chemistry.buffer_bytes + self._world_peak_bytes + _array_bytes(trees) + retained
+        retained = sum(
+            getattr(getattr(self, name, None), "buffer_bytes", 0)
+            for name in ("_committed_chemistry", "_commit_storage", "_reset_storage")
+        )
+        return (
+            self.chemistry.buffer_bytes
+            + self._world_peak_bytes
+            + _array_bytes(trees)
+            + retained
+            + getattr(getattr(self, "_resident", None), "bytes", 0)
+        )
 
     @property
     def status(self) -> np.ndarray:
@@ -280,15 +356,24 @@ class RolloutSession(SessionBase):
 
     @property
     def profile(self) -> dict:
-        reference = self.task.kind == "python" or bool(
+        reference = self.task.kind in {"python", "cue_reading"} or bool(
             self.task.config.get("reference_world", False)
         )
+        if self.task.kind == "chemotaxis":
+            reference = self.world.engine == "numpy"
         return {
             "world_execution": "python_host" if reference else "quadrants",
             "backend": "host" if reference else self.model.execution.backend,
-            "world_float_dtype": "float32" if self.task.kind == "run_tumble" else "none",
-            "world_buffers": "numpy_at_boundaries",
-            "world_transfers": "per_decision" if not reference else "host_only",
+            "world_float_dtype": (
+                self.world.precision if self.task.kind == "chemotaxis" else "none"
+            ),
+            "world_buffers": "resident" if self._resident is not None else "numpy_at_boundaries",
+            "world_transfers": "per_block"
+            if self._resident is not None
+            else "per_decision"
+            if not reference
+            else "host_only",
+            "world_block_size": getattr(self.model.engine, "_world_block_size", 1),
             "reward_accumulator_dtype": "float64",
             "buffer_bytes": self.buffer_bytes,
             "world_axes": self.world_shape,
@@ -344,15 +429,19 @@ class RolloutSession(SessionBase):
 
     def snapshot(self, fields=None, include_pending: bool = False) -> dict:
         fields = None if fields is None else tuple(fields)
+        if fields is None or any(name in fields for name in ("world", "actions", "channels")):
+            self._materialise_resident()
+        if include_pending and self._resident is not None:
+            self._resident.materialise_prepared()
         # Borrow existing arrays first; derived arrays and all owning copies are
         # allocated only after the selected fields pass shared admission.
         result = {
             "tick": self.tick,
-            "world": self._world_state,
+            "world": self._host_world_state,
             "chemistry": None,
             "codec": self._codec_state,
-            "actions": self._actions,
-            "channels": self.channels,
+            "actions": self._host_actions,
+            "channels": self._host_channels,
             "reward_sum": self.reward_sum,
             "reward_count": self.reward_count,
             "scores": None,
@@ -373,9 +462,13 @@ class RolloutSession(SessionBase):
             result = {name: result[name] for name in fields}
         count = self.reward_sum.size
         derived_bytes = sum(
-            size for name, size in (
-                ("scores", self.reward_sum.nbytes), ("status", count * 64), ("success", count)
-            ) if name in result
+            size
+            for name, size in (
+                ("scores", self.reward_sum.nbytes),
+                ("status", count * 64),
+                ("success", count),
+            )
+            if name in result
         )
         scratch = count * 3 if "scores" in result or "success" in result else 0
         if "success" in result and "scores" not in result:
@@ -395,7 +488,9 @@ class RolloutSession(SessionBase):
         scores = None
         if "scores" in result or "success" in result:
             scores = np.divide(
-                self.reward_sum, self.reward_count, out=np.zeros_like(self.reward_sum),
+                self.reward_sum,
+                self.reward_count,
+                out=np.zeros_like(self.reward_sum),
                 where=self.reward_count > 0,
             )
         if "scores" in result:
@@ -405,7 +500,8 @@ class RolloutSession(SessionBase):
         if "success" in result:
             assert scores is not None
             result["success"] = (
-                (self._status == "complete") & (self.reward_count > 0)
+                (self._status == "complete")
+                & (self.reward_count > 0)
                 & (scores >= float(self.task.config.get("goal", 1.0)))
             )
         return owned(result)
@@ -414,6 +510,23 @@ class RolloutSession(SessionBase):
         if self._codec is not None:
             inputs, state = self._codec.encode(numerical(observation), numerical(codec_state))
             return numerical(inputs), numerical(state)
+        if self.controller.interface is not None:
+            named = observation.get("inputs")
+            if named is None:
+                if len(self.controller.interface.inputs) != 1 or "dose" not in observation:
+                    raise ValueError("structural observations require named inputs")
+                named = {next(iter(self.controller.interface.inputs)): observation["dose"]}
+            counts = {}
+            for name, value in named.items():
+                raw = np.asarray(value)
+                if (
+                    self.agent_axis is not None
+                    and self.agents == 1
+                    and raw.shape == self.world_shape
+                ):
+                    raw = raw[..., None]
+                counts[name] = np.broadcast_to(raw, self.controller_shape)
+            return self.controller.interface.encode(counts), codec_state
         ports = self.controller.ports
         raw_dose = np.asarray(observation.get("dose", 0), dtype=np.int32)
         if self.agent_axis is not None and self.agents == 1 and raw_dose.shape == self.world_shape:
@@ -442,7 +555,36 @@ class RolloutSession(SessionBase):
             if actions.shape != self.controller_shape:
                 raise ValueError("codec actions must preserve all controller axes")
             return actions, numerical(state)
-        name = self.task.config.get("action_readout", next(iter(readouts), None))
+        output_names = self.task.config.get("action_outputs")
+        if output_names is not None:
+            if (
+                not output_names
+                or len(output_names) > 31
+                or len(set(output_names)) != len(output_names)
+            ):
+                raise ValueError("action_outputs requires 1..31 distinct ordered output names")
+            actions = np.zeros(self.controller_shape, np.int32)
+            for name in output_names:
+                if (
+                    self.controller.interface is not None
+                    and name not in self.controller.interface.targets
+                ):
+                    raise ValueError("action_outputs must name structural targets")
+                if name not in readouts or np.shape(readouts[name]) != self.controller_shape:
+                    raise ValueError("action output must preserve controller axes")
+                actions = (actions << 1) | (np.asarray(readouts[name]) > 0).astype(np.int32)
+            return actions, codec_state
+        default = next(iter(readouts), None)
+        if self.controller.interface is not None:
+            if (
+                len(self.controller.interface.targets) > 1
+                and "action_readout" not in self.task.config
+            ):
+                raise ValueError(
+                    "multiple targets require explicit action_outputs or action_readout"
+                )
+            default = next(iter(self.controller.interface.targets))
+        name = self.task.config.get("action_readout", default)
         if name not in readouts:
             raise ValueError("action decoder requires a configured controller readout")
         threshold = float(self.task.config.get("action_threshold", 0))
@@ -452,6 +594,11 @@ class RolloutSession(SessionBase):
         return actions, codec_state
 
     def step(self):
+        resident = self._resident
+        if resident is not None and self._status != "complete":
+            self._status, self._reason = "ready", None
+            if resident.count(1):
+                return resident.prepare(1, transition=True)
         if self._pending_trace and not self._flush_world_trace():
             return self._report({"tick": self.tick})
         if self.protocol.horizon is not None and self.tick >= self.protocol.horizon:
@@ -522,10 +669,12 @@ class RolloutSession(SessionBase):
             remaining = self.protocol.chemical_updates - pending["chemical_cursor"]
             limit = self.limits.max_chemical_updates
             if limit is not None:
-                remaining = min(remaining, (limit - self._used["chemical_updates"])
-                                // self._chemical_work)
+                remaining = min(
+                    remaining, (limit - self._used["chemical_updates"]) // self._chemical_work
+                )
             report = self.chemistry._step_block(
-                pending["inputs"] if inject else {}, remaining,
+                pending["inputs"] if inject else {},
+                remaining,
                 pulse=self.controller.ports.input_mode == "pulse",
             )
             chemical_rows = self._drain_chemical_events()
@@ -584,6 +733,7 @@ class RolloutSession(SessionBase):
         """Publish a staged transition only after its required recording boundary."""
         assert self._pending is not None
         prepared = self._pending["prepared"]
+        advanced = prepared.get("advanced", 1)
         unrecorded_rows = []
         unrecorded_bytes = 0
         if self.recording.mode == "full" and self._record_callback is None:
@@ -616,12 +766,16 @@ class RolloutSession(SessionBase):
         if prepared["boundary_waiting"] and not self._pending_trace:
             prepared["boundary_done"] = True
         if not prepared["boundary_done"]:
+            # A retried checkpoint represents the same logical boundaries.
+            base = prepared.setdefault("boundary_base", self._boundaries)
+            self._boundaries = base + advanced - 1
             try:
                 self._publishing = True
                 accepted = self._boundary(
                     prepared["events"],
                     force=(
-                        self.protocol.horizon is not None and self.tick + 1 >= self.protocol.horizon
+                        self.protocol.horizon is not None
+                        and self.tick + advanced >= self.protocol.horizon
                     ),
                 )
             except BaseException:
@@ -632,16 +786,28 @@ class RolloutSession(SessionBase):
             prepared["boundary_waiting"] = bool(self._pending_trace)
             if not accepted:
                 return self._report({"tick": self.tick}, {"scores": self.scores})
-        self._world_state, self.channels = prepared["world"], prepared["channels"]
-        self._codec_state, self._actions = prepared["codec"], prepared["actions"]
-        self.reward_sum += prepared["reward"] * prepared["judged"]
-        self.reward_count += prepared["judged"]
-        self.tick += 1
+        if prepared.get("resident", False):
+            assert self._resident is not None
+            self._resident.dirty = True
+        else:
+            self._world_state, self.channels = prepared["world"], prepared["channels"]
+            self._actions = prepared["actions"]
+        self._codec_state = prepared["codec"]
+        if "reward_sum" in prepared:
+            self.reward_sum = prepared["reward_sum"]
+            self.reward_count = prepared["reward_count"]
+        else:
+            self.reward_sum += prepared["reward"] * prepared["judged"]
+            self.reward_count += prepared["judged"]
+        self.tick += advanced
         self._committed_chemistry, self._commit_storage = (
-            self._commit_storage, self._committed_chemistry
+            self._commit_storage,
+            self._committed_chemistry,
         )
         self._pending = None
-        self._consume("world_ticks", self._world_work)
+        if self._resident is not None:
+            self._resident.frames_prepared = False
+        self._consume("world_ticks", self._world_work * advanced)
         self._unrecorded_trace.extend(unrecorded_rows)
         self._unrecorded_trace_bytes += unrecorded_bytes
         if descriptor is not None:
@@ -675,13 +841,23 @@ class RolloutSession(SessionBase):
             self._status = "complete"
         report = self._report({"tick": self.tick}, {"scores": self.scores})
         while self._status != "complete" and (steps is None or count < steps):
-            report = self.step()
-            count += 1
+            previous_tick = self.tick
+            self._status, self._reason = "ready", None
+            block = (
+                self._resident.count(8 if steps is None else steps - count)
+                if self._resident is not None
+                else 0
+            )
+            resident = self._resident
+            report = resident.prepare(block) if block and resident is not None else self.step()
+            count += max(1, self.tick - previous_tick)
             if self._status in {"partial", "failed"}:
                 break
         return report
 
     def _checkpoint_payload(self) -> dict:
+        if self._resident is not None:
+            self._resident.materialise_prepared()
         payload = {
             "task": _plain(self.task),
             "protocol": _plain(self.protocol),
@@ -712,9 +888,16 @@ class RolloutSession(SessionBase):
                 None if self._reset_chemistry is None else self._reset_chemistry.payload()
             ),
         }
+        if self.task.kind == "chemotaxis" and self.world.engine == "quadrants":
+            payload["world_numerics"] = {
+                "engine": "quadrants",
+                "precision": self.world.precision,
+                "backend": self.model.execution.backend,
+            }
         if self._publishing:
             assert self._pending is not None
             prepared = self._pending["prepared"]
+            advanced = prepared.get("advanced", 1)
             descriptor = list(self._descriptor)
             descriptor_bytes = self._descriptor_bytes
             if bool(self.task.config.get("record_descriptor", False)):
@@ -723,15 +906,19 @@ class RolloutSession(SessionBase):
                 descriptor_bytes += prepared["actions"].nbytes + message.nbytes + 1024
             payload.update(
                 {
-                    "tick": self.tick + 1,
+                    "tick": self.tick + advanced,
                     "world": prepared["world"],
                     "committed_chemistry": self.chemistry.payload(),
                     "codec": prepared["codec"],
                     "pending": None,
                     "actions": prepared["actions"],
                     "channels": prepared["channels"],
-                    "reward_sum": self.reward_sum + prepared["reward"] * prepared["judged"],
-                    "reward_count": self.reward_count + prepared["judged"],
+                    "reward_sum": prepared.get(
+                        "reward_sum", self.reward_sum + prepared["reward"] * prepared["judged"]
+                    ),
+                    "reward_count": prepared.get(
+                        "reward_count", self.reward_count + prepared["judged"]
+                    ),
                     "descriptor": descriptor,
                     "descriptor_bytes": descriptor_bytes,
                 }
@@ -742,12 +929,18 @@ class RolloutSession(SessionBase):
         if not self._publishing:
             return super().checkpoint()
         status, used, total = self._status, self._used, self._total
+        assert self._pending is not None
+        advanced = self._pending["prepared"].get("advanced", 1)
         try:
-            self._used = {**used, "world_ticks": used["world_ticks"] + self._world_work}
-            self._total = {**total, "world_ticks": total["world_ticks"] + self._world_work}
+            self._used = {**used, "world_ticks": used["world_ticks"] + self._world_work * advanced}
+            self._total = {
+                **total,
+                "world_ticks": total["world_ticks"] + self._world_work * advanced,
+            }
             self._status = (
                 "complete"
-                if self.protocol.horizon is not None and self.tick + 1 >= self.protocol.horizon
+                if self.protocol.horizon is not None
+                and self.tick + advanced >= self.protocol.horizon
                 else "ready"
             )
             return super().checkpoint()
@@ -761,6 +954,13 @@ class RolloutSession(SessionBase):
         self.chemistry.restore_payload(working)
 
     def _restore_payload(self, payload: dict) -> None:
+        mode = payload.get("world_numerics")
+        if mode is not None and mode != {
+            "engine": "quadrants",
+            "precision": getattr(self.world, "precision", None),
+            "backend": self.model.execution.backend,
+        }:
+            raise ValueError("resident checkpoint requires the same numerical mode and backend")
         tick = payload["tick"]
         if (
             type(tick) is not int

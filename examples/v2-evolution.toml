@@ -6,7 +6,11 @@ seed = 123
 genes = 2
 
 [task]
-kind = "run_tumble"
+kind = "chemotaxis"
+
+[task.config]
+world_engine = "quadrants"
+world_precision = "float32"
 
 [episode]
 horizon = 20
@@ -26,7 +30,7 @@ generations = 2
 mutation_probability = 0.1
 
 [execution]
-backend = "cpu"
+backend = "auto"
 batch_size = 16
 max_active_lanes = 2
 cpu_threads = 1

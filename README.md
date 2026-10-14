@@ -4,7 +4,7 @@ toyLIFE2 is an independent, modernized research implementation of toyLIFE: an
 artificial chemistry in which binary genes encode lattice proteins, molecular
 interactions regulate expression, and dimers can cleave metabolites. A Python
 interface and batched [Quadrants](https://github.com/Genesis-Embodied-AI/quadrants)
-kernels run on CPU and Apple Metal. NumPy arrays carry typed inputs and results.
+kernels run on native CPU, Apple Metal, and CUDA. NumPy arrays carry typed inputs and results.
 Recorded experiments capture configurations, source, lookup tables, inputs,
 checkpoints, and outputs.
 
@@ -24,6 +24,8 @@ interfaces. [Model decisions](docs/decisions.md) document the canonical rules an
 
 [Quick start](#install-and-run) · [Methods](#model-and-methods) ·
 [Batching and evolution](#populations-trials-and-scaling) ·
+[Gene-copy evolution](#gene-copy-evolution) ·
+[Molecular cells and chemotaxis](docs/molecular-cells.md) ·
 [Results](#qualification-and-published-results) · [Documentation](#documentation)
 
 ## Modernized for research
@@ -35,6 +37,8 @@ interfaces. [Model decisions](docs/decisions.md) document the canonical rules an
   weak-mutation (SSWM) trajectories, and neutral walks use explicit mutation and
   selection protocols. Deduplication and bounded caches reuse completed assays.
   Logical Philox random streams preserve draws across chunk sizes and backends.
+  Molecular Wright–Fisher runs can also evolve gene count by whole-gene
+  duplication and deletion.
 - **Stateful experiments:** persistent cell chemistry, tissue stepping, and
   perception–action loops support changing environments and coupled agents.
   `BatchRunner` shares tables and a runtime across compatible work.
@@ -46,9 +50,9 @@ interfaces. [Model decisions](docs/decisions.md) document the canonical rules an
 
 ## Install and run
 
-Use Python 3.12 or 3.13 and [uv](https://docs.astral.sh/uv/). CPU is the default;
-Metal requires a compatible Apple device. The public repository can be cloned
-with the command below. Model data and author source are pinned in a Git submodule:
+Use Python 3.12 or 3.13 and [uv](https://docs.astral.sh/uv/). Automatic GPU selection is the default: Metal on compatible Apple hardware,
+CUDA where available, and native CPU otherwise. Choose `backend="cpu"` for explicit
+CPU execution. Model data and author source are pinned in a Git submodule:
 
 ```sh
 git clone --recurse-submodules https://github.com/btgaskin/toyLIFE2.git
@@ -80,7 +84,7 @@ samples = 8
 genes = 2
 
 [execution]
-backend = "cpu"
+backend = "auto"
 batch_size = 256
 
 [recording]
@@ -235,10 +239,63 @@ Gene count changes the workload: a full regulatory table has `2**genes` states,
 while large-genome metabolic assays follow reached trajectories. The recorded
 metabolic sweep covers 2, 4, 8, 16, and 32 genes. Persistent chemistry sessions
 instead compile admitted reaction vocabularies into packed device buffers.
-World kernels currently transfer NumPy state at decision boundaries, so control
-throughput depends on chemical work per decision and batch size. The
+Chemotaxis profiles can keep chemistry and world state on the device across
+blocks of decisions; other worlds use NumPy state at decision boundaries.
+Control throughput depends on chemical work per decision and batch size. The
 [scaling guide](docs/cpp-benchmark.md#gene-count-scaling) describes these distinct
 workloads; evolutionary wall time also depends on diversity and recording.
+
+### Gene-copy evolution
+
+The development checkout supports variable gene counts in schema-2 molecular
+Wright–Fisher runs. These runs use a canonical cell, a `StructuralInterface`,
+candidate-scored cue or chemotaxis tasks, and zero initial expression masks.
+`model.genes` sets the founder length. Enable structural mutation with:
+
+```toml
+[evolution.gene_copy]
+duplication_probability = 0.01
+deletion_probability = 0.01
+min_genes = 1
+max_genes = 20
+```
+
+Both structural probabilities default to zero; the bounds default to 1–20 genes.
+The example rates are experimental choices. After parent selection, each
+offspring receives one event: a point mutation, a duplication, a deletion, or
+unchanged inheritance. `evolution.mutation_probability` and the two structural
+probabilities must sum to at most one.
+
+A point mutation chooses uniformly among the active genome's `20*g` bits.
+Duplication chooses one of its `g` gene copies and inserts an identical copy
+immediately after it; deletion chooses and removes one copy. Each gene keeps its
+four-bit promoter and sixteen-bit coding sequence. Identical copies remain
+separate proposal targets. A duplication at the upper bound or deletion at the
+lower bound leaves the offspring unchanged and records a blocked event.
+
+Active copies enter the existing molecular rules for promoter competition and
+translation. Copy-number effects therefore arise through those chemical rules.
+The mutation protocol adds no genome-length cost, crossover, or ploidy mechanism.
+
+`GenomeBatch` stores padded gene arrays alongside active counts. Evaluators group
+genomes by active length and send only their active genes to the fixed-width
+chemistry. Groups share work quotas and a bounded score cache; parent selection
+waits for a complete population evaluation. Diversity keys include the active
+length, so a zero-valued active gene remains distinct from storage padding.
+
+Structural checkpoints use population payload version 3 and retain active counts,
+event counters, length histories, and pending evaluations. Omitting `gene_copy`
+preserves the legacy serialized specification and version-2 population payload.
+An explicit block with zero structural rates has its own scientific identity
+while preserving the legacy point-mutation trajectory.
+
+Saved selections pair `selected_genomes.npy` with `selected_gene_counts.npy` and
+a `selection.json` format marker. Use `toylife2.genotypes.load_selected()` and
+`GenomeBatch.active(index)` to recover a selected genome. Held-out records live
+under `inspection/genes-<count>/`; the parent summary maps their rows back to
+selection order. Records retain length histories; reports show selected lengths
+and proposed, applied, and blocked events. The [molecular cells guide](docs/molecular-cells.md#whole-gene-duplication-and-deletion)
+describes CLI overrides and the complete artifact layout.
 
 ## Runs and workspaces
 
@@ -298,6 +355,12 @@ variants remain qualification diagnostics. The
 and [qualification guide](docs/qualification.md) give the rules, counterexamples,
 protocols, and completed checks.
 
+Gene-copy checks cover proposal probabilities and copy targets, blocked events,
+zero-rate trajectory equivalence, mixed-length scoring and scatter, work quotas,
+checkpoint continuation, recorded inspections, and selected-genome replay.
+These implementation checks are separate from experiments measuring how gene
+duplication or deletion affects evolved behavior.
+
 ## Performance measurements
 
 The following warm regulatory evaluations were recorded on an Apple M5 Mac with
@@ -339,6 +402,7 @@ describes execution tuning and current bottlenecks.
 | [CLI](docs/cli.md) | TOML fields, overrides, workspaces, resume, reproduction, reports |
 | [Runner](docs/runner.md) | Persistent APIs, axes, clocks, quotas, tasks, external optimizers |
 | [Evolution](docs/evolution.md) | Wright–Fisher, SSWM, neutral walks, scoring, logical randomness |
+| [Molecular cells](docs/molecular-cells.md) | Structural ports, cue and chemotaxis tasks, gene-copy evolution, selected-cell inspection |
 | [Model](docs/model.md) | Chemical contract, tables, scalar APIs, tissue rules |
 | [Decisions](docs/decisions.md) | Accepted interpretations, source exceptions, experimental task choices |
 | [Architecture](docs/architecture.md) | Modules, data flow, runtime ownership |
@@ -346,6 +410,20 @@ describes execution tuning and current bottlenecks.
 | [Qualification](docs/qualification.md) and [parity](docs/parity.md) | Validation and historical comparisons |
 | [Benchmarks](docs/cpp-benchmark.md) and [evidence](evidence/README.md) | Measurement protocols and machine-readable results |
 | [Contributing](CONTRIBUTING.md) | Development setup, tests, static checks, packaging |
+
+## Development history
+
+Package metadata remains at **0.1.0**, the early research preview. The entries
+below identify source development within that version; recorded source hashes
+identify the implementation used by each experiment.
+
+| Source revision | Changes |
+| --- | --- |
+| Current development checkout | Molecular interfaces and cue/chemotaxis experiments; automatic CPU/Metal/CUDA placement and device-resident chemotaxis; single-event gene-copy mutation, mixed-length evaluation, count-aware checkpoints and inspections |
+| `bb00eae` | Persistent-chemistry and population-evaluation optimizations |
+| `88e9f0f` | Replay provenance, batch results, and shared memory admission |
+| `2591546` | Research methods and reconciliation of canonical toyLIFE rules |
+| `8978e62` | Initial batched implementation and reproducible experiment runner |
 
 ## Articles and attribution
 

@@ -13,18 +13,18 @@ import numpy as np
 
 from toylife2 import Model
 from toylife2.chemistry import ChemistrySession
-from toylife2.protocols import ControllerSpec, EpisodeSpec, PortSpec, ReadoutSpec, TaskSpec
+from toylife2.protocols import EpisodeSpec, StructuralInterface, TaskSpec
 from toylife2.rollout import RolloutSession
 from toylife2.specs import ExecutionSpec
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--backend", choices=("cpu", "metal"), default="cpu")
+    parser.add_argument("--backend", choices=("auto", "cpu", "metal", "cuda"), default="auto")
     parser.add_argument("--threads", type=int)
     parser.add_argument("--population", type=int, default=128)
-    parser.add_argument("--episodes", type=int, default=8)
-    parser.add_argument("--genes", type=int, default=8)
+    parser.add_argument("--episodes", type=int, default=16)
+    parser.add_argument("--genes", type=int, default=10)
     parser.add_argument("--updates", type=int, default=32)
     parser.add_argument("--chemical-updates", type=int, default=1)
     parser.add_argument("--repeats", type=int, default=5)
@@ -35,26 +35,29 @@ def main():
     parser.add_argument(
         "--buckets", action="store_true", help="Measure separate graph-size cohorts"
     )
+    parser.add_argument("--world-engine", choices=("numpy", "quadrants"), default="quadrants")
+    parser.add_argument("--field", choices=("source", "static", "dynamic"), default="static")
     args = parser.parse_args()
     model = Model(execution=ExecutionSpec(backend=args.backend, cpu_threads=args.threads))
     model.engine._chemistry_metadata_layout = args.metadata_layout
     model.engine._chemistry_block_size = args.block_size
+    model.engine._world_block_size = args.block_size
+    task = TaskSpec(
+        kind="chemotaxis",
+        config=dict(
+            world_engine=args.world_engine,
+            world_precision="float32",
+            field="source" if args.field == "source" else "fluctuating",
+            static=args.field != "dynamic",
+        ),
+    )
     genes = np.random.default_rng(483).integers(
         0, 1 << 20, (args.population, args.genes), dtype=np.int32
     )
     if args.duplicate:
         genes[:] = genes[0]
     batch = np.repeat(genes[:, None, :], args.episodes, axis=1)
-    spec = ControllerSpec(
-        ports=PortSpec(
-            metabolites=("0001", "0111"),
-            max_dose=1,
-            input_mode="replenish",
-            readouts=(
-                ReadoutSpec(name="motor", kind="bound", metabolite="0111", stage="after_output"),
-            ),
-        )
-    )
+    spec = StructuralInterface(inputs={"cue": "0001"}, targets={"motor": "0111"}).controller()
     start = time.perf_counter()
     chemistry = ChemistrySession(model, batch, spec)
     cohorts = [chemistry]
@@ -88,10 +91,11 @@ def main():
         rollout = RolloutSession(
             model,
             genes,
-            TaskSpec(kind="run_tumble"),
+            task,
             EpisodeSpec(
                 horizon=args.updates, episodes=args.episodes, chemical_updates=args.chemical_updates
             ),
+            controller=spec,
             seed=484,
         )
         start = time.perf_counter()
@@ -119,7 +123,8 @@ def main():
                     seed=484 + repeat,
                     execution=model.execution,
                     model=ModelSpec(genes=args.genes),
-                    task=TaskSpec(kind="run_tumble"),
+                    task=task,
+                    controller=spec,
                     episode=EpisodeSpec(
                         horizon=args.updates,
                         episodes=args.episodes,
@@ -164,6 +169,9 @@ def main():
                 "generation_samples_s": generation_samples,
                 "generation_digests": generation_digests,
                 "rollout_digest": rollout_digest,
+                "world_profile": rollout.profile,
+                "world_random_cache_bytes": model.engine._world_random_cache.bytes,
+                "world_random_cache_hits": model.engine._world_random_cache.hits,
                 "chemistry_buffer_bytes": dict(chemistry.buffer_memory),
                 "lane_updates_per_sample": args.population * args.episodes * args.updates,
                 "materialized_kernels": (

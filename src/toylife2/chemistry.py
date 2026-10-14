@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import asdict
 from types import MappingProxyType
 from typing import Any, cast
 
@@ -12,7 +11,7 @@ import numpy as np
 from .genotypes import validate
 from .protocols import ControllerSpec
 from .reference import CellState
-from .specs import RULESET, digest
+from .specs import RULESET, digest, plain
 from .tables import canonical_metabolite
 
 _MAX = np.iinfo(np.int32).max
@@ -358,7 +357,7 @@ class _BatchChemistry:
         # Counts in explicit states affect initialization; their complete key also
         # protects the extra vocabulary admitted by advance_batch.
         cache = model.engine._chemistry_cache
-        context = digest(asdict(spec))
+        context = digest(plain(spec))
         self._plans = []
         local = {}
         for i, row in enumerate(genes):
@@ -640,6 +639,12 @@ class _BatchChemistry:
                     species = index.get(("D", pair))
                     if species is not None:
                         indices = [species]
+                elif readout.kind == "metabolite":
+                    if met is None:
+                        raise ValueError("metabolite readout requires a molecule")
+                    species = index.get(("M", met))
+                    if species is not None:
+                        indices = [species]
                 elif readout.kind == "bound":
                     indices = [
                         s
@@ -677,6 +682,38 @@ class _BatchChemistry:
     def _input_counts(self, inputs):
         lanes = len(self.graphs)
         result = np.full(self._shape, -1, np.int64)
+        if self.spec.interface is not None:
+            if inputs is not None and not isinstance(inputs, Mapping):
+                raise ValueError("structural interface inputs require molecule-count mappings")
+            supplied = {}
+            declared = {
+                canonical_metabolite(m)
+                for m in (
+                    *self.spec.interface.inputs.values(),
+                    *self.spec.interface.targets.values(),
+                )
+            }
+            for key, value in (inputs or {}).items():
+                molecule = (
+                    key[1] if isinstance(key, tuple) and len(key) == 2 and key[0] == "M" else key
+                )
+                if not isinstance(molecule, str):
+                    raise ValueError("structural supplies require declared metabolite identities")
+                molecule = canonical_metabolite(molecule)
+                if molecule not in declared or molecule in supplied:
+                    raise ValueError("unknown or duplicate structural molecule identity")
+                values = np.asarray(value)
+                if values.dtype.kind not in "iu":
+                    raise ValueError("input counts must be nonnegative integers")
+                supplied[molecule] = value
+            for molecule in self.spec.interface.inputs.values():
+                supplied.setdefault(molecule, 0)
+            for name, molecule in self.spec.interface.targets.items():
+                copies = self.spec.interface.target_copies[name]
+                if molecule in supplied and np.any(np.asarray(supplied[molecule]) != copies):
+                    raise ValueError("target supply is fixed by the structural interface")
+                supplied[molecule] = copies
+            inputs = supplied
         if inputs is None:
             return result
         if isinstance(inputs, Mapping):
@@ -935,7 +972,7 @@ class _RetainedChemistry:
                 "identity": session.identity,
                 "table_digest": str(session.model.tables.digest),
                 "ruleset": RULESET,
-                "spec": asdict(session.spec),
+                "spec": plain(session.spec),
                 "update": self.update,
                 "genotypes": session.genotypes,
                 "unrecorded_trace": self.trace,
@@ -980,7 +1017,7 @@ class ChemistrySession(SessionBase):
         genes = validate(genotypes)
         self.model, self.spec = model, spec
         self.genotypes = _owned(genes)
-        identity_spec = asdict(spec)
+        identity_spec = plain(spec)
         identity_spec.pop("capacity")
         identity = digest(
             {
@@ -1003,6 +1040,17 @@ class ChemistrySession(SessionBase):
     @property
     def buffer_bytes(self):
         return self._batch.buffer_memory["total"]
+
+    @property
+    def last_readouts(self):
+        if getattr(self, "_readouts_dirty", False):
+            self.last_readouts = MappingProxyType(self._batch.readouts())
+        return self._last_readouts
+
+    @last_readouts.setter
+    def last_readouts(self, value):
+        self._last_readouts = value
+        self._readouts_dirty = False
 
     @property
     def buffer_memory(self):
@@ -1196,7 +1244,7 @@ class ChemistrySession(SessionBase):
             "table_digest": str(self.model.tables.digest),
             "ruleset": RULESET,
             "update": self.update,
-            "spec": asdict(self.spec),
+            "spec": plain(self.spec),
             "genotypes": self.genotypes.copy(),
             "unrecorded_trace": owned(self._unrecorded_trace),
             "trace_bytes": self._trace_bytes,
@@ -1215,7 +1263,7 @@ class ChemistrySession(SessionBase):
             "table_digest": str(self.model.tables.digest),
             "ruleset": RULESET,
             "update": self.update,
-            "spec": asdict(self.spec),
+            "spec": plain(self.spec),
             "genotypes": self.genotypes,
             "unrecorded_trace": self._unrecorded_trace,
             "trace_bytes": self._trace_bytes,

@@ -28,7 +28,7 @@ execution = ExecutionSpec(
 with BatchRunner(execution) as runner:
     assert qd.lang.impl.current_cfg().arch == (qd.metal if args.backend == "metal" else qd.cpu)
     genes = np.array([[907050, 1048465], [1048465, 907050], [0, 0]], np.int32)
-    for task in (TaskSpec(kind="temporal_probe"), TaskSpec(kind="run_tumble")):
+    for task in (TaskSpec(kind="temporal_probe"), TaskSpec(kind="chemotaxis")):
         episode = EpisodeSpec(horizon=4, episodes=2, chemical_updates=2)
         direct = runner.rollout(genes, task, episode, seed=101)
         direct.run()
@@ -40,7 +40,7 @@ with BatchRunner(execution) as runner:
         restored.run()
         assert restored.tick == 4
         np.testing.assert_array_equal(restored.scores, direct.scores)
-        if task.kind == "run_tumble":
+        if task.kind == "chemotaxis":
             np.testing.assert_array_equal(
                 restored.snapshot()["world"]["position"], direct.snapshot()["world"]["position"]
             )
@@ -80,7 +80,7 @@ with BatchRunner(execution) as runner:
         "fallback": False,
         "checks": [
             "temporal",
-            "run_tumble",
+            "chemotaxis",
             "signalling",
             "population",
             "pending_tick_replay",

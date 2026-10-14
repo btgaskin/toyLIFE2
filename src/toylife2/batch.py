@@ -327,6 +327,14 @@ class BatchRunner:
 
             return self._register(RolloutSession(model, *args, **kwargs), nested=True)
 
+        if spec.evolution.gene_copy is not None:
+            from ._variable_evaluation import VariableGeneEvaluator
+
+            trial = VariableGeneEvaluator(
+                self.model, spec, target=target, runner=self, rollout_factory=nested_rollout
+            )
+            self._evaluators[(trial.context, id(trial))] = trial
+            return trial
         trial = Evaluator(
             self.model, spec, target=target, runner=self, rollout_factory=nested_rollout
         )
@@ -338,6 +346,7 @@ class BatchRunner:
             self._evaluators[trial.context] = trial
         else:
             trial.cache = existing.cache
+            trial._shared_cache = existing._shared_cache = True
         return trial
 
     def release(self, session):
@@ -560,6 +569,9 @@ class BatchRunner:
         for session in self._sessions:
             session._memory_reserved_bytes = 0
         self._reservations.clear()
+        for evaluator in self._evaluators.values():
+            if hasattr(evaluator, "close"):
+                evaluator.close()
         self._closed = True
 
     @property

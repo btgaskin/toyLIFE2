@@ -31,7 +31,7 @@ def test_empty_episode_differs_from_completed_and_computational_partial(model):
 
 
 def test_pending_chemical_tick_resumes_exactly_and_snapshot_is_committed(model, tmp_path):
-    task = TaskSpec(kind="run_tumble", config={"record_descriptor": True})
+    task = TaskSpec(kind="chemotaxis", config={"record_descriptor": True})
     episode = EpisodeSpec(horizon=3, chemical_updates=3, episodes=2)
     genes = np.array([[0, 0], [1048465, 907050]], np.int32)
     full = RolloutSession(model, genes, task, episode, seed=83)
@@ -134,7 +134,7 @@ def test_record_rejection_keeps_publication_old_and_retries_same_prepared_tick(m
     session = RolloutSession(
         model,
         [0, 0],
-        TaskSpec(kind="run_tumble"),
+        TaskSpec(kind="chemotaxis"),
         EpisodeSpec(horizon=1),
         recording=RecordingSpec(mode="full"),
     )

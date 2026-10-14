@@ -88,10 +88,7 @@ and recording; repeated matched measurements are required to estimate a
 backend speedup. The records are `qualification/full-map-metal-record` and
 `qualification/full-map-record`.
 
-Metal initialization succeeded outside the sandbox after the sandboxed
-attempt returned `maxBufferLength=0`. The Metal qualification harness passes
-25 tests, including a fresh-process CPU initialization regression test.
-CPU and Metal checks cover
+CPU and physical Metal checks cover
 regulatory expression, metabolic fission and cycles, diffusion neighborhood
 inputs, and exact weighted-map shards. See [qualification](qualification.md)
 for the commands and saved evidence.
@@ -99,8 +96,8 @@ for the commands and saved evidence.
 See [C++ comparison and scaling](cpp-benchmark.md) for matched regulatory
 cohorts, unfiltered outputs, gene-size observations, and evolutionary reuse
 counts. The [evolution guide](evolution.md) gives concrete trial/population
-configuration; the [nested runner plan](batched-runner-plan.md) describes joint
-trial scheduling and bounded compatible experiment groups.
+configuration; the [session runner](runner.md) describes joint trial scheduling
+and bounded compatible experiment groups.
 
 ## Stateful experiment execution
 

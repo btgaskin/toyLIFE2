@@ -179,123 +179,6 @@ class SignallingGame:
         )
 
 
-class RunTumble:
-    """A periodic Gaussian-patch habitat with stationary two-tick tumbles."""
-
-    def __init__(
-        self,
-        config: Mapping,
-        shape: tuple[int, ...],
-        agents: int,
-        rng: ScenarioRandom,
-        dt: float,
-        kernels: bool,
-    ):
-        if agents != 1:
-            raise ValueError("run_tumble uses one agent per independent world")
-        self.shape, self.rng, self.dt, self.kernels = shape, rng, dt, kernels
-        self.domain = float(config.get("domain", 16.0))
-        self.speed = float(config.get("speed", 1.0))
-        self.diffusion = float(config.get("rotational_diffusion", 0.05))
-        self.tau = float(config.get("field_tau", 5.0))
-        self.high_hazard = float(config.get("high_motor_hazard", 0.2))
-        self.low_hazard = float(config.get("low_motor_hazard", 2.0))
-        if (
-            self.domain <= 0
-            or self.tau <= 0
-            or min(self.speed, self.diffusion, self.high_hazard, self.low_hazard) < 0
-        ):
-            raise ValueError("habitat parameters require positive domain/tau and nonnegative rates")
-        self.centers = np.asarray(
-            config.get("centers", ((4, 4), (4, 12), (12, 4), (12, 12))), dtype=np.float32
-        )
-        if self.centers.shape != (4, 2) or not np.all(np.isfinite(self.centers)):
-            raise ValueError("habitat requires four finite two-dimensional patch centers")
-
-    def reset(self) -> dict:
-        return {
-            "tick": 0,
-            "position": (self.rng.uniform(0, "position", 2) * self.domain).astype(np.float32),
-            "theta": (self.rng.uniform(0, "heading") * (2 * np.pi)).astype(np.float32),
-            "tumble": np.zeros(self.shape, np.int32),
-            "latent": self.rng.normal(0, "field-initial", 4).astype(np.float32),
-        }
-
-    def field(self, state: dict) -> np.ndarray:
-        delta = state["position"][..., None, :] - self.centers
-        delta -= self.domain * np.floor(delta / self.domain + 0.5)
-        amplitude = 1.0 / (1.0 + np.exp(-state["latent"]))
-        return (
-            0.05 + np.sum(amplitude * np.exp(-0.5 * np.sum(delta * delta, axis=-1)), axis=-1)
-        ) / 4.05
-
-    def observe(self, state: dict) -> dict:
-        exposure = self.field(state)
-        return {"dose": np.floor(8 * exposure).astype(np.int32), "exposure": exposure}
-
-    def advance(self, state: dict, actions: np.ndarray) -> tuple[dict, np.ndarray, dict]:
-        next_state = numerical(state)
-        tick = state["tick"]
-        u = self.rng.uniform(tick, "tumble-hazard").astype(np.float32)
-        heading = self.rng.uniform(tick, "tumble-heading").astype(np.float32)
-        rotation = self.rng.normal(tick, "rotation").astype(np.float32)
-        field_noise = self.rng.normal(tick, "field-update", 4).astype(np.float32)
-        if self.kernels:
-            from ._world_kernels import habitat_commit
-
-            reward = np.empty(np.prod(self.shape, dtype=int), np.float32)
-            cast(Any, habitat_commit)(
-                next_state["position"].reshape(-1, 2),
-                next_state["theta"].reshape(-1),
-                next_state["tumble"].reshape(-1),
-                next_state["latent"].reshape(-1, 4),
-                self.centers,
-                np.ascontiguousarray(actions.reshape(-1), dtype=np.int32),
-                u.reshape(-1),
-                heading.reshape(-1),
-                rotation.reshape(-1),
-                field_noise.reshape(-1, 4),
-                reward,
-                self.dt,
-                self.domain,
-                self.speed,
-                self.diffusion,
-                self.tau,
-                self.high_hazard,
-                self.low_hazard,
-            )
-            reward = reward.reshape(self.shape)
-        else:
-            decay = np.exp(-self.dt / self.tau)
-            next_state["latent"][:] = (
-                decay * state["latent"] + np.sqrt(1 - decay * decay) * field_noise
-            )
-            active = state["tumble"] > 0
-            next_state["tumble"][active] -= 1
-            complete = active & (next_state["tumble"] == 0)
-            next_state["theta"][complete] = 2 * np.pi * heading[complete]
-            hazard = np.where(actions != 0, self.high_hazard, self.low_hazard)
-            start = ~active & (u < -np.expm1(-hazard * self.dt))
-            next_state["tumble"][start] = 1
-            moving = ~active & ~start
-            next_state["theta"][moving] += np.sqrt(2 * self.diffusion * self.dt) * rotation[moving]
-            theta = next_state["theta"]
-            velocity = self.speed * self.dt * np.stack((np.cos(theta), np.sin(theta)), axis=-1)
-            next_state["position"][moving] = (
-                state["position"][moving] + velocity[moving]
-            ) % self.domain
-            reward = self.field(next_state)
-        next_state["tick"] = tick + 1
-        return (
-            next_state,
-            reward,
-            {
-                "exposure": reward.copy(),
-                "tumbling": ((state["tumble"] > 0) | (next_state["tumble"] > 0)).astype(np.int32),
-            },
-        )
-
-
 class PythonWorld:
     """Importable factory; callback state is copied and validated at every boundary."""
 
@@ -337,8 +220,11 @@ def make_world(
     kinds = {
         "temporal_probe": TemporalProbe,
         "signalling_game": SignallingGame,
-        "run_tumble": RunTumble,
     }
+    if task.kind in {"cue_reading", "chemotaxis"}:
+        from .molecular_worlds import Chemotaxis, CueReading
+
+        kinds.update(cue_reading=CueReading, chemotaxis=Chemotaxis)
     if task.kind == "python":
         return PythonWorld(task, shape, agents, rng, dt)
     if task.kind not in kinds:

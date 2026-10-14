@@ -10,7 +10,7 @@ Clone with `--recurse-submodules`, then use Python 3.12 or 3.13:
 
 ```sh
 uv sync --locked --group dev
-uv run python -m pytest -q
+uv run python tests/check_cpu.py -q
 uv run ruff check src/toylife2 tests examples
 uv run python -m pyright
 uv build --wheel

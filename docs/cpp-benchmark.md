@@ -26,8 +26,8 @@ competition loop, and four inventory cleanup loops. The exact replacements
 are in `benchmarks/cpp_repairs.py`; each verifies the pinned source text.
 The generated source has SHA-256
 `a6c190926c1f3eae675e70ab5196b5f5ac0b682eefad2fd6a886a8f61d43089e`.
-Astra reviewed the diff: conditions, energy calculations, lookup expressions,
-and chemical actions are preserved. Sanitizer and optimized outputs must
+Conditions, energy calculations, lookup expressions, and chemical actions are
+preserved. Sanitizer and optimized outputs must
 agree before a case is timed. First and repeated outputs must remain stable.
 
 The author's spatial descriptor API additionally indexes an absent dimer at

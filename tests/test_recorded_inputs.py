@@ -61,7 +61,7 @@ def test_explicit_panel_and_numeric_identities_survive_resume_and_replay(executi
         seed=123,
         samples=2,
         execution=execution,
-        task=TaskSpec(kind="run_tumble"),
+        task=TaskSpec(kind="chemotaxis"),
         episode=EpisodeSpec(horizon=2),
         limits=WorkLimits(max_world_ticks=2),
     )

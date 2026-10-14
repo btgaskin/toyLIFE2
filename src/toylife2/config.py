@@ -9,7 +9,7 @@ from typing import Any
 
 import tomli_w
 
-from .specs import RunSpec, from_mapping, plain
+from .specs import GeneCopySpec, RunSpec, from_mapping, plain
 
 
 def load_spec(path: str | Path) -> RunSpec:
@@ -21,6 +21,7 @@ def load_spec(path: str | Path) -> RunSpec:
 
 def dump_spec(spec: RunSpec) -> str:
     data = plain(spec)
+
     # TOML has no null. Missing optional fields reconstruct dataclass defaults.
     def omit_null(value):
         if isinstance(value, dict):
@@ -58,6 +59,8 @@ def apply_overrides(spec: RunSpec, overrides: list[str] | tuple[str, ...]) -> Ru
     data = plain(spec)
     for raw in overrides:
         parts, value = _parse_override(raw)
+        if parts[:2] == ["evolution", "gene_copy"] and "gene_copy" not in data["evolution"]:
+            data["evolution"]["gene_copy"] = plain(GeneCopySpec())
         parent: dict[str, Any] = data
         for part in parts[:-1]:
             child = parent.get(part)

@@ -29,8 +29,9 @@ class Fitness:
         self.denominator = math.lcm(self.length, floor.denominator)
         self.floor_weight = floor.numerator * (self.denominator // floor.denominator)
         self.cache: OrderedDict[tuple[int, ...], int] = OrderedDict()
-        self.cache_capacity = max(1, spec.execution.memory_budget_mib * 1024 * 1024
-                                  // (8 * (160 + 40 * spec.model.genes)))
+        self.cache_capacity = max(
+            1, spec.execution.memory_budget_mib * 1024 * 1024 // (8 * (160 + 40 * spec.model.genes))
+        )
 
     def weights(self, genotypes: np.ndarray) -> np.ndarray:
         genes = validate(genotypes)
@@ -40,7 +41,7 @@ class Fitness:
         missing = list(dict.fromkeys(key for key in keys if key not in self.cache))
         if missing:
             for start in range(0, len(missing), self.spec.execution.batch_size):
-                batch = missing[start:start + self.spec.execution.batch_size]
+                batch = missing[start : start + self.spec.execution.batch_size]
                 results = self.model.patterns(np.asarray(batch, np.uint32), self.spec.spatial)
                 if not results.complete:
                     raise RuntimeError("fitness requires complete patterns")
@@ -76,8 +77,11 @@ def log_acceptance(current: float, mutant: float, population: int) -> float:
     if current == 0:
         return math.log(population)
     delta = (current - mutant) / mutant
-    log_r = (math.log1p(delta) if math.isfinite(delta) and -0.5 < delta < 0.5
-             else math.log(current) - math.log(mutant))
+    log_r = (
+        math.log1p(delta)
+        if math.isfinite(delta) and -0.5 < delta < 0.5
+        else math.log(current) - math.log(mutant)
+    )
     power = population * log_r
     if log_r > 50:
         log_difference = log_r + math.log1p(-math.exp(-log_r))
@@ -100,21 +104,24 @@ def _initial(spec: RunSpec, stream: Stream, trial: int, count: int) -> np.ndarra
             raise ValueError("initial genotypes must contain one founder or a full population")
         return np.broadcast_to(genes, (count, spec.model.genes)).copy()
     size = 1 if spec.evolution.initial == "monomorphic_random" else count
-    return np.broadcast_to(stream.genotypes(size, spec.model.genes,
-                                           trial=trial + spec.evolution.trial_start),
-                           (count, spec.model.genes)).copy()
+    return np.broadcast_to(
+        stream.genotypes(size, spec.model.genes, trial=trial + spec.evolution.trial_start),
+        (count, spec.model.genes),
+    ).copy()
 
 
 def _mutate(population: np.ndarray, positions: np.ndarray, selected: np.ndarray) -> None:
     individuals = np.flatnonzero(selected)
     bits = positions[individuals].astype(np.int64)
-    population[individuals, bits // 20] ^= (np.uint32(1) << (19 - bits % 20).astype(np.uint32))
+    population[individuals, bits // 20] ^= np.uint32(1) << (19 - bits % 20).astype(np.uint32)
 
 
 def _history(state: dict, row: list, spec: RunSpec) -> None:
     # Bound Python object overhead as well as serialized trace storage.
-    history_budget = min(spec.recording.trace_budget_mib * 1024 * 1024,
-                         spec.execution.memory_budget_mib * 1024 * 1024 // 8)
+    history_budget = min(
+        spec.recording.trace_budget_mib * 1024 * 1024,
+        spec.execution.memory_budget_mib * 1024 * 1024 // 8,
+    )
     limit = max(1, history_budget // 512)
     state["history"].append(row)
     if len(state["history"]) > limit:
@@ -124,21 +131,35 @@ def _history(state: dict, row: list, spec: RunSpec) -> None:
 
 def _admit_population(spec: RunSpec, count: int) -> None:
     # Includes population copies, selection arrays, per-call keys, and outputs.
-    required = spec.evolution.trials * count * (16 * spec.model.genes + 256)
+    width = (
+        spec.evolution.gene_copy.max_genes
+        if spec.evolution.gene_copy is not None
+        else spec.model.genes
+    )
+    required = (
+        spec.evolution.trials
+        * count
+        * (16 * width + (260 if spec.evolution.gene_copy is not None else 256))
+    )
     budget = spec.execution.memory_budget_mib * 1024 * 1024
     if required > budget // 2:
-        raise MemoryError("trial/population host state exceeds half the memory budget; "
-                          "shard trials into independent runs with explicit trial IDs")
+        raise MemoryError(
+            "trial/population host state exceeds half the memory budget; "
+            "shard trials into independent runs with explicit trial IDs"
+        )
 
 
 def _trial_done(state: dict, arrays: dict, trial: int, spec: RunSpec, save) -> bool:
     """Store a matched terminal inventory before moving the algorithm cursor."""
     if spec.recording.mode == "full":
         state["trace_event"] = {
-            "type": "trial_complete", "trial": trial + spec.evolution.trial_start,
-            "generation": state.get("generation"), "event": state.get("event"),
+            "type": "trial_complete",
+            "trial": trial + spec.evolution.trial_start,
+            "generation": state.get("generation"),
+            "event": state.get("event"),
             "time": state.get("time"),
-            "inventory": {name: value[trial].tolist() for name, value in arrays.items()}}
+            "inventory": {name: value[trial].tolist() for name, value in arrays.items()},
+        }
     state["trial_status"].append("complete")
     state.update(trial=trial + 1, trial_active=False)
     if "generation" in state:
@@ -148,8 +169,14 @@ def _trial_done(state: dict, arrays: dict, trial: int, spec: RunSpec, save) -> b
     return save(state, arrays) is not False if save else True
 
 
-def wright_fisher(model, spec: RunSpec, target: np.ndarray, *, checkpoint: dict | None = None,
-                  save: Callable | None = None) -> dict:
+def wright_fisher(
+    model,
+    spec: RunSpec,
+    target: np.ndarray,
+    *,
+    checkpoint: dict | None = None,
+    save: Callable | None = None,
+) -> dict:
     """Generation-boundary checkpoints preserve individuals and logical RNG indices."""
     if spec.seed is None:
         raise ValueError("evolution requires a seed")
@@ -157,12 +184,26 @@ def wright_fisher(model, spec: RunSpec, target: np.ndarray, *, checkpoint: dict 
     config = spec.evolution
     fitness = Fitness(model, spec, target)
     _admit_population(spec, config.population_size)
-    state = dict(checkpoint["state"]) if checkpoint else {
-        "algorithm": "wright_fisher", "rng": SCHEME, "trial": 0, "generation": 0,
-        "arrivals": [None] * config.trials, "history": [], "trial_status": []}
-    populations = (checkpoint["loaded_arrays"]["populations"].copy() if checkpoint else
-                   np.stack([_initial(spec, stream, t, config.population_size)
-                             for t in range(config.trials)]))
+    state = (
+        dict(checkpoint["state"])
+        if checkpoint
+        else {
+            "algorithm": "wright_fisher",
+            "rng": SCHEME,
+            "trial": 0,
+            "generation": 0,
+            "arrivals": [None] * config.trials,
+            "history": [],
+            "trial_status": [],
+        }
+    )
+    populations = (
+        checkpoint["loaded_arrays"]["populations"].copy()
+        if checkpoint
+        else np.stack(
+            [_initial(spec, stream, t, config.population_size) for t in range(config.trials)]
+        )
+    )
     if state.get("rng") != SCHEME or state.get("algorithm") != "wright_fisher":
         raise ValueError("checkpoint algorithm/RNG scheme mismatch")
     consumed = 0
@@ -177,10 +218,17 @@ def wright_fisher(model, spec: RunSpec, target: np.ndarray, *, checkpoint: dict 
             if state["arrivals"][trial] is None and np.any(weights == fitness.denominator):
                 state["arrivals"][trial] = generation
             if not state["history"] or state["history"][-1][:2] != [trial, generation]:
-                _history(state, [trial, generation,
-                                         float(weights.mean() / fitness.denominator),
-                                         float(weights.max() / fitness.denominator),
-                                 len(np.unique(pop, axis=0))], spec)
+                _history(
+                    state,
+                    [
+                        trial,
+                        generation,
+                        float(weights.mean() / fitness.denominator),
+                        float(weights.max() / fitness.denominator),
+                        len(np.unique(pop, axis=0)),
+                    ],
+                    spec,
+                )
             state.update(trial=trial, generation=generation)
             if generation == config.generations:
                 break
@@ -195,32 +243,47 @@ def wright_fisher(model, spec: RunSpec, target: np.ndarray, *, checkpoint: dict 
             ids = np.arange(config.population_size, dtype=np.uint64)
             logical_trial = trial + config.trial_start
             if prefix[-1] == 0:
-                parents = stream.integers(len(pop), ids, role="parents", trial=logical_trial,
-                                          event=generation)
+                parents = stream.integers(
+                    len(pop), ids, role="parents", trial=logical_trial, event=generation
+                )
             else:
-                draws = stream.integers(int(prefix[-1]), ids, role="parents", trial=logical_trial,
-                                        event=generation)
+                draws = stream.integers(
+                    int(prefix[-1]), ids, role="parents", trial=logical_trial, event=generation
+                )
                 parents = np.searchsorted(prefix, draws, side="right")
             new = pop[parents.astype(np.intp)].copy()
-            selected = stream.uniform(ids, role="mutation_gate", trial=logical_trial,
-                                      event=generation) < config.mutation_probability
-            positions = stream.integers(20 * spec.model.genes, ids, role="mutation_bit",
-                                        trial=logical_trial, event=generation)
+            selected = (
+                stream.uniform(ids, role="mutation_gate", trial=logical_trial, event=generation)
+                < config.mutation_probability
+            )
+            positions = stream.integers(
+                20 * spec.model.genes,
+                ids,
+                role="mutation_bit",
+                trial=logical_trial,
+                event=generation,
+            )
             _mutate(new, positions, selected)
             if spec.recording.mode == "full":
                 state["trace_event"] = {
-                    "type": "generation", "trial": logical_trial,
-                    "from_generation": generation, "to_generation": generation + 1,
-                    "parents": parents.tolist(), "mutations": [
-                        [int(i), int(positions[i])] for i in np.flatnonzero(selected)],
-                    "before": pop.tolist(), "after": new.tolist(),
+                    "type": "generation",
+                    "trial": logical_trial,
+                    "from_generation": generation,
+                    "to_generation": generation + 1,
+                    "parents": parents.tolist(),
+                    "mutations": [[int(i), int(positions[i])] for i in np.flatnonzero(selected)],
+                    "before": pop.tolist(),
+                    "after": new.tolist(),
                     "parent_fitness_weights": weights.tolist(),
-                    "fitness_denominator": fitness.denominator}
+                    "fitness_denominator": fitness.denominator,
+                }
             pop[:] = new
             consumed += 1
             state["generation"] = generation + 1
-            if save and (spec.recording.mode == "full" or
-                         (generation + 1) % spec.recording.checkpoint_interval == 0):
+            if save and (
+                spec.recording.mode == "full"
+                or (generation + 1) % spec.recording.checkpoint_interval == 0
+            ):
                 if save(state, {"populations": populations}) is False:
                     return _result(state, {"populations": populations}, "partial")
         if not _trial_done(state, {"populations": populations}, trial, spec, save):
@@ -235,25 +298,38 @@ def _result(state: dict, arrays: dict, status: str) -> dict:
     started = completed + int(state.get("trial_active", False) and completed < len(arrivals))
     trial_status = list(state["trial_status"]) + (["partial"] if started > completed else [])
     trial_status += ["unstarted"] * (len(arrivals) - started)
-    return {"state": state, "arrays": {**arrays, "history": np.asarray(state["history"])},
-            "status": status, "summary": {
-                "arrivals": arrivals,
-                "arrival_probability": len(observed) / len(arrivals) if status == "complete"
-                else None,
-                "completed_trials": completed, "started_trials": started,
-                "unstarted_trials": len(arrivals) - started,
-                "mean_observed_arrival": sum(observed) / len(observed) if observed else None,
-                "censored_trials": sum(x is None for x in arrivals[:completed]), "rng": SCHEME,
-                "history_dropped": state.get("history_dropped", 0),
-                "recording_limit": state.get("recording_limit"),
-                "terminal_times": state.get("terminal_times"),
-                "observed_horizons": state.get("observed_horizons"),
-                "pending_events": state.get("pending_events"),
-                "algorithm": state["algorithm"], "trial_status": trial_status}}
+    return {
+        "state": state,
+        "arrays": {**arrays, "history": np.asarray(state["history"])},
+        "status": status,
+        "summary": {
+            "arrivals": arrivals,
+            "arrival_probability": len(observed) / len(arrivals) if status == "complete" else None,
+            "completed_trials": completed,
+            "started_trials": started,
+            "unstarted_trials": len(arrivals) - started,
+            "mean_observed_arrival": sum(observed) / len(observed) if observed else None,
+            "censored_trials": sum(x is None for x in arrivals[:completed]),
+            "rng": SCHEME,
+            "history_dropped": state.get("history_dropped", 0),
+            "recording_limit": state.get("recording_limit"),
+            "terminal_times": state.get("terminal_times"),
+            "observed_horizons": state.get("observed_horizons"),
+            "pending_events": state.get("pending_events"),
+            "algorithm": state["algorithm"],
+            "trial_status": trial_status,
+        },
+    }
 
 
-def sswm(model, spec: RunSpec, target: np.ndarray, *, checkpoint: dict | None = None,
-         save: Callable | None = None) -> dict:
+def sswm(
+    model,
+    spec: RunSpec,
+    target: np.ndarray,
+    *,
+    checkpoint: dict | None = None,
+    save: Callable | None = None,
+) -> dict:
     """Continuous-time weak-mutation chain in mutation-time units.
 
     One-bit rates divide fixation acceptance by the number of genome bits.
@@ -265,13 +341,28 @@ def sswm(model, spec: RunSpec, target: np.ndarray, *, checkpoint: dict | None = 
     config = spec.evolution
     fitness = Fitness(model, spec, target)
     _admit_population(spec, 1)
-    state = dict(checkpoint["state"]) if checkpoint else {
-        "algorithm": "sswm", "rng": SCHEME, "trial": 0, "event": 0, "time": 0.0,
-        "pending": None, "pending_events": [None] * config.trials,
-        "terminal_times": [None] * config.trials,
-        "arrivals": [None] * config.trials, "history": [], "trial_status": []}
-    founders = (checkpoint["loaded_arrays"]["founders"].copy() if checkpoint else
-                np.stack([_initial(spec, stream, t, 1)[0] for t in range(config.trials)]))
+    state = (
+        dict(checkpoint["state"])
+        if checkpoint
+        else {
+            "algorithm": "sswm",
+            "rng": SCHEME,
+            "trial": 0,
+            "event": 0,
+            "time": 0.0,
+            "pending": None,
+            "pending_events": [None] * config.trials,
+            "terminal_times": [None] * config.trials,
+            "arrivals": [None] * config.trials,
+            "history": [],
+            "trial_status": [],
+        }
+    )
+    founders = (
+        checkpoint["loaded_arrays"]["founders"].copy()
+        if checkpoint
+        else np.stack([_initial(spec, stream, t, 1)[0] for t in range(config.trials)])
+    )
     if state.get("rng") != SCHEME or state.get("algorithm") != "sswm":
         raise ValueError("checkpoint algorithm/RNG scheme mismatch")
     consumed = 0
@@ -296,27 +387,47 @@ def sswm(model, spec: RunSpec, target: np.ndarray, *, checkpoint: dict | None = 
             if state["pending"] is None:
                 mutants = neighbours(genotype)
                 values = fitness.values(mutants)
-                logs = np.asarray([log_acceptance(value, float(v), config.population_size)
-                                   - math.log(len(mutants)) for v in values])
+                logs = np.asarray(
+                    [
+                        log_acceptance(value, float(v), config.population_size)
+                        - math.log(len(mutants))
+                        for v in values
+                    ]
+                )
                 maximum = float(logs.max())
                 if maximum == -math.inf:
                     state["pending"] = {"time": None, "position": None}
                 else:
                     rates = np.exp(logs - maximum)
                     log_total = maximum + math.log(float(rates.sum()))
-                    u = float(stream.uniform(0, role="waiting_time",
-                                             trial=trial + config.trial_start,
-                                             event=state["event"]))
+                    u = float(
+                        stream.uniform(
+                            0,
+                            role="waiting_time",
+                            trial=trial + config.trial_start,
+                            event=state["event"],
+                        )
+                    )
                     log_wait = math.log(-math.log(u)) - log_total
                     wait = math.exp(log_wait) if log_wait < 709 else math.inf
-                    choice = float(stream.uniform(0, role="transition",
-                                                  trial=trial + config.trial_start,
-                                                  event=state["event"])) * float(rates.sum())
-                    position = min(int(np.searchsorted(np.cumsum(rates), choice, side="right")),
-                                   len(mutants) - 1)
+                    choice = float(
+                        stream.uniform(
+                            0,
+                            role="transition",
+                            trial=trial + config.trial_start,
+                            event=state["event"],
+                        )
+                    ) * float(rates.sum())
+                    position = min(
+                        int(np.searchsorted(np.cumsum(rates), choice, side="right")),
+                        len(mutants) - 1,
+                    )
                     event_time = state["time"] + wait
-                    state["pending"] = {"time": event_time if math.isfinite(event_time) else None,
-                                        "position": position, "log_wait": log_wait}
+                    state["pending"] = {
+                        "time": event_time if math.isfinite(event_time) else None,
+                        "position": position,
+                        "log_wait": log_wait,
+                    }
             pending = state["pending"]
             event_time = pending["time"]
             if event_time is None or event_time > config.time_horizon:
@@ -327,15 +438,24 @@ def sswm(model, spec: RunSpec, target: np.ndarray, *, checkpoint: dict | None = 
             candidate = mutation(genotype, position)
             if spec.recording.mode == "full":
                 state["trace_event"] = {
-                    "type": "transition", "trial": trial + config.trial_start,
-                    "event": state["event"], "from_time": state["time"], "to_time": event_time,
-                    "position": position, "before": genotype.tolist(), "after": candidate.tolist(),
-                    "pending": dict(pending), "previous_fitness": value}
+                    "type": "transition",
+                    "trial": trial + config.trial_start,
+                    "event": state["event"],
+                    "from_time": state["time"],
+                    "to_time": event_time,
+                    "position": position,
+                    "before": genotype.tolist(),
+                    "after": candidate.tolist(),
+                    "pending": dict(pending),
+                    "previous_fitness": value,
+                }
             genotype[:] = candidate
             state.update(time=event_time, event=state["event"] + 1, pending=None)
             consumed += 1
-            if save and (spec.recording.mode == "full" or
-                         state["event"] % spec.recording.checkpoint_interval == 0):
+            if save and (
+                spec.recording.mode == "full"
+                or state["event"] % spec.recording.checkpoint_interval == 0
+            ):
                 if save(state, {"founders": founders}) is False:
                     return _result(state, {"founders": founders}, "partial")
         state["pending_events"][trial] = state["pending"]
@@ -346,19 +466,33 @@ def sswm(model, spec: RunSpec, target: np.ndarray, *, checkpoint: dict | None = 
     return _result(state, {"founders": founders}, "complete")
 
 
-def neutral_walk(model, spec: RunSpec, *, checkpoint: dict | None = None,
-                 save: Callable | None = None) -> dict:
+def neutral_walk(
+    model, spec: RunSpec, *, checkpoint: dict | None = None, save: Callable | None = None
+) -> dict:
     """Uniform proposed one-bit mutations, accepted iff the declared phenotype matches."""
     if spec.seed is None:
         raise ValueError("evolution requires a seed")
     stream = Stream(spec.seed)
     config = spec.evolution
     _admit_population(spec, 1)
-    state = dict(checkpoint["state"]) if checkpoint else {
-        "algorithm": "neutral_walk", "rng": SCHEME, "trial": 0, "generation": 0,
-        "arrivals": [None] * config.trials, "history": [], "trial_status": []}
-    founders = (checkpoint["loaded_arrays"]["founders"].copy() if checkpoint else
-                np.stack([_initial(spec, stream, t, 1)[0] for t in range(config.trials)]))
+    state = (
+        dict(checkpoint["state"])
+        if checkpoint
+        else {
+            "algorithm": "neutral_walk",
+            "rng": SCHEME,
+            "trial": 0,
+            "generation": 0,
+            "arrivals": [None] * config.trials,
+            "history": [],
+            "trial_status": [],
+        }
+    )
+    founders = (
+        checkpoint["loaded_arrays"]["founders"].copy()
+        if checkpoint
+        else np.stack([_initial(spec, stream, t, 1)[0] for t in range(config.trials)])
+    )
     if state.get("rng") != SCHEME or state.get("algorithm") != "neutral_walk":
         raise ValueError("checkpoint algorithm/RNG scheme mismatch")
 
@@ -381,8 +515,15 @@ def neutral_walk(model, spec: RunSpec, *, checkpoint: dict | None = None,
                 if save:
                     save(state, {"founders": founders})
                 return _result(state, {"founders": founders}, "partial")
-            position = int(stream.integers(20 * spec.model.genes, 0, role="neutral_proposal",
-                                           trial=trial + config.trial_start, event=event))
+            position = int(
+                stream.integers(
+                    20 * spec.model.genes,
+                    0,
+                    role="neutral_proposal",
+                    trial=trial + config.trial_start,
+                    event=event,
+                )
+            )
             candidate = mutation(genotype, position)
             result = phenotype(candidate)
             if not result.complete:
@@ -390,19 +531,26 @@ def neutral_walk(model, spec: RunSpec, *, checkpoint: dict | None = None,
             accepted = np.array_equal(base.values, result.values)
             if spec.recording.mode == "full":
                 state["trace_event"] = {
-                    "type": "neutral_proposal", "trial": trial + config.trial_start,
-                    "event": event, "position": position, "accepted": accepted,
-                    "before": genotype.tolist(), "after": candidate.tolist() if accepted
-                    else genotype.tolist(), "base_phenotype": base.values.tolist(),
-                    "candidate_phenotype": result.values.tolist()}
+                    "type": "neutral_proposal",
+                    "trial": trial + config.trial_start,
+                    "event": event,
+                    "position": position,
+                    "accepted": accepted,
+                    "before": genotype.tolist(),
+                    "after": candidate.tolist() if accepted else genotype.tolist(),
+                    "base_phenotype": base.values.tolist(),
+                    "candidate_phenotype": result.values.tolist(),
+                }
             if accepted:
                 genotype[:] = candidate
             _history(state, [trial, event, position, int(accepted)], spec)
             state.update(trial=trial, generation=event + 1)
             consumed += 1
             state["observed_horizons"][trial] = event + 1
-            if save and (spec.recording.mode == "full" or
-                         (event + 1) % spec.recording.checkpoint_interval == 0):
+            if save and (
+                spec.recording.mode == "full"
+                or (event + 1) % spec.recording.checkpoint_interval == 0
+            ):
                 if save(state, {"founders": founders}) is False:
                     return _result(state, {"founders": founders}, "partial")
         if not _trial_done(state, {"founders": founders}, trial, spec, save):

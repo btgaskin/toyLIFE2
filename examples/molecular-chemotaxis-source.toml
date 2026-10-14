@@ -1,0 +1,185 @@
+operation = "wright_fisher"
+seed = 123
+samples = 1
+genotypes = []
+schema_version = 2
+
+[model]
+rules = "toylife-canonical-v1"
+genes = 2
+
+[assay]
+phenotype = "metabolic"
+
+[spatial]
+cells = 31
+steps = 100
+boundary = "open"
+diffusion = "A"
+morphogen = "central_A_pulse"
+injections = []
+
+[evolution]
+trials = 2
+population_size = 4
+generations = 2
+mutation_probability = 0.01
+mutation = "one_bit_per_mutating_offspring"
+fitness_floor = 1e-08
+time_horizon = 100.0
+initial = "independent_random"
+trial_start = 0
+
+[execution]
+backend = "auto"
+batch_size = 256
+memory_budget_mib = 1024
+max_steps = 100000
+max_events = 100000
+max_truth_states = 1048576
+max_tiles = 1048576
+cache_dir = ".cache/toylife2"
+max_active_lanes = 64
+cpu_threads = 1
+
+[recording]
+mode = "replayable"
+checkpoint_interval = 100
+trace_budget_mib = 128
+
+[cell]
+steps = 1
+initial_expression = 0
+metabolites = []
+
+[map]
+start_pair = 0
+tile_pairs = 64
+
+[controller]
+mode = "canonical_cell"
+initial_expression = 0
+initial_proteins = []
+initial_dimers = []
+initial_metabolites = []
+initial_bound = []
+warmup = 0
+capacity = 4096
+
+[controller.interface]
+max_dose = 8
+
+[controller.interface.inputs]
+cue = "1001"
+
+[controller.interface.targets]
+motor = "0111"
+
+[controller.interface.target_copies]
+motor = 1
+
+[task]
+kind = "chemotaxis"
+
+[task.config]
+motion_model = "ecoli_spherical_v1"
+tumble_mean_duration = 0.14
+tumble_rotational_diffusion = 3.5
+tumble_speed_fraction = 0.0
+motion_max_substep = 0.01
+motion_event_capacity = 8
+time_unit = "seconds"
+micrometers_per_length_unit = 20.0
+world_engine = "quadrants"
+world_precision = "float32"
+field = "source"
+domain = 16.0
+speed = 1.0
+rotational_diffusion = 0.05
+sensor_scale = 0.5
+hazard_zero = 2.0
+hazard_one = 0.2
+mean = 0.5
+amplitude = 0.4
+modes = [
+    [
+        1,
+        0,
+    ],
+    [
+        0,
+        1,
+    ],
+    [
+        1,
+        1,
+    ],
+    [
+        1,
+        -1,
+    ],
+]
+correlation_time = 3.0
+static = true
+source_peak = 1.0
+source_length = 4.0
+arrival_radius = 0.4
+input_channel = "cue"
+action_outputs = [
+    "motor",
+]
+
+[task.config.port_sampling]
+pool = "four_site_active"
+seed = 0
+algorithm = "numpy_pcg64_uniform_canonical_without_replacement"
+eligibility = "negative_protein_or_dimer_contact"
+candidates = [
+    "0001",
+    "0010",
+    "0011",
+    "0101",
+    "0110",
+    "0111",
+    "1001",
+    "1011",
+    "1111",
+]
+tables_digest = "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c7"
+
+[task.config.port_sampling.resolved]
+max_dose = 8
+
+[task.config.port_sampling.resolved.inputs]
+cue = "1001"
+
+[task.config.port_sampling.resolved.targets]
+motor = "0111"
+
+[task.config.port_sampling.resolved.target_copies]
+motor = 1
+
+[episode]
+horizon = 20
+episodes = 2
+dt = 0.05
+chemical_updates = 1
+panel = "generation"
+reduction = "mean"
+seed = 0
+reset_per_decision = false
+
+[objective]
+kind = "bounded_reward"
+direction = "maximize"
+floor_numerator = 1
+floor_denominator = 100000000
+quantization = 16777216
+goal_operator = "ge"
+scope = "candidate"
+pure = true
+
+[objective.config]
+
+[limits]
+max_assay_steps = 100000

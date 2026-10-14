@@ -445,3 +445,153 @@ def test_full_nested_trace_retains_world_chemical_rows_and_cache_requests(molecu
     requests = [row for row in events if row["type"] == "evaluation_request"]
     assert len(requests) == 2
     assert session.counters["total"]["world_ticks"] == 3
+
+
+def test_memory_admission_splits_without_changing_candidate_results():
+    attempts = []
+
+    class LimitedRollout(FakeRollout):
+        def __init__(self, model, genes, *args, **kwargs):
+            attempts.append(len(genes))
+            if len(genes) > 2:
+                raise MemoryError("cohort exceeds budget")
+            super().__init__(model, genes, *args, **kwargs)
+
+        def aggregate_scores(self):
+            return self.genes[:, 0] / 16
+
+    run = spec(
+        task=TaskSpec(kind="temporal_probe"),
+        episode=EpisodeSpec(episodes=2),
+        objective=ObjectiveSpec(kind="bounded_reward"),
+        execution=ExecutionSpec(batch_size=8),
+    )
+    genes = np.asarray([[i, 0] for i in [3, 1, 5, 2, 1, 4]], np.uint32)
+    evaluator = Evaluator(CountingModel(), run, rollout_factory=LimitedRollout)
+    result = evaluator.evaluate(genes)
+    np.testing.assert_array_equal(result.scores, genes[:, 0] / 16)
+    assert result.complete
+    assert evaluator.metrics["new_genotype_evaluations"] == 5
+    assert evaluator.metrics["memory_batch_retries"] == 2
+    assert attempts == [5, 3, 2, 1, 2]
+    count = len(attempts)
+    evaluator.evaluate(genes)
+    assert len(attempts) == count
+
+
+def test_memory_failure_during_simulation_is_not_retried():
+    attempts = []
+
+    class FailedRollout(FakeRollout):
+        def run(self):
+            attempts.append(len(self.genes))
+            raise MemoryError("runtime allocation")
+
+    run = spec(task=TaskSpec(kind="temporal_probe"), objective=ObjectiveSpec(kind="bounded_reward"))
+    evaluator = Evaluator(CountingModel(), run, rollout_factory=FailedRollout)
+    with pytest.raises(MemoryError, match="runtime allocation"):
+        evaluator.evaluate(np.asarray([[0, 0], [1, 0]], np.uint32))
+    assert attempts == [2]
+
+
+def test_single_candidate_admission_failure_is_reported():
+    def failed_factory(*args, **kwargs):
+        raise MemoryError("single cell exceeds budget")
+
+    run = spec(task=TaskSpec(kind="temporal_probe"), objective=ObjectiveSpec(kind="bounded_reward"))
+    evaluator = Evaluator(CountingModel(), run, rollout_factory=failed_factory)
+    with pytest.raises(MemoryError, match="single cell exceeds budget"):
+        evaluator.evaluate(np.zeros((1, 2), np.uint32))
+
+
+def test_panel_cache_pruning_preserves_current_and_pending_panels():
+    evaluator = Evaluator(
+        CountingModel(),
+        spec(task=TaskSpec(kind="temporal_probe"), objective=ObjectiveSpec(kind="bounded_reward")),
+        rollout_factory=FakeRollout,
+    )
+    genes = np.zeros((1, 2), np.uint32)
+    for panel in [0, 1, 2]:
+        evaluator.evaluate(genes, panel=panel)
+    evaluator.pending_arguments["pending"] = {"panel": 1, "agent_axis": None, "genes": genes}
+    evaluator.retain_cache_panels([2])
+    assert len(evaluator.cache) == 2
+    before = evaluator.metrics["new_genotype_evaluations"]
+    evaluator.evaluate(genes, panel=2)
+    assert evaluator.metrics["new_genotype_evaluations"] == before
+    evaluator.evaluate(genes, panel=0)
+    assert evaluator.metrics["new_genotype_evaluations"] == before + 1
+
+
+def test_memory_fallback_matches_real_chemotaxis_evaluation(molecular_model):
+    from toylife2.protocols import StructuralInterface
+    from toylife2.rollout import RolloutSession
+
+    run = spec(
+        task=TaskSpec(kind="chemotaxis"),
+        episode=EpisodeSpec(horizon=8, episodes=3),
+        controller=StructuralInterface(
+            inputs={"cue": "0001"}, targets={"motor": "1111"}
+        ).controller(),
+        objective=ObjectiveSpec(kind="bounded_reward"),
+    )
+    genes = np.asarray([[907050, 1048465], [1005689, 644498], [907050, 1048465]], np.uint32)
+    expected = Evaluator(molecular_model, run).evaluate(genes, panel=7)
+
+    def constrained_factory(model, batch, *args, **kwargs):
+        if len(batch) > 1:
+            raise MemoryError("test admission cap")
+        return RolloutSession(model, batch, *args, **kwargs)
+
+    evaluator = Evaluator(molecular_model, run, rollout_factory=constrained_factory)
+    actual = evaluator.evaluate(genes, panel=7)
+    for name in ["scores", "weights", "selection_fitness", "status", "candidate_ids"]:
+        np.testing.assert_array_equal(getattr(actual, name), getattr(expected, name))
+    assert actual.denominator == expected.denominator
+    assert evaluator.metrics["memory_batch_retries"] == 1
+
+
+def test_shared_panel_cache_retains_sibling_scores():
+    evaluator = Evaluator(
+        CountingModel(),
+        spec(task=TaskSpec(kind="temporal_probe"), objective=ObjectiveSpec(kind="bounded_reward")),
+        rollout_factory=FakeRollout,
+    )
+    genes = np.zeros((1, 2), np.uint32)
+    for panel in [0, 1]:
+        evaluator.evaluate(genes, panel=panel)
+    evaluator._shared_cache = True
+    evaluator.retain_cache_panels([1])
+    assert len(evaluator.cache) == 2
+
+
+def test_memory_fallback_checkpoint_resumes_interrupted_cohorts(molecular_model):
+    from toylife2.protocols import StructuralInterface, WorkLimits
+    from toylife2.rollout import RolloutSession
+
+    run = spec(
+        task=TaskSpec(kind="chemotaxis"),
+        episode=EpisodeSpec(horizon=4, episodes=3),
+        controller=StructuralInterface(
+            inputs={"cue": "0001"}, targets={"motor": "1111"}
+        ).controller(),
+        objective=ObjectiveSpec(kind="bounded_reward"),
+    )
+    genes = np.asarray([[907050, 1048465], [1005689, 644498]], np.uint32)
+    expected = Evaluator(molecular_model, run).evaluate(genes, panel=7)
+
+    def constrained_factory(model, batch, *args, **kwargs):
+        if len(batch) > 1:
+            raise MemoryError("test admission cap")
+        return RolloutSession(model, batch, *args, **kwargs)
+
+    partial = Evaluator(molecular_model, run, rollout_factory=constrained_factory)
+    partial.set_work_limits(WorkLimits(max_chemical_updates=4))
+    assert not partial.evaluate(genes, panel=7).complete
+    assert partial.pending
+    resumed = Evaluator(molecular_model, run, rollout_factory=constrained_factory)
+    resumed.restore_payload(partial.checkpoint_payload())
+    actual = resumed.evaluate(genes, panel=7)
+    assert actual.complete
+    np.testing.assert_array_equal(actual.scores, expected.scores)
+    np.testing.assert_array_equal(actual.weights, expected.weights)

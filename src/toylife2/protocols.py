@@ -58,6 +58,7 @@ class ReadoutSpec:
             "functional_expression",
             "protein",
             "dimer",
+            "metabolite",
             "bound",
             "fission",
         }:
@@ -101,6 +102,153 @@ class PortSpec:
 
 
 @dataclass(frozen=True)
+class StructuralInterface:
+    """Named molecular supplies and intact target occupancy in one shared cell."""
+
+    inputs: Mapping[str, str] = field(default_factory=dict)
+    targets: Mapping[str, str] = field(default_factory=dict)
+    target_copies: Mapping[str, int] = field(default_factory=dict)
+    max_dose: int = 8
+
+    def __post_init__(self) -> None:
+        integer(self.max_dose, "interface.max_dose")
+        identities = []
+        names = []
+        for attribute in ("inputs", "targets"):
+            channels = dict(getattr(self, attribute))
+            for name, molecule in channels.items():
+                if not isinstance(name, str) or not name.isidentifier():
+                    raise ValueError("channel names must be Python identifiers")
+                if (
+                    not isinstance(molecule, str)
+                    or not 1 <= len(molecule) <= 8
+                    or set(molecule) - {"0", "1"}
+                ):
+                    raise ValueError("channel molecules must be binary strings of length 1..8")
+                molecule = min(molecule, molecule[::-1])
+                channels[name] = molecule
+                identities.append(molecule)
+                names.append(name)
+            object.__setattr__(self, attribute, freeze(dict(sorted(channels.items()))))
+        if len(set(identities)) != len(identities) or len(set(names)) != len(names):
+            raise ValueError("channels require distinct names and canonical molecule identities")
+        if not self.targets:
+            raise ValueError("structural interface requires at least one target")
+        if set(self.target_copies) - set(self.targets):
+            raise ValueError("target_copies contains an unknown target")
+        copies = {name: self.target_copies.get(name, 1) for name in self.targets}
+        for count in copies.values():
+            integer(count, "target copies")
+            if count > self.max_dose:
+                raise ValueError("target copies exceed max_dose")
+        object.__setattr__(self, "target_copies", freeze(copies))
+
+    def ports(self) -> PortSpec:
+        readouts = []
+        for name, molecule in self.targets.items():
+            readouts.extend(
+                (
+                    ReadoutSpec(name, "bound", metabolite=molecule, stage="after_output"),
+                    ReadoutSpec(
+                        f"target_free:{name}",
+                        "metabolite",
+                        metabolite=molecule,
+                        stage="after_output",
+                    ),
+                    ReadoutSpec(
+                        f"target_fission:{name}",
+                        "fission",
+                        metabolite=molecule,
+                        stage="after_output",
+                    ),
+                )
+            )
+        return PortSpec(
+            metabolites=tuple((*self.inputs.values(), *self.targets.values())),
+            max_dose=self.max_dose,
+            input_mode="replenish",
+            readouts=tuple(readouts),
+        )
+
+    def controller(self, **kwargs) -> ControllerSpec:
+        return ControllerSpec(interface=self, **kwargs)
+
+    def encode(self, inputs: Mapping) -> dict:
+        import numpy as np
+
+        if set(inputs) != set(self.inputs):
+            raise ValueError("supply every named input, including explicit zeros")
+        result = {}
+        for name, molecule in self.inputs.items():
+            counts = np.asarray(inputs[name])
+            if (
+                counts.dtype.kind not in "iu"
+                or np.any(counts > self.max_dose)
+                or np.any(counts < 0)
+            ):
+                raise ValueError("named inputs require integer counts within max_dose")
+            result[molecule] = counts.copy()
+        result.update(
+            {molecule: self.target_copies[name] for name, molecule in self.targets.items()}
+        )
+        return result
+
+    def outputs(self, readouts: Mapping) -> dict:
+        return {name: readouts[name] for name in self.targets}
+
+    def diagnostics(self, readouts: Mapping) -> dict:
+        return {
+            name: {
+                "bound": readouts[name],
+                "free": readouts[f"target_free:{name}"],
+                "fission": readouts[f"target_fission:{name}"],
+            }
+            for name in self.targets
+        }
+
+    def endpoint_information(self, tables) -> dict:
+        """Describe source annotations and exact contact-energy similarities."""
+        import itertools
+
+        import numpy as np
+
+        channels = {**self.inputs, **self.targets}
+        endpoints = {}
+        similarities = []
+        for name, molecule in channels.items():
+            index = tables.met_index.get(molecule)
+            endpoints[name] = {
+                "molecule": molecule,
+                "contact_table_present": index is not None,
+                "source_unbreakable_annotation": (
+                    bool(tables.met_unbreakable[index]) if index is not None else None
+                ),
+            }
+        for first, second in itertools.combinations(channels, 2):
+            a, b = (tables.met_index.get(channels[name]) for name in (first, second))
+            similarities.append(
+                {
+                    "channels": [first, second],
+                    "identical_protein_contacts": (
+                        bool(
+                            np.array_equal(
+                                tables.protein_met_energy[a], tables.protein_met_energy[b]
+                            )
+                        )
+                        if a is not None and b is not None
+                        else None
+                    ),
+                    "identical_dimer_contacts": (
+                        bool(np.array_equal(tables.dimer_met_energy[a], tables.dimer_met_energy[b]))
+                        if a is not None and b is not None
+                        else None
+                    ),
+                }
+            )
+        return {"endpoints": endpoints, "similarities": similarities}
+
+
+@dataclass(frozen=True)
 class ControllerSpec:
     mode: str = "canonical_cell"
     ports: PortSpec = field(default_factory=PortSpec)
@@ -111,8 +259,18 @@ class ControllerSpec:
     initial_bound: tuple[tuple[str, int, int, str, int], ...] = ()
     warmup: int = 0
     capacity: int = 4096
+    interface: StructuralInterface | None = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.interface, Mapping):
+            object.__setattr__(self, "interface", StructuralInterface(**self.interface))
+        if self.interface is not None:
+            ports = self.interface.ports()
+            if self.ports != PortSpec() and self.ports != ports:
+                raise ValueError("structural interface supplies its own ports")
+            if self.mode != "canonical_cell":
+                raise ValueError("structural interface requires canonical_cell chemistry")
+            object.__setattr__(self, "ports", ports)
         if self.mode not in {"canonical_cell", "regulatory"}:
             raise ValueError("controller mode must be canonical_cell or regulatory")
         integer(self.initial_expression, "initial_expression")
@@ -154,17 +312,27 @@ class TaskSpec:
     config: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        if self.kind == "run_tumble":
+            raise ValueError(
+                "run_tumble has been removed; its records require the earlier release. "
+                "Use chemotaxis for new experiments."
+            )
         if self.kind not in {
             "assay",
             "temporal_probe",
             "signalling_game",
-            "run_tumble",
+            "cue_reading",
+            "chemotaxis",
             "tissue",
             "python",
         }:
             raise ValueError("unsupported task kind")
         if self.kind == "python" and not self.entrypoint:
             raise ValueError("python tasks require an importable entrypoint")
+        if self.kind in {"cue_reading", "chemotaxis"}:
+            from .molecular_worlds import resolve_task
+
+            object.__setattr__(self, "config", resolve_task(self.kind, self.config))
         object.__setattr__(self, "config", freeze(self.config))
 
 

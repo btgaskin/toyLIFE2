@@ -130,9 +130,12 @@ bit of one while producing no functional protein.
 Persistent memory consists of expression and admitted molecular inventories.
 Protein accumulation, phosphorylation, higher-order complexes and permanent
 receptor/motor assemblies require additional versioned rules. The current
-run/tumble task is a two-dimensional control environment with molecular input
-ports and a motor readout. Its motion, nutrient field, and score are task
-parameters; it does not implement the molecular E. coli signalling network.
+chemotaxis task projects a three-dimensional swimming orientation onto a periodic
+square with molecular input ports and a motor readout. Finite tumbles turn the
+cell through active rotational diffusion; remaining duration and orientation
+persist across decisions. Its motion, concentration field, and score are declared
+task parameters. The intracellular controller follows toyLIFE chemistry; the
+[molecular cells guide](molecular-cells.md) defines the E. coli-inspired body model.
 The signalling game uses two simultaneous agents, alternating sender/receiver
 roles, with messages delivered at the next decision boundary. Task defaults and
 source are captured in each run. Explicit `reset_per_decision` provides a

@@ -18,8 +18,12 @@ from typing import Any
 import numpy as np
 
 from .genotypes import validate
-from .protocols import ObjectiveSpec, WorkLimits, freeze
+from .protocols import ControllerSpec, ObjectiveSpec, WorkLimits, freeze
 from .specs import digest
+
+
+class _CohortMemoryError(MemoryError):
+    """A rollout could not be constructed; no simulation work has run."""
 
 
 def _owned(value: Any) -> Any:
@@ -31,6 +35,10 @@ def _owned(value: Any) -> Any:
 
 
 def _plain(value: Any) -> Any:
+    if isinstance(value, ControllerSpec):
+        from .specs import plain
+
+        return plain(value)
     if dataclasses.is_dataclass(value):
         return {f.name: _plain(getattr(value, f.name)) for f in dataclasses.fields(value)}
     if isinstance(value, Mapping):
@@ -154,6 +162,7 @@ class Evaluator:
         self.work_limits = getattr(spec, "limits", WorkLimits())
         self._request_used = dict(world_ticks=0, chemical_updates=0)
         self.cache: OrderedDict[tuple, dict[str, Any]] = OrderedDict()
+        self._shared_cache = False
         self.pending = {}
         self.pending_arguments = {}
         self.events = []
@@ -217,7 +226,7 @@ class Evaluator:
     @property
     def stochastic(self):
         task = self.spec.task
-        return task.kind in {"signalling_game", "run_tumble"} or (
+        return task.kind in {"signalling_game", "chemotaxis"} or (
             task.kind == "python" and bool(task.config.get("stochastic", True))
         )
 
@@ -303,19 +312,22 @@ class Evaluator:
             limits = self._remaining_limits()
             session = self.pending.get(key)
             if session is None:
-                session = factory(
-                    self.model,
-                    genes,
-                    task,
-                    self.spec.episode,
-                    self.spec.controller,
-                    limits=limits,
-                    recording=self.spec.recording,
-                    seed=self.spec.seed,
-                    panel=panel,
-                    agent_axis=agent_axis,
-                    identities=identities,
-                )
+                try:
+                    session = factory(
+                        self.model,
+                        genes,
+                        task,
+                        self.spec.episode,
+                        self.spec.controller,
+                        limits=limits,
+                        recording=self.spec.recording,
+                        seed=self.spec.seed,
+                        panel=panel,
+                        agent_axis=agent_axis,
+                        identities=identities,
+                    )
+                except MemoryError as exc:
+                    raise _CohortMemoryError(str(exc)) from exc
                 self.pending[key] = session
                 self.pending_arguments[key] = dict(
                     genes=np.array(genes, copy=True),
@@ -524,6 +536,17 @@ class Evaluator:
                 self.runner.release(session)
             del self.pending[key]
             del self.pending_arguments[key]
+
+    def retain_cache_panels(self, panels):
+        """Drop completed scores from panels the population cannot revisit."""
+        if self._shared_cache:
+            # Other populations may still need older panels in this same cache.
+            return
+        keep = {digest(_plain(panel)) for panel in panels}
+        keep.update(digest(_plain(args["panel"])) for args in self.pending_arguments.values())
+        for key in list(self.cache):
+            if key[1] not in keep:
+                del self.cache[key]
 
     def set_work_limits(self, limits):
         self.work_limits = limits
@@ -865,15 +888,39 @@ class Evaluator:
                 yield missing[cursor : cursor + width]
                 cursor += width
 
-        for batch in admitted_batches():
+        def scored_batches(batch):
+            nonlocal chunk_size
+            midpoint = 0
+            out = None
+            try:
+                out = self._score(
+                    np.asarray([k[-1] for k in batch], np.uint32),
+                    panel=panel,
+                    identities=None,
+                    agent_axis=None,
+                )
+            except _CohortMemoryError:
+                if len(batch) == 1:
+                    raise
+                self.metrics["memory_batch_retries"] = (
+                    self.metrics.get("memory_batch_retries", 0) + 1
+                )
+                midpoint = (len(batch) + 1) // 2
+                chunk_size = min(chunk_size, midpoint)
+            if midpoint:
+                # Leave the exception handler so failed-construction tracebacks
+                # release their temporary arrays before retrying smaller cohorts.
+                yield from scored_batches(batch[:midpoint])
+                yield from scored_batches(batch[midpoint:])
+                return
+            assert out is not None
             self.metrics["new_genotype_evaluations"] += len(batch)
             self.metrics["chunks"] += 1
-            out = self._score(
-                np.asarray([k[-1] for k in batch], np.uint32),
-                panel=panel,
-                identities=None,
-                agent_axis=None,
-            )
+            yield batch, out
+
+        for batch, out in (
+            result for cohort in admitted_batches() for result in scored_batches(cohort)
+        ):
             for i, key in enumerate(batch):
                 item: dict[str, Any] = dict(
                     scores=out.scores[i],
@@ -904,30 +951,37 @@ class Evaluator:
             return EvaluationResult(
                 np.empty(shape), status=np.empty(shape, dtype="U10"), candidate_ids=ids
             )
+        denominators = {row["denominator"] for row in rows if row["weights"] is not None}
+        if len(denominators) > 1:
+            raise ValueError("custom exact selection mappings require a fixed denominator")
+        if denominators and any(
+            row["status"] == "complete" and row["weights"] is None for row in rows
+        ):
+            raise ValueError("complete candidates require consistent exact selection weights")
+        metrics = {}
+        for name in dict.fromkeys(name for row in rows for name in row["metrics"]):
+            first = next(row["metrics"][name] for row in rows if name in row["metrics"])
+            metrics[name] = (
+                np.asarray(
+                    [row["metrics"].get(name, np.zeros_like(first)) for row in rows]
+                ).reshape((*shape, *np.asarray(first).shape))
+                if isinstance(first, np.ndarray) or np.isscalar(first)
+                else first
+            )
         values: dict[str, Any] = dict(
             direction=rows[0]["direction"],
-            denominator=rows[0]["denominator"],
-            metrics={
-                k: (
-                    np.asarray([r["metrics"][k] for r in rows]).reshape(
-                        (*shape, *np.asarray(v).shape)
-                    )
-                    if isinstance(v, np.ndarray) or np.isscalar(v)
-                    else v
-                )
-                for k, v in rows[0]["metrics"].items()
-            },
+            denominator=denominators.pop() if denominators else None,
+            metrics=metrics,
         )
         for name in ("scores", "status", "weights", "selection_fitness", "success", "descriptor"):
+            first = next((row[name] for row in rows if row[name] is not None), None)
+            if name == "descriptor" and any(row["status"] != "complete" for row in rows):
+                first = None
             values[name] = (
                 None
-                if rows[0][name] is None
-                else np.asarray([r[name] for r in rows]).reshape(
-                    (*shape, *np.asarray(rows[0][name]).shape)
-                )
+                if first is None
+                else np.asarray(
+                    [row[name] if row[name] is not None else np.zeros_like(first) for row in rows]
+                ).reshape((*shape, *np.asarray(first).shape))
             )
-        if rows[0]["weights"] is not None and any(
-            row["denominator"] != rows[0]["denominator"] for row in rows
-        ):
-            raise ValueError("custom exact selection mappings require a fixed denominator")
         return self._trace_request(EvaluationResult(**values, candidate_ids=ids), genes, ids, panel)

@@ -7,7 +7,13 @@ __pycache__/
 dist/
 workspaces/
 runs/
+results/
 qualification/
+.agents/
+.codex/
+AGENTS.md
+docs/*-review.md
+docs/*-plan.md
 .DS_Store
 .env
 .env.*

@@ -122,9 +122,9 @@ set `trials` to the shard size, and give each shard a disjoint `trial_start`
 (for example, 0 and 5 for two five-trial shards). Logical trial IDs then keep
 the random streams stable across shard layouts.
 
-The [nested runner plan](batched-runner-plan.md) proposes joint fitness
-evaluation across independent trials and experiments, with per-trial
-generation cursors and unchanged logical random streams.
+The [session runner](runner.md) evaluates ready trials together, with independent
+generation cursors and unchanged logical random streams. Named batches retain
+separate records and work quotas for each experiment.
 
 ## Strong-selection, weak-mutation (SSWM)
 

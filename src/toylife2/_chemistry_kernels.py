@@ -311,6 +311,43 @@ def copy_chemistry_state(
             saved_first[lane, c] = first[lane, c]
 
 
+@qd.func
+def readout_lane(
+    lane,
+    readout,
+    boundary: qd.template(),
+    after_input: qd.template(),
+    after_output: qd.template(),
+    expression: qd.template(),
+    events: qd.template(),
+    first_events: qd.template(),
+    lane_graph: qd.template(),
+    indices: qd.template(),
+    sizes: qd.template(),
+    descriptors: qd.template(),
+):
+    graph = lane_graph[lane]
+    total = 0
+    mode = descriptors[readout, 0]
+    stage = descriptors[readout, 1]
+    for c in range(sizes[graph, readout]):
+        index = indices[graph, readout, c]
+        if mode == 0:
+            total += expression[lane, index]
+        elif mode == 2:
+            if stage == 1:
+                total += first_events[lane, index]
+            else:
+                total += events[lane, index]
+        elif stage == 1:
+            total += after_input[lane, index]
+        elif stage == 2:
+            total += after_output[lane, index]
+        else:
+            total += boundary[lane, index]
+    return total
+
+
 @qd.kernel(fastcache=True)
 def compact_readouts(
     boundary: qd.types.NDArray[qd.i32, 2],
@@ -326,26 +363,20 @@ def compact_readouts(
     output: qd.types.NDArray[qd.i32, 2],
 ) -> None:
     for lane, readout in qd.ndrange(output.shape[0], output.shape[1]):
-        graph = lane_graph[lane]
-        total = 0
-        mode = descriptors[readout, 0]
-        stage = descriptors[readout, 1]
-        for c in range(sizes[graph, readout]):
-            index = indices[graph, readout, c]
-            if mode == 0:
-                total += expression[lane, index]
-            elif mode == 2:
-                if stage == 1:
-                    total += first_events[lane, index]
-                else:
-                    total += events[lane, index]
-            elif stage == 1:
-                total += after_input[lane, index]
-            elif stage == 2:
-                total += after_output[lane, index]
-            else:
-                total += boundary[lane, index]
-        output[lane, readout] = total
+        output[lane, readout] = readout_lane(
+            lane,
+            readout,
+            boundary,
+            after_input,
+            after_output,
+            expression,
+            events,
+            first_events,
+            lane_graph,
+            indices,
+            sizes,
+            descriptors,
+        )
 
 
 @qd.kernel(fastcache=True)

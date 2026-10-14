@@ -74,6 +74,33 @@ def _checkpoint_record(path: Path) -> Path:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="toylife2", description="Recorded toyLIFE experiments")
     commands = parser.add_subparsers(dest="command", required=True)
+    molecular = commands.add_parser("molecular", help="evolve cells and inspect task behaviours")
+    molecular.add_argument(
+        "profile", nargs="?", default="basic", choices=("basic", "cue", "cue4", "chemotaxis")
+    )
+    molecular.add_argument("--field", choices=("fluctuating", "source"), default="fluctuating")
+    molecular.add_argument("--preset", choices=("smoke", "pilot"), default="smoke")
+    molecular.add_argument("--seed", type=int, default=123)
+    molecular.add_argument("--genes", type=int, default=2)
+    molecular.add_argument(
+        "--port-pool", choices=("four_site_active", "all_lengths_active"), default=None
+    )
+    molecular.add_argument("--interface-seed", type=int, default=None)
+    molecular.add_argument("--response-updates", type=int, default=None)
+    molecular.add_argument("--settling-updates", type=int, default=None)
+    molecular.add_argument("--backend", choices=("auto", "cpu", "metal", "cuda"), default="auto")
+    molecular.add_argument("--set", action="append", default=[], metavar="PATH=TOML_VALUE")
+    molecular.add_argument("--destination", type=Path)
+    molecular.add_argument("--workspace", type=Path)
+    molecular.add_argument("--name")
+    molecular.add_argument("--resume", type=Path, help="continue a molecular experiment directory")
+    molecular.add_argument(
+        "--generations", type=int, help="total generation target, including saved generations"
+    )
+    molecular.add_argument(
+        "--animate", action="store_true", help="optional offline E. coli playback for chemotaxis"
+    )
+    molecular.add_argument("--frame-stride", type=int, default=5)
 
     validate = commands.add_parser("validate", help="validate a TOML run configuration")
     validate.add_argument("config", type=Path)
@@ -90,7 +117,7 @@ def build_parser() -> argparse.ArgumentParser:
     resume = commands.add_parser("resume", help="resume a recorded checkpoint")
     resume.add_argument("checkpoint", type=Path)
     resume.add_argument("--destination", type=Path)
-    resume.add_argument("--backend", choices=("cpu", "metal"))
+    resume.add_argument("--backend", choices=("auto", "cpu", "metal", "cuda"))
     resume.add_argument("--trace-budget-mib", type=int)
     for resource in ("evolution-updates", "world-ticks", "chemical-updates"):
         resume.add_argument("--max-" + resource, type=int)
@@ -135,7 +162,60 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        if args.command == "validate":
+        if args.command == "molecular":
+            from .molecular_experiments import profile_spec, run_experiment
+
+            if args.resume and any(
+                x is not None
+                for x in (
+                    args.port_pool,
+                    args.interface_seed,
+                    args.response_updates,
+                    args.settling_updates,
+                )
+            ):
+                raise ValueError("continuation retains saved ports and response timing")
+            if (
+                args.profile == "chemotaxis"
+                and not args.resume
+                and any(x is not None for x in (args.response_updates, args.settling_updates))
+            ):
+                raise ValueError(
+                    "response windows apply to cue profiles; chemotaxis uses world decisions"
+                )
+            spec = (
+                load_spec(args.resume / "profile.toml")
+                if args.resume
+                else profile_spec(
+                    args.profile,
+                    preset=args.preset,
+                    field=args.field,
+                    seed=args.seed,
+                    genes=args.genes,
+                    backend=args.backend,
+                    port_pool=args.port_pool or "four_site_active",
+                    interface_seed=0 if args.interface_seed is None else args.interface_seed,
+                    response_updates=8 if args.response_updates is None else args.response_updates,
+                    settling_updates=0 if args.settling_updates is None else args.settling_updates,
+                )
+            )
+            if args.generations is not None:
+                spec = dataclasses.replace(
+                    spec,
+                    evolution=dataclasses.replace(spec.evolution, generations=args.generations),
+                )
+            print(
+                run_experiment(
+                    apply_overrides(spec, args.set),
+                    args.destination,
+                    workspace=args.workspace,
+                    name=args.name,
+                    resume_from=args.resume,
+                    animate=args.animate,
+                    frame_stride=args.frame_stride,
+                )
+            )
+        elif args.command == "validate":
             from .specs import digest, scientific_identity
 
             spec = _spec(args)

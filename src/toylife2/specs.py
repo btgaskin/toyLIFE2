@@ -10,6 +10,7 @@ import dataclasses
 import hashlib
 import json
 import math
+import platform
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -123,6 +124,24 @@ class SpatialSpec:
 
 
 @dataclass(frozen=True)
+class GeneCopySpec:
+    duplication_probability: float = 0.0
+    deletion_probability: float = 0.0
+    min_genes: int = 1
+    max_genes: int = 20
+
+    def __post_init__(self) -> None:
+        for name in ("duplication_probability", "deletion_probability"):
+            finite(getattr(self, name), name)
+            if not 0 <= getattr(self, name) <= 1:
+                raise ValueError(f"{name} must be in [0,1]")
+        positive(self.min_genes, "min_genes")
+        positive(self.max_genes, "max_genes")
+        if not self.min_genes <= self.max_genes <= 20:
+            raise ValueError("gene-copy bounds must satisfy 1 <= min_genes <= max_genes <= 20")
+
+
+@dataclass(frozen=True)
 class EvolutionSpec:
     trials: int = 1
     population_size: int = 10000
@@ -135,8 +154,23 @@ class EvolutionSpec:
     trial_start: int = 0
     replicates: int | None = None
     replicate_start: int | None = None
+    gene_copy: GeneCopySpec | None = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.gene_copy, Mapping):
+            object.__setattr__(self, "gene_copy", GeneCopySpec(**self.gene_copy))
+        if self.gene_copy is not None and not isinstance(self.gene_copy, GeneCopySpec):
+            raise ValueError("gene_copy must be a GeneCopySpec or mapping")
+        finite(self.mutation_probability, "mutation_probability")
+        if self.gene_copy is not None and (
+            self.mutation_probability
+            + self.gene_copy.duplication_probability
+            + self.gene_copy.deletion_probability
+            > 1
+        ):
+            raise ValueError(
+                "point, duplication and deletion probabilities must sum to at most one"
+            )
         if self.replicates is not None:
             positive(self.replicates, "replicates")
             if self.trials != 1 and self.trials != self.replicates:
@@ -166,9 +200,22 @@ class EvolutionSpec:
             raise ValueError("unsupported initial population")
 
 
+def _preferred_backend(supported, system):
+    """Choose an available native GPU, then the native CPU backend."""
+    candidates = ("metal", "cuda") if system == "Darwin" else ("cuda", "metal")
+    return next((name for name in candidates if supported(name)), "cpu")
+
+
+def _default_backend():
+    import quadrants as qd
+    from quadrants.lang.misc import is_arch_supported
+
+    return _preferred_backend(lambda name: is_arch_supported(getattr(qd, name)), platform.system())
+
+
 @dataclass(frozen=True)
 class ExecutionSpec:
-    backend: str = "cpu"
+    backend: str = "auto"
     batch_size: int = 256
     memory_budget_mib: int = 1024
     max_steps: int = 100000
@@ -180,8 +227,10 @@ class ExecutionSpec:
     cpu_threads: int | None = None
 
     def __post_init__(self) -> None:
-        if self.backend not in ("cpu", "metal"):
-            raise ValueError("backend must be cpu or metal")
+        if self.backend not in ("auto", "cpu", "metal", "cuda"):
+            raise ValueError("backend must be auto, cpu, metal or cuda")
+        if self.backend == "auto":
+            object.__setattr__(self, "backend", _default_backend())
         for name in (
             "batch_size",
             "memory_budget_mib",
@@ -284,6 +333,30 @@ class RunSpec:
                 raise ValueError("batch execution fields require schema_version=2")
         if self.cell.initial_expression >= 1 << self.model.genes:
             raise ValueError("cell.initial_expression exceeds gene count")
+        copy = self.evolution.gene_copy
+        if copy is not None:
+            if not copy.min_genes <= self.model.genes <= copy.max_genes:
+                raise ValueError("founder gene count must lie within gene-copy bounds")
+            if (
+                self.schema_version != 2
+                or self.operation != "wright_fisher"
+                or self.task.kind not in {"cue_reading", "chemotaxis"}
+                or self.controller.mode != "canonical_cell"
+                or self.controller.interface is None
+                or self.objective.scope != "candidate"
+            ):
+                raise ValueError(
+                    "gene-copy evolution requires an interfaced molecular Wright–Fisher task"
+                )
+            if self.cell.initial_expression or self.controller.initial_expression:
+                raise ValueError("gene-copy evolution requires zero initial expression masks")
+            for readout in self.controller.ports.readouts:
+                if readout.kind in {"expression", "functional_expression"} or (
+                    readout.kind == "protein" and readout.protein is None
+                ):
+                    raise ValueError(
+                        "gene-copy evolution requires gene-position-independent readouts"
+                    )
         if self.seed is not None:
             positive(self.seed, "seed", 0)
             if self.seed >= 1 << 64:
@@ -307,6 +380,13 @@ class RunSpec:
 def plain(spec: Any) -> Any:
     if dataclasses.is_dataclass(spec):
         data = {f.name: plain(getattr(spec, f.name)) for f in dataclasses.fields(spec)}
+        if isinstance(spec, EvolutionSpec) and spec.gene_copy is None:
+            data.pop("gene_copy")
+        if isinstance(spec, ControllerSpec):
+            if spec.interface is None:
+                data.pop("interface")
+            else:
+                data.pop("ports")
         # Keep the exact v1 serialization and scientific hash projection.
         if isinstance(spec, RunSpec) and spec.schema_version == 1:
             for name in ("controller", "task", "episode", "objective", "limits"):

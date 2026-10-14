@@ -32,10 +32,11 @@ def main() -> None:
 import json
 from pathlib import Path
 import toylife2
-from toylife2 import RunSpec, Tables
+from toylife2 import ExecutionSpec, RunSpec, Tables
 from toylife2.runner import run, reproduce
 from toylife2.records import inspect_record, verify_record
-record = run(RunSpec(genotypes=('0'*40,)), destination=Path('run'))
+record = run(RunSpec(genotypes=('0'*40,), execution=ExecutionSpec(backend='cpu')),
+             destination=Path('run'))
 copy = reproduce(record, Path('replayed'))
 assert verify_record(record)['ok'] and verify_record(copy)['ok']
 assert '_vendor' in Tables.load().source
