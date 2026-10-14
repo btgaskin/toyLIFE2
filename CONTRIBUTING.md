@@ -9,10 +9,10 @@ changes in behavior or performance.
 Clone with `--recurse-submodules`, then use Python 3.12 or 3.13:
 
 ```sh
-uv sync --locked --group dev
-uv run python tests/check_cpu.py -q
+uv sync --locked --group dev --extra reports
 uv run ruff check src/toylife2 tests examples
 uv run python -m pyright
+uv run python tests/check_cpu.py -q
 uv build --wheel
 uv run python tests/check_wheel.py
 ```
