@@ -31,7 +31,7 @@ initial = "independent_random"
 trial_start = 0
 
 [execution]
-backend = "auto"
+backend = "metal"
 batch_size = 256
 memory_budget_mib = 1024
 max_steps = 100000
@@ -70,28 +70,29 @@ capacity = 4096
 max_dose = 8
 
 [controller.interface.inputs]
-cue = "1001"
+cue = "00101110"
 
 [controller.interface.targets]
-motor = "0111"
+motor = "1011"
 
 [controller.interface.target_copies]
 motor = 1
+
+[controller.output]
+representation = "bound_free"
+markers = [
+    "motor",
+]
+rule = "proportional"
+permutation = [
+    0,
+    1,
+]
 
 [task]
 kind = "chemotaxis"
 
 [task.config]
-motion_model = "ecoli_spherical_v1"
-tumble_mean_duration = 0.14
-tumble_rotational_diffusion = 3.5
-tumble_speed_fraction = 0.0
-motion_max_substep = 0.01
-motion_event_capacity = 8
-time_unit = "seconds"
-micrometers_per_length_unit = 20.0
-world_engine = "quadrants"
-world_precision = "float32"
 field = "fluctuating"
 domain = 16.0
 speed = 1.0
@@ -125,14 +126,23 @@ source_peak = 1.0
 source_length = 4.0
 arrival_radius = 0.4
 input_channel = "cue"
-action_outputs = [
-    "motor",
-]
+world_engine = "quadrants"
+world_precision = "float32"
+motion_model = "ecoli_spherical_v1"
+tumble_mean_duration = 0.14
+tumble_rotational_diffusion = 3.5
+tumble_speed_fraction = 0.0
+micrometers_per_length_unit = 20.0
+time_unit = "seconds"
+motion_max_substep = 0.01
+motion_event_capacity = 8
+experiment_contract = "single-cell-response-v1"
+source_model = "single_cell_response"
 
 [task.config.port_sampling]
 pool = "four_site_active"
 seed = 0
-algorithm = "numpy_pcg64_uniform_canonical_without_replacement"
+algorithm = "numpy_pcg64_marker_then_cue_v1"
 eligibility = "negative_protein_or_dimer_contact"
 candidates = [
     "0001",
@@ -151,13 +161,42 @@ tables_digest = "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c
 max_dose = 8
 
 [task.config.port_sampling.resolved.inputs]
-cue = "1001"
+cue = "00101110"
 
 [task.config.port_sampling.resolved.targets]
-motor = "0111"
+motor = "1011"
 
 [task.config.port_sampling.resolved.target_copies]
 motor = 1
+
+[task.config.port_sampling.input_lengths]
+cue = 8
+
+[task.config.port_sampling.target_lengths]
+motor = 4
+
+[task.config.port_sampling.input_sampling.8]
+channels = [
+    "cue",
+]
+seed_sequence = [
+    0,
+    8,
+]
+candidate_count = 135
+candidates_digest = "31fce06f970d1e571c1dcc05f4ef6a400a8cd6a0f860e30b4b9fad32834ac049"
+
+[task.config.port_sampling.target_sampling.4]
+channels = [
+    "motor",
+]
+seed_sequence = [
+    0,
+    1296126539,
+    4,
+]
+candidate_count = 9
+candidates_digest = "e97bce57213eb4dfc6a897ca800d53e97fc51a32005a5992c5499abd54ade28e"
 
 [episode]
 horizon = 20

@@ -387,6 +387,10 @@ def begin_record(
     record.mkdir(parents=True, exist_ok=True)
     _write_json(record / "spec.json", plain(spec))
     _write_bytes(record / "spec.toml", dump_spec(spec).encode("utf-8"))
+    if spec.task.config.get("experiment_contract") is not None:
+        from .single_cell import methods_summary
+
+        _write_bytes(record / "methods.md", methods_summary(spec).encode("utf-8"))
     _source_archive(record / "source" / "source.zip", source)
     table_archive = _table_archive(record, tables)
     if _archive_table_digest(table_archive) != tables.digest:

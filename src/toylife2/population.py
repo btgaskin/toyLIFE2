@@ -462,6 +462,18 @@ class PopulationSession(SessionBase):
                 ):
                     if member_results is None and fields[name] is not None:
                         fields[name] = fields[name][offset]
+                if member_results is None:
+                    assert evaluation is not None
+                    # Candidate diagnostics have the same leading axes as scores.
+                    # Preserve each trial's measurements when a panel was evaluated
+                    # jointly across populations; scalar/context metrics stay shared.
+                    shape = evaluation.scores.shape
+                    fields["metrics"] = {
+                        name: value[offset]
+                        if isinstance(value, np.ndarray) and value.shape[: len(shape)] == shape
+                        else value
+                        for name, value in fields["metrics"].items()
+                    }
                 result = EvaluationResult(**fields)
                 if not result.complete:
                     self.lane_status[lane] = "partial"

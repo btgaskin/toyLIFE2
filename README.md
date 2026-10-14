@@ -164,6 +164,32 @@ admits live session buffers, resident table uploads, assay outputs, and numerica
 scratch against one memory budget. Fixed assays share the runner's Engine;
 compatible named assays can coalesce while retaining standalone result artifacts.
 
+## Single-cell molecular response experiments
+
+The current `single-cell-response-v1` contract evolves sensing and control machinery
+within an assumed viable cellular background. Fixed cue and output-marker supplies
+connect canonical chemistry to an explicit binary action apparatus. Its proportional
+or majority rule reads intact molecular counts; a fixed founding assignment maps
+them to actions. Tasks determine outcomes and reproductive contribution.
+
+`StructuralInterface` owns supplies and observations, `ControllerSpec.output` owns
+the output rule, and `TaskSpec` owns the environment and action meaning. Production
+measurements count translation events without imposing a cost. Each new record
+includes a resolved methods summary. Older molecular experiment data are deprecated;
+the canonical molecular model and its reference checks remain the foundation.
+
+```sh
+uv run toylife2 molecular cue --destination results/cue-response
+uv run toylife2 molecular cue_alternatives --output-representation bound_pair \
+  --output-rule majority --destination results/alternative-response
+# Prepare the comparison matrix without starting evolution:
+uv run python examples/single_cell_factorial.py --destination results/response-matrix
+```
+
+The [molecular methods](docs/molecular-cells.md) explain what each addition represents,
+how it works, its purpose and assumptions. The next molecular extension is a
+separately specified persistent protein actuator.
+
 ## Stateful control and nested experiments
 
 `BatchRunner` creates sessions that can advance one decision at a time:
@@ -249,7 +275,8 @@ workloads; evolutionary wall time also depends on diversity and recording.
 
 The development checkout supports variable gene counts in schema-2 molecular
 Wright–Fisher runs. These runs use a canonical cell, a `StructuralInterface`,
-candidate-scored cue or chemotaxis tasks, and zero initial expression masks.
+candidate-scored cue, clonal signalling, or chemotaxis tasks, and zero initial
+expression masks.
 `model.genes` sets the founder length. Enable structural mutation with:
 
 ```toml
@@ -419,7 +446,7 @@ identify the implementation used by each experiment.
 
 | Source revision | Changes |
 | --- | --- |
-| Current development checkout | Molecular interfaces and cue/chemotaxis experiments; automatic CPU/Metal/CUDA placement and device-resident chemotaxis; single-event gene-copy mutation, mixed-length evaluation, count-aware checkpoints and inspections |
+| Current development checkout | Explicit single-cell response contract; count-proportional/majority binary output apparatus; translation-event measurements and generated methods; matched campaign preparation; single-event gene-copy variation and GPU-resident chemotaxis |
 | `bb00eae` | Persistent-chemistry and population-evaluation optimizations |
 | `88e9f0f` | Replay provenance, batch results, and shared memory admission |
 | `2591546` | Research methods and reconciliation of canonical toyLIFE rules |

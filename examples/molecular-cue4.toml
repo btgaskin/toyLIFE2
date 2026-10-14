@@ -70,8 +70,8 @@ capacity = 4096
 max_dose = 8
 
 [controller.interface.inputs]
-cue_a = "0011"
-cue_b = "1011"
+cue_a = "00101110"
+cue_b = "10000111"
 
 [controller.interface.targets]
 act_a = "0111"
@@ -125,8 +125,8 @@ tables_digest = "a15ef34c9284b8b903da17156f534c887a2a3dab94b15e6985702baf26a341c
 max_dose = 8
 
 [task.config.port_sampling.resolved.inputs]
-cue_a = "0011"
-cue_b = "1011"
+cue_a = "00101110"
+cue_b = "10000111"
 
 [task.config.port_sampling.resolved.targets]
 act_a = "0111"
@@ -135,6 +135,22 @@ act_b = "0110"
 [task.config.port_sampling.resolved.target_copies]
 act_a = 1
 act_b = 1
+
+[task.config.port_sampling.input_lengths]
+cue_a = 8
+cue_b = 8
+
+[task.config.port_sampling.input_sampling.8]
+channels = [
+    "cue_a",
+    "cue_b",
+]
+seed_sequence = [
+    0,
+    8,
+]
+candidate_count = 135
+candidates_digest = "31fce06f970d1e571c1dcc05f4ef6a400a8cd6a0f860e30b4b9fad32834ac049"
 
 [episode]
 horizon = 8

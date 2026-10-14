@@ -256,10 +256,24 @@ class ResidentDecisions:
         self.slots = session.model.engine._i32(slots.shape, slots)
         self.worst = plan.copy()
         self.worst[np.arange(len(slots)), slots] = 1
-        self.action = [r.name for r in session.controller.ports.readouts].index(
-            session.task.config["action_outputs"][0]
+        names = [r.name for r in session.controller.ports.readouts]
+        output = session.controller.output
+        self.action = names.index(
+            output.readouts[0] if output else session.task.config["action_outputs"][0]
         )
-        self.bytes = self.world.bytes * 3 + plan.nbytes * 4 + slots.nbytes * 3
+        self.second_action = names.index(output.readouts[1]) if output else self.action
+        self.output_rule = (1 if output.rule == "proportional" else 2) if output else 0
+        self.output_swap = output.permutation[0] if output else 0
+        import quadrants as qd
+
+        self.output_keys = qd.ndarray(qd.u32, (8, 2))
+        ids = self.world.world.rng._unique
+        words = np.stack((ids & np.uint64(0xFFFFFFFF), ids >> np.uint64(32)), axis=-1).astype(
+            np.uint32
+        )
+        self.output_ids = qd.ndarray(qd.u32, words.shape)
+        self.output_ids.from_numpy(words)
+        self.bytes = self.world.bytes * 3 + plan.nbytes * 4 + slots.nbytes * 3 + words.nbytes + 64
 
     @staticmethod
     def estimate(session):
@@ -275,8 +289,11 @@ class ResidentDecisions:
             + 8 * episodes * session.world.draw_columns
             + 8 * lanes
         ) * size + lanes * 24
-        return world * 3 + session.chemistry._batch._shape[0] * (
-            session.chemistry._batch.species * 16 + 12
+        return (
+            world * 3
+            + episodes * 8
+            + 64
+            + session.chemistry._batch._shape[0] * (session.chemistry._batch.species * 16 + 12)
         )
 
     @staticmethod
@@ -290,8 +307,13 @@ class ResidentDecisions:
             and interface is not None
             and len(interface.inputs) == 1
             and session.task.config["input_channel"] in interface.inputs
-            and len(session.task.config["action_outputs"]) == 1
-            and session.task.config["action_outputs"][0] in interface.targets
+            and (
+                session.controller.output is not None
+                or (
+                    len(session.task.config.get("action_outputs", ())) == 1
+                    and session.task.config["action_outputs"][0] in interface.targets
+                )
+            )
             and not session.protocol.reset_per_decision
             and not session.task.config.get("record_descriptor", False)
         )
@@ -318,7 +340,11 @@ class ResidentDecisions:
         steps, bound = s.chemistry._batch._safe_steps(
             self.worst, count * s.protocol.chemical_updates, False
         )
-        count = min(count, steps // s.protocol.chemical_updates)
+        count = min(
+            count,
+            steps // s.protocol.chemical_updates,
+            np.iinfo(np.int32).max // (s.protocol.chemical_updates * s.genotypes.shape[-1]),
+        )
         if count:
             _, self.bound = s.chemistry._batch._safe_steps(
                 self.worst, count * s.protocol.chemical_updates, False
@@ -338,6 +364,13 @@ class ResidentDecisions:
             w.current.to_numpy()[:, 3].reshape(s.world_shape).copy() if transition else None
         )
         w.prepare_draws(s.tick, count)
+        from .output import ROLE
+
+        keys = np.zeros((8, 2), np.uint32)
+        for offset in range(count):
+            keys[offset] = s.world.rng.stream.key(role=ROLE, trial=s.panel, event=s.tick + offset)
+        self.output_keys.from_numpy(keys)
+        w.uploads += 1
         working = s._commit_storage
         cast(Any, copy_chemistry_state)(*working._devices(b), *working.buffers)
         counts, previous, events, first, before, after = working.buffers
@@ -350,6 +383,8 @@ class ResidentDecisions:
             w.waves,
             w.parameters,
             w.draws,
+            self.output_keys,
+            self.output_ids,
             w.rewards,
             w.observations,
             w.candidate_actions,
@@ -373,9 +408,13 @@ class ResidentDecisions:
             *b.arrays[4:],
             *b._readout_arrays,
             b._readout_values,
+            b._translation,
             count,
             s.protocol.chemical_updates,
             self.action,
+            self.second_action,
+            self.output_rule,
+            self.output_swap,
             int(s.world.kind == "source"),
             int(s.world.kind == "fluctuating" and not s.world.config["static"]),
             int(s.controller.mode == "regulatory"),
@@ -387,13 +426,25 @@ class ResidentDecisions:
             )
         if not np.all(np.isfinite(rewards)) or np.any((rewards < 0) | (rewards > 1)):
             raise ValueError("resident world reward must be finite and bounded in [0,1]")
-        w.readbacks += 1
+        translation = b._translation.to_numpy().astype(np.int64).reshape(s.controller_shape)
+        w.readbacks += 2
         state = channels = actions = None
         reward = rewards[-1]
         if transition:
             state, _, channels = w.result(s.tick + count, candidate=True)
             actions = w.candidate_actions.to_numpy().reshape(s.controller_shape)
             cue = w.observations.to_numpy().reshape(s.world_shape)
+        updates = count * s.protocol.chemical_updates
+        s._check_translation("task", updates, translation)
+        if np.any(s.chemistry.translation_events > np.iinfo(np.int64).max - translation):
+            raise OverflowError("production measurement exceeds int64")
+        if transition and s.controller.output is not None:
+            from .output import observations
+
+            candidate_readouts = b.readouts(tuple(working.buffers))
+            _, _, diagnostics = observations(s.controller.output, candidate_readouts)
+            assert channels is not None
+            channels.update(diagnostics)
         reward_sum = s.reward_sum.copy()
         for row in rewards:
             reward_sum += row
@@ -403,6 +454,9 @@ class ResidentDecisions:
         b._dirty.update(("host", "bits", "last_events", "first_event_counts", "stages"))
         s.chemistry._readouts_dirty = True
         updates = count * s.protocol.chemical_updates
+        b.last_translation = translation
+        s.chemistry.translation_events += translation
+        s._account_translation("task", updates)
         s.chemistry.update += updates
         s.chemistry._consume("chemical_updates", s._chemical_work * updates)
         s.chemistry._boundaries += updates
@@ -461,6 +515,11 @@ class ResidentDecisions:
         s, w = self.session, self.world
         state, _, channels = w.result(s.tick, candidate=self.frames_prepared)
         s._host_world_state = state
+        if s.controller.output is not None:
+            from .output import observations
+
+            _, _, diagnostics = observations(s.controller.output, s.chemistry.last_readouts)
+            channels.update(diagnostics)
         s._host_channels = channels
         s._host_actions = (
             (w.candidate_actions if self.frames_prepared else w.actions)
@@ -476,6 +535,11 @@ class ResidentDecisions:
         prepared = s._pending.get("prepared")
         if prepared is not None and prepared.get("resident", False):
             state, _, channels = self.world.result(s.tick + prepared["advanced"])
+            if s.controller.output is not None:
+                from .output import observations
+
+                _, _, diagnostics = observations(s.controller.output, s.chemistry.last_readouts)
+                channels.update(diagnostics)
             prepared.update(
                 world=state,
                 channels=channels,

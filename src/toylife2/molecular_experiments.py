@@ -1,4 +1,4 @@
-"""Recorded evolution and behavioural inspection of whole molecular cells."""
+"""Recorded evolution of molecular response machinery in a viable background."""
 
 from __future__ import annotations
 
@@ -17,11 +17,19 @@ from .batch import BatchRunner
 from .config import load_spec, write_spec
 from .genotypes import GenomeBatch, decode, load_selected, save_selected
 from .molecular_worlds import Chemotaxis
-from .protocols import EpisodeSpec, ObjectiveSpec, StructuralInterface, TaskSpec
+from .protocols import (
+    SINGLE_CELL_CONTRACT,
+    BinaryOutputSpec,
+    EpisodeSpec,
+    ObjectiveSpec,
+    StructuralInterface,
+    TaskSpec,
+)
 from .specs import EvolutionSpec, ExecutionSpec, ModelSpec, RecordingSpec, RunSpec, plain
 from .worlds import ScenarioRandom
 
-PROFILES = ("basic", "cue", "cue4", "chemotaxis")
+PROFILES = ("basic", "cue", "cue_alternatives", "chemotaxis")
+_DEPRECATED_PROFILES = ("cue4", "signalling_game")
 
 
 def result_destination(spec, *, workspace=None, name=None):
@@ -42,7 +50,16 @@ def result_destination(spec, *, workspace=None, name=None):
 PORT_POOLS = ("four_site_active", "all_lengths_active")
 
 
-def sample_interface(tables, inputs, targets, *, pool="four_site_active", seed=0):
+def sample_interface(
+    tables,
+    inputs,
+    targets,
+    *,
+    pool="four_site_active",
+    seed=0,
+    input_lengths=None,
+    target_lengths=None,
+):
     """Sample fixed canonical ports; contact eligibility does not imply reachability."""
     if pool not in PORT_POOLS or type(seed) is not int or not 0 <= seed < 1 << 64:
         raise ValueError("invalid molecular port pool or interface seed")
@@ -55,23 +72,59 @@ def sample_interface(tables, inputs, targets, *, pool="four_site_active", seed=0
         if eligible[i] and (pool == "all_lengths_active" or len(m) == 4)
     )
     input_names, target_names = sorted(inputs), sorted(targets)
-    chosen = (
-        np.random.default_rng(seed)
-        .choice(candidates, len(input_names) + len(target_names), replace=False)
-        .tolist()
-    )
-    interface = StructuralInterface(
-        inputs=dict(zip(input_names, chosen[: len(input_names)], strict=True)),
-        targets=dict(zip(target_names, chosen[len(input_names) :], strict=True)),
-    )
+    input_lengths, target_lengths = dict(input_lengths or {}), dict(target_lengths or {})
+    for lengths, names in ((input_lengths, input_names), (target_lengths, target_names)):
+        if set(lengths) - set(names) or any(
+            type(length) is not int or not 4 <= length <= 8 for length in lengths.values()
+        ):
+            raise ValueError("molecular lengths must name declared channels and lie in 4..8")
+    occupied = set()
+    resolved_inputs, resolved_targets = {}, {}
+    input_sampling, target_sampling = {}, {}
+    # Fixed marker machinery is sampled first, so changing cue length can hold
+    # it constant. Each draw is uniform over its declared eligible repertoire.
+    for names, lengths, resolved, sampling, role in (
+        (target_names, target_lengths, resolved_targets, target_sampling, 0x4D41524B),
+        (input_names, input_lengths, resolved_inputs, input_sampling, None),
+    ):
+        groups = {}
+        for name in names:
+            groups.setdefault(lengths.get(name), []).append(name)
+        for length, channels in sorted(groups.items(), key=lambda row: row[0] or 0):
+            available = sorted(
+                molecule
+                for index, molecule in enumerate(tables.met_strings)
+                if eligible[index]
+                and molecule not in occupied
+                and (len(molecule) == length if length is not None else molecule in candidates)
+            )
+            address = [seed, length or 0] if role is None else [seed, role, length or 0]
+            selected = (
+                np.random.default_rng(np.random.SeedSequence(address))
+                .choice(available, len(channels), replace=False)
+                .tolist()
+            )
+            resolved.update(zip(channels, selected, strict=True))
+            occupied.update(selected)
+            sampling[str(length) if length is not None else "pool"] = dict(
+                channels=channels,
+                seed_sequence=address,
+                candidate_count=len(available),
+                candidates_digest=hashlib.sha256("\n".join(available).encode()).hexdigest(),
+            )
+    interface = StructuralInterface(inputs=resolved_inputs, targets=resolved_targets)
     metadata = dict(
         pool=pool,
         seed=seed,
-        algorithm="numpy_pcg64_uniform_canonical_without_replacement",
+        algorithm="numpy_pcg64_marker_then_cue_v1",
         eligibility="negative_protein_or_dimer_contact",
         candidates=candidates,
         tables_digest=tables.digest,
         resolved=plain(interface),
+        input_lengths=input_lengths,
+        target_lengths=target_lengths,
+        input_sampling=input_sampling,
+        target_sampling=target_sampling,
     )
     return interface, metadata
 
@@ -87,13 +140,23 @@ def profile_spec(
     world_precision="float32",
     port_pool="four_site_active",
     interface_seed=0,
+    cue_length=8,
     response_updates=8,
     settling_updates=0,
     interface=None,
+    marker_length=4,
+    output_representation="bound_free",
+    output_rule="proportional",
+    marker_copies=1,
+    initial="independent_random",
 ) -> RunSpec:
     """Construct independently evolved task profiles; defaults are fully resolved."""
-    if profile not in PROFILES or preset not in {"smoke", "pilot"}:
+    if profile not in (*PROFILES, *_DEPRECATED_PROFILES) or preset not in {"smoke", "pilot"}:
         raise ValueError("unknown molecular profile or preset")
+    if type(marker_length) is not int or not 4 <= marker_length <= 8:
+        raise ValueError("marker length must lie in 4..8")
+    if cue_length is not None and (type(cue_length) is not int or not 4 <= cue_length <= 8):
+        raise ValueError("cue length must be None or an integer in 4..8")
     if (
         type(response_updates) is not int
         or response_updates < 1
@@ -105,7 +168,15 @@ def profile_spec(
     inputs, targets = {"cue": "0001"}, {"act": "1111"}
     if profile == "cue4":
         inputs, targets = {"cue_a": "0001", "cue_b": "0110"}, {"act_a": "1111", "act_b": "1001"}
-    if profile == "chemotaxis":
+    if profile == "signalling_game":
+        if settling_updates:
+            raise ValueError("clonal signalling uses persistent chemistry between decisions")
+        inputs = {"cue": "0001", "active": "0110"}
+        task = TaskSpec(kind="signalling_game", config={"pairing": "clonal", "rounds": 16})
+        episode = EpisodeSpec(
+            horizon=32, episodes=2, chemical_updates=response_updates, panel="fixed"
+        )
+    elif profile == "chemotaxis":
         targets = {"motor": "1111"}
         task = TaskSpec(
             kind="chemotaxis",
@@ -140,6 +211,16 @@ def profile_spec(
             chemical_updates=1,
             panel="fixed",
         )
+    current = profile in PROFILES
+    if current:
+        if profile == "cue_alternatives":
+            inputs = {"cue_a": "0001", "cue_b": "0110"}
+        stem = "motor" if profile == "chemotaxis" else "act"
+        targets = (
+            {stem: "1111"}
+            if output_representation == "bound_free"
+            else {f"{stem}_a": "1111", f"{stem}_b": "1001"}
+        )
     if interface is None:
         from .tables import Tables
 
@@ -149,8 +230,56 @@ def profile_spec(
             targets,
             pool=port_pool,
             seed=interface_seed,
+            input_lengths={name: cue_length for name in inputs if name != "active"}
+            if cue_length is not None
+            else None,
+            target_lengths={name: marker_length for name in targets} if current else None,
         )
         task = replace(task, config={**task.config, "port_sampling": sampling})
+    output = None
+    if current:
+        from .random import Stream
+
+        interface = StructuralInterface(
+            inputs=interface.inputs,
+            targets=interface.targets,
+            target_copies={name: marker_copies for name in interface.targets},
+            max_dose=interface.max_dose,
+        )
+        permutation = (
+            (1, 0)
+            if int(
+                Stream(interface_seed).integers(
+                    2, np.array(0, np.uint64), role="interface:output-permutation-v1"
+                )
+            )
+            else (0, 1)
+        )
+        output = BinaryOutputSpec(
+            output_representation, tuple(sorted(interface.targets)), output_rule, permutation
+        )
+        config = {
+            key: value
+            for key, value in task.config.items()
+            if key not in {"fixed_map", "action_outputs"}
+        }
+        config["experiment_contract"] = SINGLE_CELL_CONTRACT
+        config["source_model"] = "single_cell_response"
+        if "port_sampling" in config:
+            config["port_sampling"] = {**config["port_sampling"], "resolved": plain(interface)}
+        if profile == "chemotaxis":
+            config["input_channel"] = next(iter(interface.inputs))
+        else:
+            config["input_channels"] = list(interface.inputs)
+            config["cue_doses"] = (
+                [[1, 0], [0, 1]]
+                if profile == "cue_alternatives"
+                else [[1], [0]]
+                if profile == "cue"
+                else [[0], [1]]
+            )
+        task = replace(task, config=config)
+        episode = replace(episode, episodes=episode.episodes if profile == "chemotaxis" else 2)
     return RunSpec(
         schema_version=2,
         operation="wright_fisher",
@@ -158,7 +287,7 @@ def profile_spec(
         model=ModelSpec(genes=genes),
         task=task,
         episode=episode,
-        controller=interface.controller(),
+        controller=interface.controller(output=output),
         objective=ObjectiveSpec(
             kind="bounded_reward", floor_numerator=1, floor_denominator=100_000_000
         ),
@@ -166,7 +295,7 @@ def profile_spec(
             population_size=4 if smoke else 64,
             generations=2 if smoke else 100,
             trials=2,
-            initial="independent_random",
+            initial=initial,
             mutation_probability=0.01,
         ),
         execution=ExecutionSpec(backend=backend, cpu_threads=1),
@@ -230,6 +359,9 @@ def run_experiment(
         raise ValueError("molecular experiments require an interfaced Wright–Fisher task")
     if destination is not None and workspace is not None:
         raise ValueError("choose destination or workspace")
+    from .single_cell import require_current
+
+    require_current(spec)
     if type(frame_stride) is not int or frame_stride < 1:
         raise ValueError("frame_stride must be a positive integer")
     root = (
@@ -484,6 +616,8 @@ def _inspect_selected(
             for name, values in rows.items()
         }
         arrays["scores"] = rollout.scores.copy()
+        if not chemotaxis and spec.controller.output is not None:
+            arrays["expected_scores"] = rollout.expected_scores.copy()
         if chemotaxis:
             final = rollout.snapshot(fields=["world"])["world"]
             arrays["field_final"] = rollout.world.field(
@@ -515,6 +649,11 @@ def _inspect_selected(
             episode=plain(episode),
             future_work="Environmental variation, gene count and emergent modularity.",
         )
+        summary["output"] = plain(spec.controller.output)
+        summary["experiment_contract"] = spec.task.config.get("experiment_contract")
+        summary["production"] = {k: v.tolist() for k, v in rollout.production_metrics().items()}
+        if not chemotaxis and spec.controller.output is not None:
+            summary["expected_accuracy"] = np.mean(rollout.expected_scores, axis=-1).tolist()
         summary["target_fission_totals"] = {
             name: arrays["readout_target_fission:" + name].sum(axis=0).tolist()
             for name in spec.controller.interface.targets
@@ -568,6 +707,10 @@ def _inspect_selected(
                 **{key: np.stack(value) for key, value in initial_rows.items()},
             )
             summary["initial_mean_scores"] = np.mean(initial_cell.scores, axis=-1).tolist()
+            if spec.controller.output is not None:
+                summary["initial_expected_accuracy"] = np.mean(
+                    initial_cell.expected_scores, axis=-1
+                ).tolist()
             runner.finish(initial_cell)
             runner.release(initial_cell)
         # Independent empty-start histories, ending with the same current cue.
@@ -581,8 +724,8 @@ def _inspect_selected(
         probe_rows = {"inputs": [], "expression": []}
         for cues in np.repeat(histories, 8, axis=1).T:
             inputs = {
-                name: np.broadcast_to(cues, (len(selected), len(cues)))
-                for name in spec.controller.interface.inputs
+                name: np.broadcast_to(cues if index == 0 else 1 - cues, (len(selected), len(cues)))
+                for index, name in enumerate(spec.controller.interface.inputs)
             }
             probe.step(spec.controller.interface.encode(inputs))
             probe_rows["inputs"].append(cues.copy())

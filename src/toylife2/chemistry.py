@@ -465,13 +465,13 @@ class _BatchChemistry:
         # Include all arrays and two state buffers in execution budget before allocation.
         device_bytes = sum(a.nbytes for a in (*static, *self._readout_plan))
         device_bytes += initial.nbytes * 9 + lanes * self.candidates * 24 + lanes * ng * 8
-        device_bytes += lanes * max(1, len(spec.ports.readouts)) * 4
+        device_bytes += lanes * (max(1, len(spec.ports.readouts)) + 2) * 4
         # Lazy mirrors, mass bounds, input preparation, and checked-admission
         # scratch overlap at inspection/fallback. The engine bills host plans.
         host_bytes = initial.nbytes * 14 + lanes * self.candidates * 8 + lanes * ng * 8
         host_bytes += self.genotypes.nbytes * 2 + lanes * ng * 4
         host_bytes += lanes * len(spec.ports.readouts) * 16
-        host_bytes += lanes * 12 + representatives.nbytes
+        host_bytes += lanes * 20 + representatives.nbytes
         host_bytes += sum(array.nbytes for array in (*static, *self._readout_plan))
         host_bytes = max(host_bytes, projected - device_bytes)
         self.buffer_memory = {
@@ -485,7 +485,9 @@ class _BatchChemistry:
         self._admit(initial)
         self.arrays = [engine._i32(a.shape, a) for a in static]
         self._readout_arrays = [engine._i32(a.shape, a) for a in self._readout_plan]
-        self._readout_values = engine._i32((lanes, max(1, len(spec.ports.readouts))))
+        self._readout_values = engine._i32((lanes, max(1, len(spec.ports.readouts)) + 1))
+        self._translation = engine._i32((lanes,), np.zeros(lanes, np.int32))
+        self.last_translation = np.zeros(self.leading, np.int64)
         self.source = engine._i32(initial.shape, initial)
         self.target = engine._i32(initial.shape, np.zeros_like(initial))
         self.inputs = engine._i32(initial.shape)
@@ -775,6 +777,8 @@ class _BatchChemistry:
     def step(self, inputs=None, *, steps=1, pulse=False):
         from ._chemistry_kernels import canonical_step
 
+        if steps * self.genotypes.shape[-1] > _MAX:
+            raise OverflowError("translation block count exceeds int32 admission")
         injection = self._input_counts(inputs)
         safe, bound = self._safe_steps(injection, steps, pulse)
         if safe < steps:
@@ -808,6 +812,7 @@ class _BatchChemistry:
             self.generated,
             first,
             *static[4:],
+            self._translation,
             steps,
             int(pulse),
             int(self.spec.ports.input_mode == "replenish"),
@@ -856,9 +861,11 @@ class _BatchChemistry:
             first,
             self.arrays[-1],
             *self._readout_arrays,
+            self._translation,
             self._readout_values,
         )
         values = self._readout_values.to_numpy()
+        self.last_translation = values[:, -1].astype(np.int64).reshape(self.leading)
         return {
             r.name: _owned(values[:, i].astype(np.int64).reshape(self.leading))
             for i, r in enumerate(self.spec.ports.readouts)
@@ -918,7 +925,7 @@ class _RetainedChemistry:
         )
         # Device retention, lazy host materialisation and export's owning copies.
         self.buffer_bytes = sum(int(np.prod(shape)) * 4 for shape in self.shapes) * 3
-        self.buffer_bytes += session.genotypes.nbytes * 2 + batch._shape[0] * 8
+        self.buffer_bytes += session.genotypes.nbytes * 2 + batch._shape[0] * 16
         self.buffers = [session.model.engine._i32(shape) for shape in self.shapes]
         self._view = None
         self.capture()
@@ -941,6 +948,7 @@ class _RetainedChemistry:
         batch = self.session._batch
         cast(Any, copy_chemistry_state)(*self._devices(batch), *self.buffers)
         self.update = self.session.update
+        self.translation_events = self.session.translation_events.copy()
         self.mass_bound = batch._mass_bound.copy()
         self.trace = owned(self.session._unrecorded_trace)
         self.trace_bytes = self.session._trace_bytes
@@ -955,6 +963,7 @@ class _RetainedChemistry:
         batch._mass_bound = self.mass_bound.copy()
         batch._dirty.update(("host", "bits", "last_events", "first_event_counts", "stages"))
         self.session.update = self.update
+        self.session.translation_events = self.translation_events.copy()
         self.session._unrecorded_trace = owned(self.trace)
         self.session._trace_bytes = self.trace_bytes
         # Reset-per-decision previously created a fresh child session before
@@ -974,6 +983,7 @@ class _RetainedChemistry:
                 "ruleset": RULESET,
                 "spec": plain(session.spec),
                 "update": self.update,
+                "translation_events": self.translation_events,
                 "genotypes": session.genotypes,
                 "unrecorded_trace": self.trace,
                 "trace_bytes": self.trace_bytes,
@@ -1030,6 +1040,7 @@ class ChemistrySession(SessionBase):
         super().__init__("chemistry", identity, limits, recording, checkpoint)
         self._batch = _BatchChemistry(model, genes, spec)
         self.update = 0
+        self.translation_events = np.zeros(genes.shape[:-1], np.int64)
         self._unrecorded_trace = []
         self._trace_bytes = 0
         self.last_readouts = MappingProxyType(self._batch.readouts())
@@ -1110,6 +1121,7 @@ class ChemistrySession(SessionBase):
             self._status, self._reason = "partial", "chemistry_capacity"
             return self._report({"chemical_update": self.update}, transition={"advanced": False})
         self.last_readouts = MappingProxyType(readouts)
+        self.translation_events += self._batch.last_translation
         self.update += 1
         self._consume("chemical_updates", units)
         self._status, self._reason = "ready", None
@@ -1187,6 +1199,7 @@ class ChemistrySession(SessionBase):
             return self.step(inputs)
         readouts = self._batch.step(inputs, steps=count, pulse=pulse)
         self.last_readouts = MappingProxyType(readouts)
+        self.translation_events += self._batch.last_translation
         self.update += count
         self._consume("chemical_updates", units * count)
         self._boundaries += count
@@ -1244,6 +1257,7 @@ class ChemistrySession(SessionBase):
             "table_digest": str(self.model.tables.digest),
             "ruleset": RULESET,
             "update": self.update,
+            "translation_events": self.translation_events.copy(),
             "spec": plain(self.spec),
             "genotypes": self.genotypes.copy(),
             "unrecorded_trace": owned(self._unrecorded_trace),
@@ -1263,6 +1277,7 @@ class ChemistrySession(SessionBase):
             "table_digest": str(self.model.tables.digest),
             "ruleset": RULESET,
             "update": self.update,
+            "translation_events": self.translation_events.copy(),
             "spec": plain(self.spec),
             "genotypes": self.genotypes,
             "unrecorded_trace": self._unrecorded_trace,
@@ -1283,6 +1298,8 @@ class ChemistrySession(SessionBase):
             raise ValueError("chemistry checkpoint table identity mismatch")
         if payload.get("identity") != self.identity:
             raise ValueError("chemistry payload scientific identity mismatch")
+        if self.spec.output is not None and "translation_events" not in payload:
+            raise ValueError("deprecated chemistry checkpoint lacks translation measurements")
         update = payload["update"]
         if type(update) is not int or update < 0:
             raise ValueError("invalid chemical update cursor")
@@ -1330,4 +1347,10 @@ class ChemistrySession(SessionBase):
         self._unrecorded_trace = owned(payload.get("unrecorded_trace", []))
         self._trace_bytes = int(payload.get("trace_bytes", 0))
         self.update = update
+        translation = np.asarray(
+            payload.get("translation_events", np.zeros(self.genotypes.shape[:-1])), dtype=np.int64
+        )
+        if translation.shape != self.genotypes.shape[:-1] or np.any(translation < 0):
+            raise ValueError("invalid translation event totals")
+        self.translation_events = translation.copy()
         self.last_readouts = MappingProxyType(self._batch.readouts())

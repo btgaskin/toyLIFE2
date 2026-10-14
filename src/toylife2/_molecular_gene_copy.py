@@ -45,7 +45,7 @@ def _merge_arrays(root, groups, name, size, counts):
                 if key in {"field_initial", "field_final", "inputs"} or value.ndim < 2:
                     merged.setdefault(key, value.copy())
                     continue
-                axis = 0 if key == "scores" else 1
+                axis = 0 if key in {"scores", "expected_scores"} else 1
                 # Expression is an active-genome bit mask, not a padded gene axis.
                 shape = list(value.shape)
                 shape[axis] = size
@@ -122,7 +122,13 @@ def inspect_variable_selected(
                 initial_selected.gene_counts,
             )
         summary = summaries[0].copy()
-        for key in ("mean_scores", "initial_mean_scores", "reset_mean_scores"):
+        for key in (
+            "mean_scores",
+            "initial_mean_scores",
+            "reset_mean_scores",
+            "expected_accuracy",
+            "initial_expected_accuracy",
+        ):
             if key in summary:
                 values = [None] * len(selected)
                 for group, child in zip(groups, summaries, strict=True):
@@ -146,7 +152,7 @@ def inspect_variable_selected(
             inspection_groups=groups,
             elapsed_seconds=time.perf_counter() - arguments["started"],
         )
-        for key in ("target_fission_totals",):
+        for key in ("target_fission_totals", "production"):
             if key in summary:
                 combined = {name: [None] * len(selected) for name in summary[key]}
                 for group, child in zip(groups, summaries, strict=True):

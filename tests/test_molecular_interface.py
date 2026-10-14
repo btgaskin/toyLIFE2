@@ -106,7 +106,7 @@ def test_exact_structural_readouts_and_aliases(model):
     "profile,field",
     [
         ("basic", "fluctuating"),
-        ("cue4", "fluctuating"),
+        ("cue_alternatives", "fluctuating"),
         ("chemotaxis", "fluctuating"),
         ("chemotaxis", "source"),
     ],
@@ -402,3 +402,35 @@ def test_interface_seed_independent_of_evolution_and_explicit_override():
     assert selected.episode.chemical_updates == 1
     assert selected.task.config["settling_steps"] == 2
     assert "port_sampling" not in selected.task.config
+
+
+@pytest.mark.parametrize("profile", ["basic", "cue", "cue4", "chemotaxis", "signalling_game"])
+def test_fixed_eight_unit_cues_preserve_other_ports(profile):
+    from toylife2.molecular_experiments import profile_spec
+
+    current = profile_spec(profile)
+    previous = profile_spec(profile, cue_length=4)
+    interface = current.controller.interface
+    assert interface.targets == previous.controller.interface.targets
+    for name, molecule in interface.inputs.items():
+        if name == "active":
+            assert molecule == previous.controller.interface.inputs[name]
+        else:
+            assert len(molecule) == 8
+    assert current.episode == previous.episode
+    assert current.evolution == previous.evolution
+    assert current.controller.interface == profile_spec(profile, seed=987).controller.interface
+    metadata = current.task.config["port_sampling"]
+    assert metadata["resolved"] == plain(interface)
+    assert metadata["input_sampling"]["8"]["candidate_count"] == 135
+
+
+def test_cue_identity_matches_across_single_and_two_cell_profiles():
+    from toylife2.cli import build_parser
+    from toylife2.molecular_experiments import profile_spec
+
+    assert profile_spec("cue").controller.interface.inputs["cue"] == (
+        profile_spec("signalling_game").controller.interface.inputs["cue"]
+    )
+    args = build_parser().parse_args(["molecular", "cue", "--cue-length", "8"])
+    assert args.cue_length == 8

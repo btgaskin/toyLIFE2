@@ -50,6 +50,8 @@ def main(selected_backend="metal", extra_args=()) -> int:
         "evaluation",
         "gene_copy",
         "molecular_interface",
+        "single_cell",
+        "signalling_factorial",
     )
     code = pytest.main(
         [

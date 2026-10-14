@@ -587,3 +587,12 @@ def test_multiple_inspection_lengths_preserve_order_and_expression_masks(tmp_pat
                         merged["expression"][:, group["selection_ids"]], child["expression"]
                     )
                 assert verify_record(tmp_path / group["path"] / "heldout")["ok"]
+    for name, values in summary["production"].items():
+        assert len(values) == 3
+        for group in summary["inspection_groups"]:
+            child = json.loads((tmp_path / group["path"] / "experiment.json").read_text())
+            np.testing.assert_array_equal(
+                np.asarray(values)[group["selection_ids"]], child["production"][name]
+            )
+    with np.load(tmp_path / "behaviour.npz") as merged:
+        assert merged["expected_scores"].shape == (3, 2)

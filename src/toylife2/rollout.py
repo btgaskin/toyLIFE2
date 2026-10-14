@@ -59,6 +59,7 @@ class RolloutSession(SessionBase):
     Candidate axes precede the episode axis; the optional agent axis immediately
     precedes the gene axis in controller arrays. A chemical work cap preserves the
     staged decision, including its observations and codec state, for exact resume.
+    Clonal signalling derives two cell lanes from each single inherited genome.
     """
 
     def __init__(
@@ -91,10 +92,34 @@ class RolloutSession(SessionBase):
         ):
             raise ValueError("cue episodes require a finite horizon beyond settling_steps")
         self.controller = controller or ControllerSpec()
+        if self.controller.output is not None and self.task.config.get("codec_entrypoint"):
+            raise ValueError("choose controller.output or a custom codec")
+        if self.task.config.get("experiment_contract") is not None:
+            from .protocols import SINGLE_CELL_CONTRACT
+
+            if self.task.config["experiment_contract"] != SINGLE_CELL_CONTRACT:
+                raise ValueError("unsupported single-cell experiment contract")
+            if (
+                self.controller.output is None
+                or self.protocol.panel == "auto"
+                or agent_axis is not None
+            ):
+                raise ValueError(
+                    "single-cell contract requires output, explicit panel and one cell"
+                )
+            if self.task.kind not in {"cue_reading", "chemotaxis"}:
+                raise ValueError("single-cell contract requires cue_reading or chemotaxis")
+            if "action_outputs" in self.task.config:
+                raise ValueError("molecular output belongs to ControllerSpec.output")
         self.seed, self.panel = seed, panel
         genes = validate(genotypes)
         self._source_genotypes = owned(genes)
         self.agent_axis = agent_axis
+        if self.task.kind == "signalling_game" and self.task.config.get("pairing") == "clonal":
+            if agent_axis is not None:
+                raise ValueError("clonal signalling takes one inherited genome per candidate")
+            genes = np.repeat(genes[..., None, :], 2, axis=-2)
+            agent_axis = -2
         if agent_axis is not None:
             axis = agent_axis % genes.ndim
             if axis == genes.ndim - 1:
@@ -142,7 +167,16 @@ class RolloutSession(SessionBase):
             }
         from .components import capture
 
-        captured = capture(RunSpec(schema_version=2, seed=0, task=self.task))
+        captured = capture(
+            RunSpec(
+                operation="rollout",
+                schema_version=2,
+                seed=0,
+                task=self.task,
+                controller=self.controller,
+                episode=self.protocol,
+            )
+        )
         identity_data["components"] = captured[1] if captured is not None else None
         identity = hashlib.sha256(
             json.dumps(identity_data, sort_keys=True, separators=(",", ":")).encode()
@@ -206,6 +240,12 @@ class RolloutSession(SessionBase):
         self.tick = 0
         self.reward_sum = np.zeros(self.world_shape, np.float64)
         self.reward_count = np.zeros(self.world_shape, np.int64)
+        self.expected_reward_sum = np.zeros(self.world_shape, np.float64)
+        self.translation_events_warmup = np.zeros(self.controller_shape, np.int64)
+        self.translation_events_task = np.zeros(self.controller_shape, np.int64)
+        self.chemical_updates_warmup = np.zeros(self.controller_shape, np.int64)
+        self.chemical_updates_task = np.zeros(self.controller_shape, np.int64)
+        self._output_diagnostics = {}
         self.channels = {}
         self._actions = np.zeros(self.controller_shape, np.int32)
         self._descriptor = []
@@ -308,6 +348,12 @@ class RolloutSession(SessionBase):
             getattr(self, "_pending", None),
             getattr(self, "reward_sum", None),
             getattr(self, "reward_count", None),
+            getattr(self, "expected_reward_sum", None),
+            getattr(self, "translation_events_warmup", None),
+            getattr(self, "translation_events_task", None),
+            getattr(self, "chemical_updates_warmup", None),
+            getattr(self, "chemical_updates_task", None),
+            getattr(self, "_output_diagnostics", None),
             getattr(self, "_host_actions", None),
             getattr(self, "_host_channels", None),
             getattr(self, "_codec_state", None),
@@ -415,6 +461,7 @@ class RolloutSession(SessionBase):
             "reason": self._reason,
             "counters": self.counters,
             "scores": self.scores,
+            "production": self.production_metrics(),
             "success": self.success,
             "pending": None
             if self._pending is None
@@ -447,6 +494,7 @@ class RolloutSession(SessionBase):
             "scores": None,
             "status": None,
             "success": None,
+            "production": None,
         }
         if include_pending and (fields is None or "pending" in fields):
             result["pending"] = (
@@ -473,6 +521,8 @@ class RolloutSession(SessionBase):
         scratch = count * 3 if "scores" in result or "success" in result else 0
         if "success" in result and "scores" not in result:
             scratch += self.reward_sum.nbytes
+        if "production" in result:
+            derived_bytes += int(np.prod(self.candidate_shape)) * 4 * 8
         required = self.model.engine._snapshot_bytes(result) + 2 * derived_bytes + scratch
         if "chemistry" in result:
             required += getattr(self._committed_chemistry, "buffer_bytes", 0)
@@ -480,6 +530,8 @@ class RolloutSession(SessionBase):
             required += self._committed_chemistry.buffer_bytes
 
         self.model.engine._check_snapshot_memory(self, required)
+        if "production" in result:
+            result["production"] = self.production_metrics()
         if "chemistry" in result:
             result["chemistry"] = self._committed_chemistry.view()
         selected_pending = result.get("pending")
@@ -506,12 +558,64 @@ class RolloutSession(SessionBase):
             )
         return owned(result)
 
+    def _check_translation(self, phase, updates, added):
+        """Validate a candidate increment before publishing its chemistry."""
+        events = getattr(self, f"translation_events_{phase}")
+        steps = getattr(self, f"chemical_updates_{phase}")
+        maximum = np.iinfo(np.int64).max
+        if np.any(events > maximum - added) or np.any(steps > maximum - updates):
+            raise OverflowError("production measurement exceeds int64")
+
+    def _account_translation(self, phase, updates):
+        """Account completed chemistry, including a partially staged decision."""
+        added = self.chemistry._batch.last_translation
+        self._check_translation(phase, updates, added)
+        np.add(
+            getattr(self, f"translation_events_{phase}"),
+            added,
+            out=getattr(self, f"translation_events_{phase}"),
+        )
+        np.add(
+            getattr(self, f"chemical_updates_{phase}"),
+            updates,
+            out=getattr(self, f"chemical_updates_{phase}"),
+        )
+
+    def production_metrics(self):
+        """Per-evaluation totals over episodes; independent of evaluation work/cache."""
+        return {
+            name: getattr(self, name).sum(axis=-1)
+            for name in (
+                "translation_events_warmup",
+                "translation_events_task",
+                "chemical_updates_warmup",
+                "chemical_updates_task",
+            )
+        }
+
+    @property
+    def expected_scores(self):
+        """Decoder-integrated cue accuracy; actions do not affect cue chemistry."""
+        if self.task.kind != "cue_reading" or self.controller.output is None:
+            raise ValueError("expected accuracy requires an action-independent binary cue assay")
+        return np.divide(
+            self.expected_reward_sum,
+            self.reward_count,
+            out=np.zeros_like(self.expected_reward_sum),
+            where=self.reward_count > 0,
+        )
+
     def _encode(self, observation: dict, codec_state):
         if self._codec is not None:
             inputs, state = self._codec.encode(numerical(observation), numerical(codec_state))
             return numerical(inputs), numerical(state)
         if self.controller.interface is not None:
             named = observation.get("inputs")
+            if named is None and self.task.kind == "signalling_game":
+                named = {
+                    "cue": np.asarray(observation["dose"]) * self.controller.interface.max_dose,
+                    "active": np.asarray(observation["mask"]) * self.controller.interface.max_dose,
+                }
             if named is None:
                 if len(self.controller.interface.inputs) != 1 or "dose" not in observation:
                     raise ValueError("structural observations require named inputs")
@@ -544,6 +648,15 @@ class RolloutSession(SessionBase):
         return inputs, codec_state
 
     def _decode(self, readouts: Mapping, codec_state):
+        if self.controller.output is not None:
+            from .output import decode
+
+            actions, self._output_diagnostics = decode(
+                self.controller.output, readouts, self.world.rng, self.tick
+            )
+            if actions.shape != self.controller_shape:
+                raise ValueError("output actions must preserve controller axes")
+            return actions, codec_state
         if self._codec is not None:
             actions, state = self._codec.decode(numerical(readouts), numerical(codec_state))
             actions = np.asarray(actions)
@@ -626,11 +739,13 @@ class RolloutSession(SessionBase):
                 if warmup_report.transition and warmup_report.transition.get("advanced", False):
                     self._consume("chemical_updates", self._chemical_work)
                     self._warmup_done += 1
+                    self._account_translation("warmup", 1)
                 self._status, self._reason = warmup_report.status, warmup_report.reason
                 return self._report({"tick": self.tick})
             advanced = int((warmup_report.transition or {}).get("updates", 1))
             self._consume("chemical_updates", self._chemical_work * advanced)
             self._warmup_done += advanced
+            self._account_translation("warmup", advanced)
         if not self._trace_admitted(self._warmup_event_bytes):
             return self._report({"tick": self.tick})
         if self._reset_chemistry is None:
@@ -683,6 +798,7 @@ class RolloutSession(SessionBase):
             if report.status in {"partial", "failed"}:
                 if report.transition and report.transition.get("advanced", False):
                     pending["chemical_cursor"] += 1
+                    self._account_translation("task", 1)
                     self._consume("chemical_updates", self._chemical_work)
                 self._status, self._reason = report.status, report.reason
                 return self._report(
@@ -690,6 +806,7 @@ class RolloutSession(SessionBase):
                 )
             advanced = int((report.transition or {}).get("updates", 1))
             pending["chemical_cursor"] += advanced
+            self._account_translation("task", advanced)
             self._consume("chemical_updates", self._chemical_work * advanced)
         if not self._trace_admitted(pending["chemical_bytes"]):
             return self._report({"tick": self.tick})
@@ -699,6 +816,11 @@ class RolloutSession(SessionBase):
         )
         world, reward, channels = self.world.advance(numerical(self._world_state), world_actions)
         world, channels = numerical(world), numerical(channels)
+        channels.update(self._output_diagnostics)
+        expected = None
+        if self.controller.output is not None and self.task.kind == "cue_reading":
+            probability = self._output_diagnostics["action_probability_one"]
+            expected = np.where(channels["nature"] == 1, probability, 1 - probability)
         reward = np.asarray(reward, dtype=np.float64)
         if reward.shape != self.world_shape or not np.all(np.isfinite(reward)):
             raise ValueError("world reward must be finite and preserve world axes")
@@ -719,6 +841,7 @@ class RolloutSession(SessionBase):
             "world": world,
             "reward": reward,
             "judged": judged.copy(),
+            "expected_reward": expected,
             "channels": channels,
             "codec": numerical(codec),
             "actions": actions.copy(),
@@ -799,6 +922,8 @@ class RolloutSession(SessionBase):
         else:
             self.reward_sum += prepared["reward"] * prepared["judged"]
             self.reward_count += prepared["judged"]
+        if prepared.get("expected_reward") is not None:
+            self.expected_reward_sum += prepared["expected_reward"] * prepared["judged"]
         self.tick += advanced
         self._committed_chemistry, self._commit_storage = (
             self._commit_storage,
@@ -876,6 +1001,16 @@ class RolloutSession(SessionBase):
             "actions": self._actions,
             "reward_sum": self.reward_sum,
             "reward_count": self.reward_count,
+            "expected_reward_sum": self.expected_reward_sum,
+            **{
+                name: getattr(self, name)
+                for name in (
+                    "translation_events_warmup",
+                    "translation_events_task",
+                    "chemical_updates_warmup",
+                    "chemical_updates_task",
+                )
+            },
             "channels": self.channels,
             "descriptor": self._descriptor,
             "descriptor_bytes": self._descriptor_bytes,
@@ -919,6 +1054,12 @@ class RolloutSession(SessionBase):
                     "reward_count": prepared.get(
                         "reward_count", self.reward_count + prepared["judged"]
                     ),
+                    "expected_reward_sum": self.expected_reward_sum
+                    + (
+                        prepared["expected_reward"] * prepared["judged"]
+                        if prepared.get("expected_reward") is not None
+                        else 0
+                    ),
                     "descriptor": descriptor,
                     "descriptor_bytes": descriptor_bytes,
                 }
@@ -954,6 +1095,12 @@ class RolloutSession(SessionBase):
         self.chemistry.restore_payload(working)
 
     def _restore_payload(self, payload: dict) -> None:
+        contract = self.task.config.get("experiment_contract")
+        if (
+            contract is not None
+            and payload.get("task", {}).get("config", {}).get("experiment_contract") != contract
+        ):
+            raise ValueError("deprecated or incompatible single-cell checkpoint contract")
         mode = payload.get("world_numerics")
         if mode is not None and mode != {
             "engine": "quadrants",
@@ -1014,6 +1161,51 @@ class RolloutSession(SessionBase):
         self._actions = np.array(payload["actions"], copy=True)
         self.reward_sum = np.array(reward_sum, dtype=np.float64, copy=True)
         self.reward_count = np.array(reward_count, dtype=np.int64, copy=True)
+        names = (
+            "translation_events_warmup",
+            "translation_events_task",
+            "chemical_updates_warmup",
+            "chemical_updates_task",
+            "expected_reward_sum",
+        )
+        for name in names:
+            if contract is not None and name not in payload:
+                raise ValueError("deprecated checkpoint lacks current single-cell measurements")
+            current = getattr(self, name)
+            array = np.asarray(payload.get(name, np.zeros_like(current)))
+            if (
+                array.shape != current.shape
+                or array.dtype.kind not in "ifu"
+                or np.any(array < 0)
+                or not np.all(np.isfinite(array))
+            ):
+                raise ValueError("invalid single-cell measurement arrays")
+            if name != "expected_reward_sum" and array.dtype.kind not in "iu":
+                raise ValueError("production measurements must be integer counts")
+            setattr(self, name, array.astype(current.dtype, copy=True))
+        if contract is not None:
+            covered = tick * self.protocol.chemical_updates
+            if pending is not None:
+                if "prepared" in pending:
+                    covered += (
+                        pending["prepared"].get("advanced", 1) * self.protocol.chemical_updates
+                    )
+                else:
+                    covered += pending["chemical_cursor"]
+            if (
+                np.any(self.chemical_updates_warmup != warmup)
+                or np.any(self.chemical_updates_task != covered)
+                or np.any(self.expected_reward_sum > self.reward_count)
+                or np.any(
+                    self.translation_events_warmup
+                    > self.chemical_updates_warmup * self.genotypes.shape[-1]
+                )
+                or np.any(
+                    self.translation_events_task
+                    > self.chemical_updates_task * self.genotypes.shape[-1]
+                )
+            ):
+                raise ValueError("single-cell measurements disagree with covered chemical updates")
         self.channels = numerical(payload["channels"])
         self._descriptor = numerical(payload["descriptor"])
         self._descriptor_bytes = int(payload.get("descriptor_bytes", 0))

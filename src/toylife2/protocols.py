@@ -248,6 +248,45 @@ class StructuralInterface:
         return {"endpoints": endpoints, "similarities": similarities}
 
 
+SINGLE_CELL_CONTRACT = "single-cell-response-v1"
+
+
+@dataclass(frozen=True)
+class BinaryOutputSpec:
+    """Assumed binary apparatus reading intact markers at after_output.
+
+    bound_free compares (free, bound); bound_pair compares the occupied counts
+    of the two ordered markers. permutation assigns those alternatives to acts.
+    """
+
+    representation: str = "bound_free"
+    markers: tuple[str, ...] = ("act",)
+    rule: str = "proportional"
+    permutation: tuple[int, int] = (0, 1)
+
+    def __post_init__(self):
+        object.__setattr__(self, "markers", tuple(self.markers))
+        object.__setattr__(self, "permutation", tuple(self.permutation))
+        size = {"bound_free": 1, "bound_pair": 2}.get(self.representation)
+        if size is None or len(self.markers) != size or len(set(self.markers)) != size:
+            raise ValueError("binary output requires one bound_free or two bound_pair markers")
+        if any(not isinstance(name, str) or not name.isidentifier() for name in self.markers):
+            raise ValueError("output markers require declared channel names")
+        if self.rule not in {"proportional", "majority"}:
+            raise ValueError("output rule must be proportional or majority")
+        if any(type(x) is not int for x in self.permutation) or self.permutation not in (
+            (0, 1),
+            (1, 0),
+        ):
+            raise ValueError("output permutation must be (0,1) or (1,0)")
+
+    @property
+    def readouts(self):
+        if self.representation == "bound_free":
+            return (f"target_free:{self.markers[0]}", self.markers[0])
+        return self.markers
+
+
 @dataclass(frozen=True)
 class ControllerSpec:
     mode: str = "canonical_cell"
@@ -260,8 +299,11 @@ class ControllerSpec:
     warmup: int = 0
     capacity: int = 4096
     interface: StructuralInterface | None = None
+    output: BinaryOutputSpec | None = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.output, Mapping):
+            object.__setattr__(self, "output", BinaryOutputSpec(**self.output))
         if isinstance(self.interface, Mapping):
             object.__setattr__(self, "interface", StructuralInterface(**self.interface))
         if self.interface is not None:
@@ -271,6 +313,9 @@ class ControllerSpec:
             if self.mode != "canonical_cell":
                 raise ValueError("structural interface requires canonical_cell chemistry")
             object.__setattr__(self, "ports", ports)
+        if self.output is not None:
+            if self.interface is None or set(self.output.markers) - set(self.interface.targets):
+                raise ValueError("binary output requires markers from a structural interface")
         if self.mode not in {"canonical_cell", "regulatory"}:
             raise ValueError("controller mode must be canonical_cell or regulatory")
         integer(self.initial_expression, "initial_expression")

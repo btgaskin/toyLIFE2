@@ -16,6 +16,10 @@ image = (
         .pip_install("quadrants==1.3.3", "numpy==2.5.3", "pytest==9.1.1", "tomli-w==1.2.0")
         .env({"PYTHONPATH": "/workspace/src", "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1"})
         .add_local_dir(ROOT / "src", "/workspace/src", ignore=["**/__pycache__/**"])
+        .add_local_file(
+            ROOT / "examples/single_cell_factorial.py",
+            "/workspace/examples/single_cell_factorial.py",
+        )
         .add_local_file(ROOT / "docs/decisions.md", "/workspace/docs/decisions.md")
         .add_local_file(ROOT / "pyproject.toml", "/workspace/pyproject.toml")
         .add_local_file(ROOT / "uv.lock", "/workspace/uv.lock")
@@ -41,6 +45,8 @@ if modal.is_local():
         "evaluation",
         "gene_copy",
         "molecular_interface",
+        "single_cell",
+        "signalling_factorial",
         "molecular_animation",
     ):
         image = image.add_local_file(

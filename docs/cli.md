@@ -107,3 +107,13 @@ compatible fixed assays coalesce across runs. Work quota flags accept zero.
 Resume starts a new invocation quota and preserves total logical counters.
 External run `evolution.generations` sets the number of completed ask/tell updates;
 recording requires an importable `task.config.adapter_entrypoint` factory.
+
+## Current molecular experiment contract
+
+`molecular` creates `single-cell-response-v1` experiments. Profiles are `basic`,
+`cue`, `cue_alternatives` and `chemotaxis`. Use `--output-representation bound_free|bound_pair`,
+`--output-rule proportional|majority`, `--marker-length 4..8`, `--marker-copies N`
+and `--initial independent_random|monomorphic_random`. Founding output assignments
+are sampled from `--interface-seed` and saved explicitly. Deprecated molecular
+profiles/checkpoints require their archived implementation. See the
+[molecular methods](molecular-cells.md) for the experiment boundary.

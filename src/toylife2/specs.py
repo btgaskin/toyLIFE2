@@ -333,6 +333,10 @@ class RunSpec:
                 raise ValueError("batch execution fields require schema_version=2")
         if self.cell.initial_expression >= 1 << self.model.genes:
             raise ValueError("cell.initial_expression exceeds gene count")
+        if self.task.config.get("experiment_contract") is not None:
+            from .single_cell import require_current
+
+            require_current(self)
         copy = self.evolution.gene_copy
         if copy is not None:
             if not copy.min_genes <= self.model.genes <= copy.max_genes:
@@ -340,7 +344,13 @@ class RunSpec:
             if (
                 self.schema_version != 2
                 or self.operation != "wright_fisher"
-                or self.task.kind not in {"cue_reading", "chemotaxis"}
+                or not (
+                    self.task.kind in {"cue_reading", "chemotaxis"}
+                    or (
+                        self.task.kind == "signalling_game"
+                        and self.task.config.get("pairing") == "clonal"
+                    )
+                )
                 or self.controller.mode != "canonical_cell"
                 or self.controller.interface is None
                 or self.objective.scope != "candidate"
@@ -383,6 +393,8 @@ def plain(spec: Any) -> Any:
         if isinstance(spec, EvolutionSpec) and spec.gene_copy is None:
             data.pop("gene_copy")
         if isinstance(spec, ControllerSpec):
+            if spec.output is None:
+                data.pop("output")
             if spec.interface is None:
                 data.pop("interface")
             else:

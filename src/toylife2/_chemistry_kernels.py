@@ -155,11 +155,13 @@ def canonical_lane(
                 searching = 0
             cursor = end
         expression[lane, g] = found
+    translated = 0
     if regulatory == 0:
         for s in range(lengths[graph, 0]):
             if kinds[graph, s] == 1 or kinds[graph, s] == 2:
                 target[lane, s] = 0
         for g in range(products.shape[1]):
+            translated += qd.cast(expression[lane, g] != 0, qd.i32)
             if expression[lane, g] != 0 and products[graph, g] >= 0:
                 target[lane, products[graph, g]] += 1
         reaction_phase(
@@ -187,6 +189,7 @@ def canonical_lane(
             if kinds[graph, s] == 4:
                 target[lane, release[graph, s]] += target[lane, s]
                 target[lane, s] = 0
+    return translated
 
 
 @qd.kernel(fastcache=True)
@@ -214,15 +217,17 @@ def canonical_step(
     promoter_ends: qd.types.NDArray[qd.i32, 3],
     promoter_lengths: qd.types.NDArray[qd.i32, 2],
     lane_graph: qd.types.NDArray[qd.i32, 1],
+    translation: qd.types.NDArray[qd.i32, 1],
     steps: qd.i32,
     pulse: qd.i32,
     replenish: qd.i32,
     regulatory: qd.i32,
 ) -> None:
     for lane in range(source.shape[0]):
+        translated = 0
         for tick in range(steps):
             if tick == 0:
-                canonical_lane(
+                translated += canonical_lane(
                     lane,
                     lane_graph[lane],
                     source,
@@ -254,7 +259,7 @@ def canonical_step(
                 if pulse != 0:
                     for s in range(lengths[lane_graph[lane], 0]):
                         inputs[lane, s] = -1
-                canonical_lane(
+                translated += canonical_lane(
                     lane,
                     lane_graph[lane],
                     target,
@@ -282,6 +287,7 @@ def canonical_step(
                     replenish,
                     regulatory,
                 )
+        translation[lane] = translated
 
 
 @qd.kernel(fastcache=True)
@@ -360,9 +366,10 @@ def compact_readouts(
     indices: qd.types.NDArray[qd.i32, 3],
     sizes: qd.types.NDArray[qd.i32, 2],
     descriptors: qd.types.NDArray[qd.i32, 2],
+    translation: qd.types.NDArray[qd.i32, 1],
     output: qd.types.NDArray[qd.i32, 2],
 ) -> None:
-    for lane, readout in qd.ndrange(output.shape[0], output.shape[1]):
+    for lane, readout in qd.ndrange(output.shape[0], descriptors.shape[0]):
         output[lane, readout] = readout_lane(
             lane,
             readout,
@@ -377,6 +384,8 @@ def compact_readouts(
             sizes,
             descriptors,
         )
+    for lane in range(output.shape[0]):
+        output[lane, descriptors.shape[0]] = translation[lane]
 
 
 @qd.kernel(fastcache=True)

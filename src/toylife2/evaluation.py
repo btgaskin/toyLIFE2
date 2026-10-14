@@ -226,8 +226,10 @@ class Evaluator:
     @property
     def stochastic(self):
         task = self.spec.task
-        return task.kind in {"signalling_game", "chemotaxis"} or (
-            task.kind == "python" and bool(task.config.get("stochastic", True))
+        return (
+            self.spec.controller.output is not None
+            or task.kind in {"signalling_game", "chemotaxis"}
+            or (task.kind == "python" and bool(task.config.get("stochastic", True)))
         )
 
     @property
@@ -491,6 +493,18 @@ class Evaluator:
                 success = {"ge": np.greater_equal, "le": np.less_equal, "eq": np.equal}[operator](
                     scores, goal
                 )
+        if (
+            episodic
+            and self.spec.controller.output is not None
+            and hasattr(result, "production_metrics")
+        ):
+            metrics = {**metrics, **result.production_metrics()}
+            if (
+                result.controller.output is not None
+                and task is not None
+                and task.kind == "cue_reading"
+            ):
+                metrics["expected_accuracy"] = np.mean(result.expected_scores, axis=-1)
         scores = np.where(complete | (status == "empty"), scores, np.nan)
         if success is not None:
             success = np.asarray(success) & complete

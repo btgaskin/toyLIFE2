@@ -111,6 +111,7 @@ from .batch import BatchRunner  # noqa: E402
 from .evaluation import EvaluationResult, Evaluator, ObjectiveOutput  # noqa: E402
 from .population import PopulationSession  # noqa: E402
 from .protocols import (  # noqa: E402
+    BinaryOutputSpec,
     ControllerSpec,
     EpisodeSpec,
     ObjectiveSpec,
@@ -123,6 +124,7 @@ from .protocols import (  # noqa: E402
 from .sessions import Checkpoint, StepReport  # noqa: E402
 
 __all__ += [
+    "BinaryOutputSpec",
     "BatchRunner",
     "Checkpoint",
     "ControllerSpec",

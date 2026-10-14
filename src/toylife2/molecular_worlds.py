@@ -16,6 +16,11 @@ import numpy as np
 
 def resolve_task(kind: str, config: Mapping) -> dict:
     config = dict(config)
+    from .protocols import SINGLE_CELL_CONTRACT
+
+    contract = config.get("experiment_contract")
+    if contract is not None and contract != SINGLE_CELL_CONTRACT:
+        raise ValueError("unsupported single-cell experiment contract")
     if kind == "cue_reading":
         defaults: dict[str, Any] = dict(
             fixed_map=[0, 1],
@@ -44,6 +49,11 @@ def resolve_task(kind: str, config: Mapping) -> dict:
             input_channel="cue",
             action_outputs=["motor"],
         )
+    if contract is not None:
+        defaults.pop("action_outputs", None)
+        if kind == "cue_reading":
+            defaults.pop("fixed_map", None)
+            defaults.update(cue_doses=[[0], [1]], settling_steps=0)
     defaults.update(config)
     if kind == "chemotaxis":
         defaults.setdefault("motion_model", "ecoli_spherical_v1")
@@ -83,26 +93,53 @@ class CueReading:
         if agents != 1:
             raise ValueError("cue_reading uses one cell per independent episode")
         self.shape, self.rng = shape, rng
-        self.mapping = np.asarray(config["fixed_map"])
+        self.binary = "experiment_contract" in config
         self.inputs = tuple(config["input_channels"])
-        self.outputs = tuple(config["action_outputs"])
-        self.states = len(self.mapping)
         self.settling_steps = config.get("settling_steps", 0)
         if type(self.settling_steps) is not int or self.settling_steps < 0:
             raise ValueError("settling_steps must be a nonnegative integer")
-        if (
-            not self.inputs
-            or not self.outputs
-            or len(self.inputs) > 2
-            or len(self.outputs) > 2
-            or self.states != 1 << len(self.outputs)
-            or self.mapping.dtype.kind not in "iu"
-            or self.mapping.shape != (self.states,)
-            or np.any((self.mapping < 0) | (self.mapping >= 1 << len(self.inputs)))
-            or len(set(self.inputs)) != len(self.inputs)
-            or len(set(self.outputs)) != len(self.outputs)
-        ):
-            raise ValueError("cue task requires binary channels and a valid fixed code table")
+        if self.binary:
+            self.doses = np.asarray(config["cue_doses"])
+            self.states = 2
+            self.outputs = ("action",)
+            if (
+                not self.inputs
+                or len(self.inputs) > 2
+                or len(set(self.inputs)) != len(self.inputs)
+                or self.doses.shape != (2, len(self.inputs))
+                or self.doses.dtype.kind not in "iu"
+                or np.any(self.doses < 0)
+                or np.any(self.doses > np.iinfo(np.int32).max)
+            ):
+                raise ValueError("binary cue task requires two explicit nonnegative dose rows")
+            if len(self.inputs) == 2 and (
+                np.any(np.count_nonzero(self.doses, axis=1) != 1)
+                or np.count_nonzero(np.any(self.doses > 0, axis=0)) != 2
+            ):
+                raise ValueError("two cue identities must be supplied mutually exclusively")
+        else:
+            self.mapping = np.asarray(config["fixed_map"])
+            self.outputs = tuple(config["action_outputs"])
+            self.states = len(self.mapping)
+            self.settling_steps = config.get("settling_steps", 0)
+            if type(self.settling_steps) is not int or self.settling_steps < 0:
+                raise ValueError("settling_steps must be a nonnegative integer")
+            if (
+                not self.inputs
+                or not self.outputs
+                or len(self.inputs) > 2
+                or len(self.outputs) > 2
+                or self.states != 1 << len(self.outputs)
+                or self.mapping.dtype.kind not in "iu"
+                or self.mapping.shape != (self.states,)
+                or np.any((self.mapping < 0) | (self.mapping >= 1 << len(self.inputs)))
+                or len(set(self.inputs)) != len(self.inputs)
+                or len(set(self.outputs)) != len(self.outputs)
+            ):
+                raise ValueError("cue task requires binary channels and a valid fixed code table")
+            if shape[-1] != self.states:
+                raise ValueError("exhaustive cue evaluation requires one episode per nature state")
+
         if shape[-1] != self.states:
             raise ValueError("exhaustive cue evaluation requires one episode per nature state")
 
@@ -112,6 +149,13 @@ class CueReading:
         return dict(tick=0, nature=nature)
 
     def observe(self, state):
+        if self.binary:
+            return {
+                "inputs": {
+                    name: self.doses[state["nature"], i].astype(np.int32)
+                    for i, name in enumerate(self.inputs)
+                }
+            }
         code = self.mapping[state["nature"]]
         return {
             "inputs": {

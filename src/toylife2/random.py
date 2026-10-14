@@ -21,8 +21,15 @@ def philox(counter: np.ndarray, key: np.ndarray) -> np.ndarray:
     k = k[..., :2].copy()
     for _ in range(10):
         p0, p1 = c[..., 0] * np.uint64(0xD2511F53), c[..., 2] * np.uint64(0xCD9E8D57)
-        c = np.stack(((p1 >> np.uint64(32)) ^ c[..., 1] ^ k[..., 0], p1 & _MASK,
-                      (p0 >> np.uint64(32)) ^ c[..., 3] ^ k[..., 1], p0 & _MASK), axis=-1)
+        c = np.stack(
+            (
+                (p1 >> np.uint64(32)) ^ c[..., 1] ^ k[..., 0],
+                p1 & _MASK,
+                (p0 >> np.uint64(32)) ^ c[..., 3] ^ k[..., 1],
+                p0 & _MASK,
+            ),
+            axis=-1,
+        )
         k = (k + np.asarray((0x9E3779B9, 0xBB67AE85), dtype=np.uint64)) & _MASK
     return c.astype(np.uint32)
 
@@ -39,13 +46,27 @@ class Stream:
             raise ValueError("seed must be a uint64 integer")
         self.seed = seed
 
-    def words(self, indices: np.ndarray | int, *, role: str, trial: int = 0,
-              event: int = 0, attempt: int = 0) -> np.ndarray:
+    def key(self, *, role: str, trial: int = 0, event: int = 0) -> np.ndarray:
+        """The two Philox key words; shared by host and resident apparatus."""
+        if trial < 0 or event < 0:
+            raise ValueError("logical indices must be nonnegative")
+        namespace = json.dumps(
+            [SCHEME, self.seed, role, trial, event], separators=(",", ":")
+        ).encode()
+        return np.frombuffer(hashlib.sha256(namespace).digest()[:8], dtype="<u4")
+
+    def words(
+        self,
+        indices: np.ndarray | int,
+        *,
+        role: str,
+        trial: int = 0,
+        event: int = 0,
+        attempt: int = 0,
+    ) -> np.ndarray:
         if trial < 0 or event < 0 or attempt < 0 or attempt >= 1 << 64:
             raise ValueError("logical indices must be nonnegative and attempt must fit uint64")
-        namespace = json.dumps([SCHEME, self.seed, role, trial, event],
-                               separators=(",", ":")).encode()
-        key = np.frombuffer(hashlib.sha256(namespace).digest()[:8], dtype="<u4")
+        key = self.key(role=role, trial=trial, event=event)
         ids = np.asarray(indices)
         if ids.dtype.kind not in "iu" or np.any(ids < 0):
             raise ValueError("individual indices must be nonnegative integers")
@@ -83,7 +104,8 @@ class Stream:
         # 52 bits + half a unit are exactly representable even at the top end.
         return ((value >> np.uint64(12)).astype(np.float64) + 0.5) / (1 << 52)
 
-    def genotypes(self, count: int, genes: int, *, trial: int = 0,
-                  role: str = "initial_genotypes") -> np.ndarray:
+    def genotypes(
+        self, count: int, genes: int, *, trial: int = 0, role: str = "initial_genotypes"
+    ) -> np.ndarray:
         ids = np.arange(count * genes, dtype=np.uint64).reshape(count, genes)
         return (self.words(ids, role=role, trial=trial)[..., 0] & 0xFFFFF).astype(np.uint32)

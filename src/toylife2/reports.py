@@ -197,6 +197,24 @@ def render_molecular_report(record: str | Path) -> Path:
                     }
                 )
             )
+    if summary.get("output"):
+        body.extend(
+            [
+                "<h2>Assumed output apparatus</h2>",
+                _table(summary["output"]),
+                "<h2>Production measurements</h2>",
+                _table(summary["production"]),
+            ]
+        )
+        if "expected_accuracy" in summary:
+            body.append(
+                _table(
+                    {
+                        "Expected accuracy": summary["expected_accuracy"],
+                        "Sampled accuracy": summary["mean_scores"],
+                    }
+                )
+            )
     if "baselines" in summary:
         body.extend(
             [
@@ -306,13 +324,18 @@ def render_molecular_report(record: str | Path) -> Path:
             names = (
                 "sensed_exposure",
                 "input_" + config["input_channel"],
-                "readout_" + config["action_outputs"][0],
+                "readout_"
+                + (
+                    summary["output"]["markers"][0]
+                    if summary.get("output")
+                    else config["action_outputs"][0]
+                ),
                 "tumbling",
             )
             for ax, name in zip(axes, names, strict=True):
                 ax.plot(time, data[name][:, 0, 0].reshape(len(time), -1)[:, 0])
                 ax.set(ylabel=name)
-            axes[-1].set(xlabel="Time (dimensionless)")
+            axes[-1].set(xlabel="Time (seconds)")
             save(
                 fig,
                 "sensing.svg",

@@ -76,7 +76,10 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     molecular = commands.add_parser("molecular", help="evolve cells and inspect task behaviours")
     molecular.add_argument(
-        "profile", nargs="?", default="basic", choices=("basic", "cue", "cue4", "chemotaxis")
+        "profile",
+        nargs="?",
+        default="basic",
+        choices=("basic", "cue", "cue_alternatives", "chemotaxis"),
     )
     molecular.add_argument("--field", choices=("fluctuating", "source"), default="fluctuating")
     molecular.add_argument("--preset", choices=("smoke", "pilot"), default="smoke")
@@ -86,6 +89,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--port-pool", choices=("four_site_active", "all_lengths_active"), default=None
     )
     molecular.add_argument("--interface-seed", type=int, default=None)
+    molecular.add_argument("--cue-length", type=int, choices=range(4, 9), default=None)
+    molecular.add_argument("--marker-length", type=int, choices=range(4, 9), default=None)
+    molecular.add_argument("--marker-copies", type=int, default=None)
+    molecular.add_argument(
+        "--output-representation", choices=("bound_free", "bound_pair"), default=None
+    )
+    molecular.add_argument("--output-rule", choices=("proportional", "majority"), default=None)
+    molecular.add_argument(
+        "--initial", choices=("independent_random", "monomorphic_random"), default=None
+    )
     molecular.add_argument("--response-updates", type=int, default=None)
     molecular.add_argument("--settling-updates", type=int, default=None)
     molecular.add_argument("--backend", choices=("auto", "cpu", "metal", "cuda"), default="auto")
@@ -170,6 +183,12 @@ def main(argv: list[str] | None = None) -> int:
                 for x in (
                     args.port_pool,
                     args.interface_seed,
+                    args.cue_length,
+                    args.marker_length,
+                    args.marker_copies,
+                    args.output_representation,
+                    args.output_rule,
+                    args.initial,
                     args.response_updates,
                     args.settling_updates,
                 )
@@ -195,6 +214,12 @@ def main(argv: list[str] | None = None) -> int:
                     backend=args.backend,
                     port_pool=args.port_pool or "four_site_active",
                     interface_seed=0 if args.interface_seed is None else args.interface_seed,
+                    cue_length=8 if args.cue_length is None else args.cue_length,
+                    marker_length=4 if args.marker_length is None else args.marker_length,
+                    marker_copies=1 if args.marker_copies is None else args.marker_copies,
+                    output_representation=args.output_representation or "bound_free",
+                    output_rule=args.output_rule or "proportional",
+                    initial=args.initial or "independent_random",
                     response_updates=8 if args.response_updates is None else args.response_updates,
                     settling_updates=0 if args.settling_updates is None else args.settling_updates,
                 )

@@ -6,6 +6,7 @@ from __future__ import annotations
 import quadrants as qd
 
 from ._chemistry_kernels import canonical_lane, readout_lane
+from ._output_kernels import binary_action
 
 
 @qd.func
@@ -157,6 +158,8 @@ def decision_block(
     waves: qd.types.ndarray(ndim=2),
     p: qd.types.ndarray(ndim=1),
     draws: qd.types.ndarray(ndim=3),
+    output_keys: qd.types.NDArray[qd.u32, 2],
+    output_ids: qd.types.NDArray[qd.u32, 2],
     rewards: qd.types.ndarray(ndim=2),
     observations: qd.types.NDArray[qd.i32, 1],
     actions: qd.types.NDArray[qd.i32, 1],
@@ -190,9 +193,13 @@ def decision_block(
     sizes: qd.types.NDArray[qd.i32, 2],
     descriptors: qd.types.NDArray[qd.i32, 2],
     readouts: qd.types.NDArray[qd.i32, 2],
+    translation: qd.types.NDArray[qd.i32, 1],
     decisions: qd.i32,
     updates: qd.i32,
     action_readout: qd.i32,
+    second_readout: qd.i32,
+    output_rule: qd.i32,
+    output_swap: qd.i32,
     kind: qd.i32,
     dynamic: qd.i32,
     regulatory: qd.i32,
@@ -202,6 +209,7 @@ def decision_block(
         scenario = scenarios[lane]
         for column in range(world.shape[1]):
             world[lane, column] = current[lane, column]
+        translated = 0
         for tick in range(decisions):
             cue = qd.cast(
                 draws[tick, scenario, 0] < world[lane, 3] / (p[5] + world[lane, 3]), qd.i32
@@ -210,7 +218,7 @@ def decision_block(
                 supplies[lane, species] = input_plan[lane, species]
             supplies[lane, cue_slots[lane]] = cue
             for _chemical in range(updates):
-                canonical_lane(
+                translated += canonical_lane(
                     lane,
                     graph,
                     counts,
@@ -242,7 +250,7 @@ def decision_block(
                     counts[lane, species] = target[lane, species]
                 for gene in range(previous.shape[1]):
                     previous[lane, gene] = expression[lane, gene]
-            for readout in range(readouts.shape[1]):
+            for readout in range(descriptors.shape[0]):
                 readouts[lane, readout] = readout_lane(
                     lane,
                     readout,
@@ -258,9 +266,21 @@ def decision_block(
                     descriptors,
                 )
             action = qd.cast(readouts[lane, action_readout] > 0, qd.i32)
+            if output_rule != 0:
+                action = binary_action(
+                    readouts[lane, action_readout],
+                    readouts[lane, second_readout],
+                    output_keys[tick, 0],
+                    output_keys[tick, 1],
+                    output_ids[scenario, 0],
+                    output_ids[scenario, 1],
+                    output_rule,
+                    output_swap,
+                )
             observations[lane] = cue
             actions[lane] = action
             tumble[lane] = move_lane(
                 lane, world, source_world, waves, p, draws, tick, scenario, action, kind, dynamic
             )
             rewards[tick, lane] = world[lane, 3]
+        translation[lane] = translated
