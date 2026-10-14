@@ -11,10 +11,12 @@ from toylife2.reference import CellState, ReferenceModel
 from toylife2.rollout import RolloutSession
 from toylife2.specs import ExecutionSpec, RecordingSpec, RunSpec, plain
 
+pytestmark = pytest.mark.device
+
 
 @pytest.fixture(scope="module")
-def model():
-    return Model(execution=ExecutionSpec(backend="cpu"))
+def model(canonical_tables):
+    return Model(tables=canonical_tables, execution=ExecutionSpec(backend="cpu"))
 
 
 def interface(two=False):
@@ -109,6 +111,7 @@ def test_exact_structural_readouts_and_aliases(model):
         ("chemotaxis", "source"),
     ],
 )
+@pytest.mark.qualification
 def test_recorded_molecular_experiment(tmp_path, profile, field):
     import hashlib
     import json
@@ -158,6 +161,7 @@ def test_recorded_molecular_experiment(tmp_path, profile, field):
             np.testing.assert_array_equal(initial["initial_theta"], final["initial_theta"])
 
 
+@pytest.mark.integration
 def test_interrupted_experiment_retains_checkpoint(tmp_path):
     from toylife2.molecular_experiments import profile_spec, run_experiment
     from toylife2.records import verify_record
@@ -175,6 +179,7 @@ def test_interrupted_experiment_retains_checkpoint(tmp_path):
     assert not (root / "selected_genomes.npy").exists()
 
 
+@pytest.mark.integration
 def test_extended_evolution_matches_uninterrupted(model, tmp_path):
     from toylife2.molecular_experiments import profile_spec, run_experiment
     from toylife2.population import PopulationSession

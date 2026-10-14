@@ -12,10 +12,12 @@ from toylife2.protocols import ControllerSpec, PortSpec, ReadoutSpec, WorkLimits
 from toylife2.reference import CellState, ReferenceModel
 from toylife2.specs import ExecutionSpec
 
+pytestmark = pytest.mark.device
+
 
 @pytest.fixture(scope="module")
-def model():
-    return Model(execution=ExecutionSpec(backend="cpu"))
+def model(canonical_tables):
+    return Model(tables=canonical_tables, execution=ExecutionSpec(backend="cpu"))
 
 
 def test_heterogeneous_multispecies_batch_matches_canonical_steps(model):

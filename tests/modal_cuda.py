@@ -46,7 +46,7 @@ if modal.is_local():
         image = image.add_local_file(
             ROOT / "tests" / f"test_{name}.py", f"/workspace/tests/test_{name}.py"
         )
-    for name in ("check_cuda.py", "check_metal.py"):
+    for name in ("check_cuda.py", "check_metal.py", "conftest.py"):
         image = image.add_local_file(ROOT / "tests" / name, f"/workspace/tests/{name}")
     for name in ("data", "promoters", "prot_metabolism", "dim_metabolism"):
         image = image.add_local_dir(

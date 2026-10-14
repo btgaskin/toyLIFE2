@@ -124,6 +124,7 @@ def test_invalid_legacy_arrays_rng_and_erased_sswm_cursor_refused():
         )
 
 
+@pytest.mark.integration
 def test_recorded_prepare_links_original_manifest_checkpoint_and_source(tmp_path):
     model = ConstantModel()
     run = dataclasses.replace(spec("neutral_walk"), execution=ExecutionSpec(max_steps=1))

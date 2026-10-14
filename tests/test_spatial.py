@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from toylife2.reference import ReferenceModel
 from toylife2.runtime import Engine
@@ -14,11 +15,12 @@ from toylife2.spatial import (
     response_descriptors,
 )
 from toylife2.specs import ExecutionSpec, SpatialSpec
-from toylife2.tables import Tables
+
+pytestmark = pytest.mark.device
 
 
-def test_preformed_ab_survives_stronger_aa(tmp_path) -> None:
-    tables = Tables.load(cache_dir=tmp_path / "tables")
+def test_preformed_ab_survives_stronger_aa(tmp_path, canonical_tables) -> None:
+    tables = canonical_tables
     genotype = np.asarray([[33177, 950375]], dtype=np.int32)
     a = int(tables.gene_to_protein[genotype[0, 0] & 65535])
     b = int(tables.gene_to_protein[genotype[0, 1] & 65535])
@@ -38,8 +40,8 @@ def test_preformed_ab_survives_stronger_aa(tmp_path) -> None:
     assert descriptor[6] == 1
 
 
-def test_ca_and_tissue_steps_are_synchronous(tmp_path) -> None:
-    tables = Tables.load(cache_dir=tmp_path / "tables")
+def test_ca_and_tissue_steps_are_synchronous(tmp_path, canonical_tables) -> None:
+    tables = canonical_tables
     genotype = np.asarray([[33177, 950375], [907050, 1048465]], dtype=np.int32)
     execution = ExecutionSpec(batch_size=1, cache_dir=str(tmp_path / "qd"))
     spec = SpatialSpec(cells=7, steps=6, boundary="open", diffusion="A")
@@ -137,8 +139,8 @@ def test_all_diffusion_modes_preserve_molecular_identity() -> None:
     assert _transported_state(3, 0, 3, True, "all") == 3
 
 
-def test_explicit_initial_state_and_combined_injections(tmp_path) -> None:
-    tables = Tables.load(cache_dir=tmp_path / "tables")
+def test_explicit_initial_state_and_combined_injections(tmp_path, canonical_tables) -> None:
+    tables = canonical_tables
     genotype = np.asarray([[33177, 950375]], dtype=np.int32)
     spec = SpatialSpec(
         cells=3,
@@ -169,8 +171,10 @@ def test_explicit_initial_state_and_combined_injections(tmp_path) -> None:
     np.testing.assert_array_equal(result, expected)
 
 
-def test_pair_matrix_all_promoters_matches_fixed_inventory_reference(tmp_path) -> None:
-    tables = Tables.load(cache_dir=tmp_path / "tables")
+def test_pair_matrix_all_promoters_matches_fixed_inventory_reference(
+    tmp_path, canonical_tables
+) -> None:
+    tables = canonical_tables
     pairs = np.asarray(
         [(0, 0), (47, 49), (47, 1), (1, 47), (47, 47), (100, 200)],
         dtype=np.int32,
@@ -205,9 +209,9 @@ def test_pair_matrix_all_promoters_matches_fixed_inventory_reference(tmp_path) -
                 )
 
 
-def test_lookup_backed_parity_rule_counterexamples(tmp_path) -> None:
+def test_lookup_backed_parity_rule_counterexamples(tmp_path, canonical_tables) -> None:
     """Real source-table cases pin the rules isolated by the full-map experiment."""
-    tables = Tables.load(cache_dir=tmp_path / "tables")
+    tables = canonical_tables
     cases = [
         # A valid repressor wins over a more stable protein with no promoter contact.
         (47, 1303, 14, [1, 1, 0, 0, 1, 0]),
@@ -244,8 +248,8 @@ def test_lookup_backed_parity_rule_counterexamples(tmp_path) -> None:
     assert int(tables.polymerase_energy[5]) == -150
 
 
-def test_later_injection_enters_preformed_ab_state_four(tmp_path) -> None:
-    tables = Tables.load(cache_dir=tmp_path / "tables")
+def test_later_injection_enters_preformed_ab_state_four(tmp_path, canonical_tables) -> None:
+    tables = canonical_tables
     coding_a = 33177 & 65535
     coding_b = 950375 & 65535
     genotype = np.asarray([[(14 << 16) | coding_a, (14 << 16) | coding_b]], dtype=np.int32)

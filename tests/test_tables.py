@@ -18,8 +18,8 @@ from toylife2.tables import (
 
 
 @pytest.fixture(scope="module")
-def tables() -> Tables:
-    return Tables.load()
+def tables(canonical_tables) -> Tables:
+    return canonical_tables
 
 
 def test_published_universe_and_perimeter_factorization(tables: Tables) -> None:

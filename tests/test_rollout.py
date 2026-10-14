@@ -9,10 +9,15 @@ from toylife2.rollout import RolloutSession
 from toylife2.sessions import Checkpoint, pack
 from toylife2.specs import ExecutionSpec, PortSpec, RecordingSpec
 
+pytestmark = pytest.mark.device
+
 
 @pytest.fixture(scope="module")
-def model(tmp_path_factory):
-    return Model(execution=ExecutionSpec(cache_dir=str(tmp_path_factory.mktemp("qd-rollout"))))
+def model(tmp_path_factory, canonical_tables):
+    return Model(
+        tables=canonical_tables,
+        execution=ExecutionSpec(cache_dir=str(tmp_path_factory.mktemp("qd-rollout"))),
+    )
 
 
 def test_empty_episode_differs_from_completed_and_computational_partial(model):

@@ -20,6 +20,7 @@ def execution(tmp_path_factory):
     return ExecutionSpec(cache_dir=str(tmp_path_factory.mktemp("record-input-cache")))
 
 
+@pytest.mark.integration
 def test_alternate_table_pack_is_captured_and_replayed_without_original(execution, tmp_path):
     source = tmp_path / "alternate"
     shutil.copytree(DEFAULT_SOURCE, source)
@@ -54,6 +55,7 @@ def test_recording_rejects_in_memory_tables_without_corresponding_source(executi
     assert not (tmp_path / "invalid").exists()
 
 
+@pytest.mark.integration
 def test_explicit_panel_and_numeric_identities_survive_resume_and_replay(execution, tmp_path):
     spec = RunSpec(
         schema_version=2,
@@ -100,6 +102,7 @@ def test_explicit_panel_and_numeric_identities_survive_resume_and_replay(executi
         ("patterns", "regulatory"),
     ],
 )
+@pytest.mark.qualification
 def test_every_coalesced_assay_child_has_standalone_artifacts_and_replays(
     execution, tmp_path, operation, phenotype
 ):
@@ -125,6 +128,7 @@ def test_every_coalesced_assay_child_has_standalone_artifacts_and_replays(
             ].keys()
 
 
+@pytest.mark.integration
 def test_batch_recovery_rejects_changed_table_pack_before_new_children(execution, tmp_path):
     tables = Tables.load(cache_dir=execution.cache_dir)
     spec = RunSpec(

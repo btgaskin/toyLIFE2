@@ -10,10 +10,12 @@ from toylife2.runtime import Engine
 from toylife2.specs import ExecutionSpec
 from toylife2.tables import Tables
 
+pytestmark = pytest.mark.device
+
 
 @pytest.fixture(scope="module")
-def tables() -> Tables:
-    return Tables.load()
+def tables(canonical_tables) -> Tables:
+    return canonical_tables
 
 
 def _engine(tables: Tables, tmp_path, *, max_steps: int = 16) -> Engine:

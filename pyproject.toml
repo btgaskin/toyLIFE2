@@ -56,7 +56,12 @@ packages = ["src/toylife2"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["metal: requires Apple Metal hardware", "qualification: extended model qualification"]
+markers = [
+    "metal: requires Apple Metal hardware",
+    "device: numerical contracts exercised by the GPU harnesses",
+    "integration: extended recording, relocation and replay workflows",
+    "qualification: broad experiment and artifact matrices",
+]
 
 [tool.ruff]
 target-version = "py312"

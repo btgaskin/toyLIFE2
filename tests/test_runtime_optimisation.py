@@ -17,10 +17,12 @@ from toylife2.rollout import RolloutSession
 from toylife2.specs import ExecutionSpec, RecordingSpec
 from toylife2.worlds import ScenarioRandom
 
+pytestmark = pytest.mark.device
+
 
 @pytest.fixture
-def model():
-    return Model(execution=ExecutionSpec())
+def model(canonical_tables):
+    return Model(tables=canonical_tables, execution=ExecutionSpec())
 
 
 def assert_payload_equal(a, b):

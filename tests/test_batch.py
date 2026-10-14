@@ -8,6 +8,7 @@ from toylife2.protocols import EpisodeSpec, TaskSpec, WorkLimits
 from toylife2.records import inspect_record, read_checkpoint, verify_record
 from toylife2.runner import resume, run
 from toylife2.specs import ExecutionSpec, RunSpec
+from toylife2.workspaces import init_workspace
 
 
 @pytest.fixture(scope="module")
@@ -35,6 +36,7 @@ def test_shared_runner_preserves_nested_axes_and_resume(execution):
 
 
 def test_recorded_v2_partial_resume_and_reproduce(execution, tmp_path):
+    runs = init_workspace(tmp_path / "workspace") / "runs"
     spec = RunSpec(
         schema_version=2,
         operation="rollout",
@@ -45,13 +47,13 @@ def test_recorded_v2_partial_resume_and_reproduce(execution, tmp_path):
         episode=EpisodeSpec(horizon=3, episodes=2),
         limits=WorkLimits(max_world_ticks=6),
     )
-    original = run(spec, destination=tmp_path / "partial")
+    original = run(spec, destination=runs / "partial")
     assert inspect_record(original)["status"] == "partial"
     assert verify_record(original)["ok"]
-    child = resume(original, destination=tmp_path / "child", limits=WorkLimits())
+    child = resume(original, destination=runs / "child", limits=WorkLimits())
     assert inspect_record(child)["status"] == "complete"
     assert verify_record(child)["ok"]
-    direct = run(dataclasses.replace(spec, limits=WorkLimits()), destination=tmp_path / "direct")
+    direct = run(dataclasses.replace(spec, limits=WorkLimits()), destination=runs / "direct")
     for name, artifact in inspect_record(child)["artifacts"]["arrays"].items():
         expected = inspect_record(direct)["artifacts"]["arrays"][name]
         np.testing.assert_array_equal(
@@ -61,10 +63,11 @@ def test_recorded_v2_partial_resume_and_reproduce(execution, tmp_path):
     assert state["session_state"]["base"]["pending_trace"] == []
     from toylife2.runner import reproduce
 
-    repeated = reproduce(child, tmp_path / "reproduced")
+    repeated = reproduce(child, runs / "reproduced")
     assert verify_record(repeated)["ok"]
 
 
+@pytest.mark.integration
 def test_runner_v2_chemistry_and_tissue(execution, tmp_path):
     for operation in ("chemistry", "tissue"):
         spec = RunSpec(
@@ -75,6 +78,7 @@ def test_runner_v2_chemistry_and_tissue(execution, tmp_path):
         assert verify_record(record)["ok"]
 
 
+@pytest.mark.integration
 def test_named_batch_index_and_idempotent_recovery(execution, tmp_path):
     import json
 
@@ -100,6 +104,7 @@ def test_named_batch_index_and_idempotent_recovery(execution, tmp_path):
     assert all(value["status"] == "complete" for value in index["children"].values())
 
 
+@pytest.mark.integration
 def test_full_trace_rejected_checkpoint_retries_without_dropping_rows(execution, tmp_path):
     from toylife2.records import begin_record, write_boundary
     from toylife2.sessions import Checkpoint
@@ -137,6 +142,7 @@ def test_full_trace_rejected_checkpoint_retries_without_dropping_rows(execution,
         assert not resumed._pending_trace
 
 
+@pytest.mark.integration
 def test_fixed_assays_coalesce_across_named_runs(execution, tmp_path, monkeypatch):
     from toylife2 import runner as runner_module
 
@@ -160,6 +166,7 @@ def test_fixed_assays_coalesce_across_named_runs(execution, tmp_path, monkeypatc
     assert all(verify_record(path)["ok"] for path in outputs.values())
 
 
+@pytest.mark.integration
 def test_explicit_v1_record_conversion_into_linked_v2(execution, tmp_path):
     from toylife2.runner import convert_checkpoint
     from toylife2.specs import AssaySpec, EvolutionSpec
@@ -197,6 +204,7 @@ def test_numerical_checkpoint_reserved_keys_are_unambiguous():
     np.testing.assert_array_equal(restored["actual"], values["actual"])
 
 
+@pytest.mark.integration
 def test_batch_partial_fixed_assay_restarts_with_larger_physical_cap(execution, tmp_path):
     from toylife2.specs import AssaySpec
 

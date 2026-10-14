@@ -4,20 +4,22 @@ import hashlib
 from collections import defaultdict
 
 import numpy as np
+import pytest
 
 from toylife2.maps import _spatial_protocol, enumerate_map, merge_map_shards
 from toylife2.reference import ReferenceModel
 from toylife2.spatial import _morphogen, ca_from_descriptors
 from toylife2.specs import ExecutionSpec, SpatialSpec
-from toylife2.tables import Tables
+
+pytestmark = pytest.mark.device
 
 
 def _key(descriptor: np.ndarray) -> str:
     return "".join(str(int(value)) for value in descriptor)
 
 
-def test_weighted_pair_matches_all_256_reference_promoters(tmp_path) -> None:
-    tables = Tables.load(cache_dir=tmp_path / "tables")
+def test_weighted_pair_matches_all_256_reference_promoters(tmp_path, canonical_tables) -> None:
+    tables = canonical_tables
     execution = ExecutionSpec(batch_size=32, cache_dir=str(tmp_path / "qd"))
     spatial = SpatialSpec(cells=7, steps=6)
     assert _spatial_protocol(spatial) == _spatial_protocol(
@@ -86,8 +88,8 @@ def test_weighted_pair_matches_all_256_reference_promoters(tmp_path) -> None:
     assert result["pattern_histogram"] == dict(patterns)
 
 
-def test_weighted_shards_conserve_the_exact_pair_mass(tmp_path) -> None:
-    tables = Tables.load(cache_dir=tmp_path / "tables")
+def test_weighted_shards_conserve_the_exact_pair_mass(tmp_path, canonical_tables) -> None:
+    tables = canonical_tables
     execution = ExecutionSpec(batch_size=32, cache_dir=str(tmp_path / "qd"))
     spatial = SpatialSpec(cells=7, steps=6)
     pair = 47 * len(tables.protein_perimeter) + 49
@@ -150,8 +152,10 @@ def test_weighted_shards_conserve_the_exact_pair_mass(tmp_path) -> None:
     assert int(multiplicity.sum()) ** 2 * 256 == 1 << 40
 
 
-def test_map_patterns_preserve_ab_under_later_explicit_injection(tmp_path) -> None:
-    tables = Tables.load(cache_dir=tmp_path / "tables")
+def test_map_patterns_preserve_ab_under_later_explicit_injection(
+    tmp_path, canonical_tables
+) -> None:
+    tables = canonical_tables
     execution = ExecutionSpec(cache_dir=str(tmp_path / "qd"))
     spatial = SpatialSpec(
         cells=1,

@@ -14,16 +14,14 @@ from toylife2.workspaces import init_workspace
 
 
 @pytest.fixture
-def small_packs(monkeypatch):
+def small_packs(monkeypatch, canonical_tables):
     monkeypatch.setattr(
         records, "_source_archive", lambda path, source=None: records._write_bytes(path, b"source")
     )
     monkeypatch.setattr(
         records, "_table_archive", lambda root, tables=None: _small_table_pack(root)
     )
-    from toylife2.tables import Tables
-
-    monkeypatch.setattr(records, "_archive_table_digest", lambda path: Tables.load().digest)
+    monkeypatch.setattr(records, "_archive_table_digest", lambda path: canonical_tables.digest)
 
 
 def _small_table_pack(root):

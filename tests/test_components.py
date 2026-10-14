@@ -38,6 +38,7 @@ def factory(**kwargs): return World(**kwargs)
             sys.modules.pop(name)
 
 
+@pytest.mark.integration
 def test_source_helpers_data_captured_and_relocated_resume(component, tmp_path):
     data = tmp_path / "stimuli.npy"
     np.save(data, [1, 2, 3])
@@ -86,6 +87,7 @@ def test_component_input_paths_do_not_change_scientific_spec_identity(component,
     assert len(payload) and json.dumps(metadata)
 
 
+@pytest.mark.integration
 def test_recorded_external_pending_optimizer_continuation(component, tmp_path):
     from toylife2.protocols import ObjectiveSpec
     from toylife2.specs import EvolutionSpec, RecordingSpec

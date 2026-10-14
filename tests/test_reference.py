@@ -8,12 +8,11 @@ import pytest
 
 from toylife2.genotypes import encode
 from toylife2.reference import CellState, ReferenceModel, _Candidate
-from toylife2.tables import Tables
 
 
 @pytest.fixture(scope="module")
-def model() -> ReferenceModel:
-    return ReferenceModel(Tables.load())
+def model(canonical_tables) -> ReferenceModel:
+    return ReferenceModel(canonical_tables)
 
 
 def test_same_energy_survivors_commit_simultaneously(model, monkeypatch):

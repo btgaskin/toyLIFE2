@@ -113,8 +113,12 @@ fallback to polymerase with both molecules retained in the promoter inventory.
 
 ## Other checks and claim levels
 
-Run the CPU suite in a fresh process with `.venv/bin/python tests/check_cpu.py -q`
-and static
+Run routine CPU contracts in a fresh process with
+`.venv/bin/python tests/check_cpu.py -q -m 'not integration and not qualification'`.
+This includes the numerical and genetic boundary cases, independent geometry
+checks, and fixed- and variable-length recording/replay smoke tests. Use
+`.venv/bin/python tests/check_cpu.py -q` for the complete suite, including extended
+recording and experiment matrices. Static
 checks with `.venv/bin/ruff check src tests benchmarks` and
 `.venv/bin/python -m pyright`. `toylife2 qualify`
 creates a run record of oracle and geometry comparisons for selected inputs.
@@ -124,7 +128,8 @@ and a recorded CPU run followed by reproduction.
 Run `.venv/bin/python tests/check_metal.py` in a fresh process with GPU
 access to execute the existing runtime, reachable-trajectory, spatial, and
 map tests on Metal. The harness selects Metal for their execution specs;
-the Engine disables backend fallback. Coverage includes positive cleavage,
+the Engine disables backend fallback. Its default selection is
+`device and not integration and not qualification`. Coverage includes positive cleavage,
 32-gene expression, constant-memory cycle proof, diffusion modes, driven
 injections, map resume, molecular readouts, resident worlds and gene-copy
 evolution. Results are saved

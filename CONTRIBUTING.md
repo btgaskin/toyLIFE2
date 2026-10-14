@@ -12,14 +12,31 @@ Clone with `--recurse-submodules`, then use Python 3.12 or 3.13:
 uv sync --locked --group dev --extra reports
 uv run ruff check src/toylife2 tests examples
 uv run python -m pyright
-uv run python tests/check_cpu.py -q
+uv run python tests/check_cpu.py -q --strict-markers \
+  -m 'not integration and not qualification' --durations=15
+```
+
+Routine CPU checks run on pull requests and pushes to `main`. They include
+numerical and genetic contracts, independent geometry checks, record lifecycle
+tests and two complete recording/replay smoke tests. Extended `integration` and
+`qualification` cases cover larger recording, relocation and experiment matrices.
+The full command collects both tiers:
+
+```sh
+uv run python tests/check_cpu.py -q --strict-markers --durations=15
 uv build --wheel
 uv run python tests/check_wheel.py
 ```
 
-CPU checks run in GitHub Actions. Apple Metal qualification requires a Mac
-with Metal access; the procedure is in [qualification](docs/qualification.md).
-Report the actual backend and whether fallback occurred.
+GitHub Actions runs the full tier for published releases and manual runs with
+`full` enabled. Package/source changes also run installed-wheel qualification.
+Editorial Markdown changes skip numerical work; `docs/decisions.md` participates
+in package provenance and runs the checks. Superseded runs are cancelled.
+
+Apple Metal qualification requires a Mac with Metal access. GPU harnesses select
+`device` contracts and leave the larger recording matrices to CPU qualification;
+the procedure is in [qualification](docs/qualification.md). Report the actual
+backend and whether fallback occurred.
 
 ## Model and experiment changes
 

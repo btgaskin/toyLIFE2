@@ -11,6 +11,8 @@ from toylife2.runtime import Engine
 from toylife2.specs import ExecutionSpec
 from toylife2.tables import Tables
 
+pytestmark = pytest.mark.device
+
 
 def test_preinitialized_cpu_accepts_native_arch_alias(tmp_path) -> None:
     # qd.cpu resolves to arm64 on Apple Silicon; compare enum identity, not text.
@@ -42,8 +44,8 @@ assert qd.lang.impl.current_cfg().cpu_max_num_threads == 1
 
 
 @pytest.fixture(scope="module")
-def tables(tmp_path_factory: pytest.TempPathFactory) -> Tables:
-    return Tables.load(cache_dir=tmp_path_factory.mktemp("tables"))
+def tables(canonical_tables) -> Tables:
+    return canonical_tables
 
 
 def test_regulatory_matches_scalar_and_preserves_batch_shape(tables: Tables, tmp_path) -> None:

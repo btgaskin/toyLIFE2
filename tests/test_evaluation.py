@@ -193,12 +193,16 @@ def test_bounded_reward_quantization_and_floor_are_exact():
 
 
 @pytest.fixture(scope="module")
-def molecular_model(tmp_path_factory):
+def molecular_model(tmp_path_factory, canonical_tables):
     from toylife2 import Model
 
-    return Model(execution=ExecutionSpec(cache_dir=str(tmp_path_factory.mktemp("eval-cpu"))))
+    return Model(
+        tables=canonical_tables,
+        execution=ExecutionSpec(cache_dir=str(tmp_path_factory.mktemp("eval-cpu"))),
+    )
 
 
+@pytest.mark.device
 def test_rollout_discrete_descriptor_retains_candidate_axes(molecular_model):
     run = dataclasses.replace(
         spec(),
@@ -212,6 +216,7 @@ def test_rollout_discrete_descriptor_retains_candidate_axes(molecular_model):
     assert out.descriptor.dtype.kind in "biuUS"
 
 
+@pytest.mark.device
 def test_contextual_roster_balanced_roles_and_exact_denominator(molecular_model):
     run = spec(
         task=TaskSpec(kind="signalling_game", config={"rounds": 2}),
@@ -229,6 +234,7 @@ def test_contextual_roster_balanced_roles_and_exact_denominator(molecular_model)
     assert not evaluator.cache and not evaluator.pending
 
 
+@pytest.mark.device
 def test_nested_world_chemical_caps_and_checkpoint_resume(molecular_model):
     from toylife2.population import PopulationSession
     from toylife2.protocols import WorkLimits
@@ -258,6 +264,7 @@ def test_nested_world_chemical_caps_and_checkpoint_resume(molecular_model):
     )
 
 
+@pytest.mark.device
 def test_contextual_half_barrier_checkpoint_keeps_completed_sender_roles(molecular_model):
     from toylife2.population import PopulationSession
     from toylife2.protocols import WorkLimits
@@ -285,6 +292,7 @@ def test_contextual_half_barrier_checkpoint_keeps_completed_sender_roles(molecul
     np.testing.assert_array_equal(resumed.evaluations[0].weights, full.evaluations[0].weights)
 
 
+@pytest.mark.device
 def test_pending_candidate_chunks_survive_permutation_and_retain_batching(molecular_model):
     from toylife2.protocols import WorkLimits
 
@@ -311,6 +319,7 @@ def test_pending_candidate_chunks_survive_permutation_and_retain_batching(molecu
     assert restored.metrics["chunks"] == 2
 
 
+@pytest.mark.device
 def test_floor_applied_after_contextual_role_mean(molecular_model):
     run = spec(
         task=TaskSpec(kind="signalling_game", config={"rounds": 2}),
@@ -327,6 +336,7 @@ def test_floor_applied_after_contextual_role_mean(molecular_model):
     np.testing.assert_array_equal(out.weights, np.maximum(out.scores * 8, 6).astype(np.int64))
 
 
+@pytest.mark.device
 def test_small_logical_quota_admits_narrow_candidate_chunks_and_eventually_finishes(
     molecular_model,
 ):
@@ -415,6 +425,7 @@ def test_component_input_copy_paths_retain_context_and_population_checkpoint_ide
     assert Evaluator(model, copied).context != first.evaluator.context
 
 
+@pytest.mark.device
 def test_full_nested_trace_retains_world_chemical_rows_and_cache_requests(molecular_model):
     import json
 
@@ -523,6 +534,7 @@ def test_panel_cache_pruning_preserves_current_and_pending_panels():
     assert evaluator.metrics["new_genotype_evaluations"] == before + 1
 
 
+@pytest.mark.device
 def test_memory_fallback_matches_real_chemotaxis_evaluation(molecular_model):
     from toylife2.protocols import StructuralInterface
     from toylife2.rollout import RolloutSession
@@ -565,6 +577,7 @@ def test_shared_panel_cache_retains_sibling_scores():
     assert len(evaluator.cache) == 2
 
 
+@pytest.mark.device
 def test_memory_fallback_checkpoint_resumes_interrupted_cohorts(molecular_model):
     from toylife2.protocols import StructuralInterface, WorkLimits
     from toylife2.rollout import RolloutSession

@@ -1,4 +1,4 @@
-"""Run the existing numerical contract tests on physical Metal.
+"""Run numerical device contracts on physical Metal.
 
 Run in a fresh process with ``.venv/bin/python tests/check_metal.py``.
 The Engine disables backend fallback. This harness selects Metal for the
@@ -50,12 +50,13 @@ def main(selected_backend="metal", extra_args=()) -> int:
         "evaluation",
         "gene_copy",
         "molecular_interface",
-        "molecular_animation",
     )
     code = pytest.main(
         [
             *(str(root / "tests" / f"test_{name}.py") for name in modules),
             "-q",
+            "-m",
+            "device and not integration and not qualification",
             f"--junitxml={destination / (selected_backend + '-tests.xml')}",
             *extra_args,
         ],

@@ -6,11 +6,10 @@ from toylife2.regeneration import (
     validate_binding_regeneration,
     validate_regeneration,
 )
-from toylife2.tables import Tables
 
 
-def test_independent_fold_and_attachment_regeneration() -> None:
-    report = validate_regeneration(Tables.load())
+def test_independent_fold_and_attachment_regeneration(canonical_tables) -> None:
+    report = validate_regeneration(canonical_tables)
     assert report.folds == 38
     assert report.functional_sequences == 52549
     assert report.distinct_perimeters == 379
@@ -27,8 +26,8 @@ def test_contact_geometry() -> None:
     assert contact_energy(0, 0) == 0
 
 
-def test_independent_ligand_regeneration() -> None:
-    report = validate_binding_regeneration(Tables.load())
+def test_independent_ligand_regeneration(canonical_tables) -> None:
+    report = validate_binding_regeneration(canonical_tables)
     assert report.dimer_bonds_checked == 20207
     assert report.dimer_bond_mismatches == 0
     assert report.protein_promoter_checked == 16 * 379

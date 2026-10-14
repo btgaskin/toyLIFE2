@@ -26,8 +26,8 @@ from toylife2.variation import gene_copy_step
 
 
 @pytest.fixture(scope="module")
-def model():
-    return Model()
+def model(canonical_tables):
+    return Model(tables=canonical_tables)
 
 
 def spec(**kwargs):
@@ -64,6 +64,7 @@ def input_reward_objective(genes, rollout, config):
 
 
 @pytest.mark.parametrize("cap", [0, 16, 32])
+@pytest.mark.device
 def test_custom_inputs_and_partial_objective_fields_resume(model, tmp_path, cap):
     path = tmp_path / "scale.npy"
     np.save(path, [1000], allow_pickle=False)
@@ -102,6 +103,7 @@ def test_custom_inputs_and_partial_objective_fields_resume(model, tmp_path, cap)
 
 
 @pytest.mark.parametrize("mixed_lengths", [False, True])
+@pytest.mark.device
 def test_complete_custom_candidates_require_consistent_weights(model, tmp_path, mixed_lengths):
     path = tmp_path / "scale.npy"
     np.save(path, [1000], allow_pickle=False)
@@ -123,6 +125,7 @@ def test_complete_custom_candidates_require_consistent_weights(model, tmp_path, 
             runner.evaluator(source).evaluate(batch)
 
 
+@pytest.mark.device
 def test_gene_copy_checkpoint_rejects_malformed_metadata(model):
     source = spec()
     with BatchRunner(model=model) as runner:
@@ -154,6 +157,7 @@ def test_gene_copy_checkpoint_rejects_malformed_metadata(model):
                 runner.evolution(source, checkpoint=altered)
 
 
+@pytest.mark.device
 def test_gene_count_history_uses_pinned_observation_retention(model):
     source = spec()
     with BatchRunner(model=model) as runner:
@@ -177,6 +181,7 @@ def test_merge_admission_covers_uncompressed_history_probes(tmp_path):
     assert _inspection_merge_bytes(tmp_path, [{"path": "group"}]) >= 3 * payload
 
 
+@pytest.mark.integration
 def test_structural_resume_releases_temporary_pending_cohorts(tmp_path, monkeypatch):
     from toylife2._variable_evaluation import VariableGeneEvaluator
 
@@ -359,6 +364,7 @@ def test_single_event_distribution_and_copy_target_mass():
     assert abs(fraction - 2 / 3) < 0.04
 
 
+@pytest.mark.device
 def test_zero_rates_preserve_population_trajectory(model):
     structural = replace(spec(), evolution=replace(spec().evolution, gene_copy=GeneCopySpec()))
     legacy = replace(structural, evolution=replace(structural.evolution, gene_copy=None))
@@ -372,6 +378,7 @@ def test_zero_rates_preserve_population_trajectory(model):
     b.evaluator.close()
 
 
+@pytest.mark.device
 def test_mixed_evaluation_matches_fixed_width_and_scatter(model):
     source = spec()
     batch = GenomeBatch(
@@ -400,6 +407,7 @@ def test_mixed_evaluation_matches_fixed_width_and_scatter(model):
 
 @pytest.mark.parametrize("resource", ["chemical_updates", "world_ticks"])
 @pytest.mark.parametrize("cap", [0, 2, 9, 25, 70])
+@pytest.mark.device
 def test_aggregate_quota_checkpoint_and_resume(model, cap, resource, tmp_path):
     source = spec()
     with BatchRunner(model=model) as runner:
@@ -423,6 +431,7 @@ def test_aggregate_quota_checkpoint_and_resume(model, cap, resource, tmp_path):
             )
 
 
+@pytest.mark.device
 def test_structural_trajectory_is_independent_of_batch_width(model):
     source = spec()
     with BatchRunner(model=model) as runner:
@@ -438,6 +447,58 @@ def test_structural_trajectory_is_independent_of_batch_width(model):
         )
 
 
+def test_structural_selection_playback_smoke(tmp_path, model):
+    source = profile_spec("chemotaxis", genes=2)
+    source = replace(
+        source,
+        execution=model.execution,
+        episode=replace(source.episode, episodes=1, horizon=1),
+        evolution=replace(
+            source.evolution,
+            trials=1,
+            population_size=1,
+            generations=1,
+            mutation_probability=0,
+            gene_copy=GeneCopySpec(1, 0),
+        ),
+    )
+    parent = tmp_path / "selected"
+    parent.mkdir()
+    write_spec(source, parent / "profile.toml")
+    with BatchRunner(model=model) as runner:
+        session = runner.evolution(source, destination=parent / "evolution")
+        session.run()
+        selected = GenomeBatch(session.populations[0, :1], session.gene_counts[0, :1])
+        score = float(session.evaluations[0].scores[0])
+        runner.finish(session)
+    save_selected(parent, selected)
+    (parent / "experiment.json").write_text(
+        json.dumps({"mean_scores": [score], "heldout_seed": 1234, "heldout_panel": 7})
+    )
+    assert load_selected(parent).gene_counts.tolist() == [3]
+    assert verify_record(parent / "evolution")["ok"]
+    replay = tmp_path / "replay"
+    subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).parents[1] / "examples/replay_molecular_genome.py"),
+            str(parent),
+            str(replay),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert load_spec(replay / "profile.toml").model.genes == 3
+    np.testing.assert_array_equal(
+        np.load(replay / "selected_genomes.npy"), selected.active(0)[None]
+    )
+    assert verify_record(replay / "rollout")["ok"]
+    assert (replay / "animation.html").is_file()
+
+
+@pytest.mark.integration
 def test_structural_records_inspection_and_playback(tmp_path):
     source = profile_spec("chemotaxis", genes=2)
     source = replace(
@@ -486,6 +547,7 @@ def test_structural_records_inspection_and_playback(tmp_path):
     assert (replay / "animation.html").exists()
 
 
+@pytest.mark.integration
 def test_multiple_inspection_lengths_preserve_order_and_expression_masks(tmp_path, model):
     from toylife2._molecular_gene_copy import inspect_variable_selected
 

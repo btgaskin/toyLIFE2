@@ -9,12 +9,11 @@ import pytest
 from toylife2 import Model, records, runner
 from toylife2.records import inspect_record, verify_record
 from toylife2.specs import CellSpec, EvolutionSpec, ExecutionSpec, ModelSpec, RunSpec, SpatialSpec
-from toylife2.tables import Tables
 
 
 @pytest.fixture(scope="module")
-def tables(tmp_path_factory):
-    return Tables.load(cache_dir=tmp_path_factory.mktemp("runner_tables"))
+def tables(canonical_tables):
+    return canonical_tables
 
 
 @pytest.fixture

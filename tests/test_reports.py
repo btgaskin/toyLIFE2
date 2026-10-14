@@ -7,7 +7,7 @@ from toylife2.reports import render_report
 from toylife2.specs import RunSpec
 
 
-def test_report_reads_saved_array_without_changing_record(tmp_path, monkeypatch):
+def test_report_reads_saved_array_without_changing_record(tmp_path, monkeypatch, canonical_tables):
     monkeypatch.setattr(
         records, "_source_archive", lambda path, source=None: records._write_bytes(path, b"source")
     )
@@ -18,9 +18,7 @@ def test_report_reads_saved_array_without_changing_record(tmp_path, monkeypatch)
         return path
 
     monkeypatch.setattr(records, "_table_archive", table_archive)
-    from toylife2.tables import Tables
-
-    monkeypatch.setattr(records, "_archive_table_digest", lambda path: Tables.load().digest)
+    monkeypatch.setattr(records, "_archive_table_digest", lambda path: canonical_tables.digest)
     root = records.begin_record(RunSpec(seed=8), tmp_path / "record")
     records.finalize_record(
         root,
