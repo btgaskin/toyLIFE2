@@ -184,6 +184,9 @@ def profile_spec(
                 "field": field,
                 "world_engine": "quadrants",
                 "world_precision": world_precision,
+                "world_random_math": "box_muller_f32_v1"
+                if world_precision == "float32"
+                else "numpy_f64_v1",
                 "motion_model": "ecoli_spherical_v1",
             },
         )

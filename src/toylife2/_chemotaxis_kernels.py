@@ -131,6 +131,41 @@ def move_lane(
 
 
 @qd.kernel(fastcache=True)
+def refresh_field(
+    world: qd.types.ndarray(ndim=2),
+    source: qd.types.ndarray(ndim=2),
+    scenarios: qd.types.NDArray[qd.i32, 1],
+    waves: qd.types.ndarray(ndim=2),
+    p: qd.types.ndarray(ndim=1),
+    kind: qd.i32,
+):
+    for lane in range(world.shape[0]):
+        world[lane, 3] = field_lane(lane, world, source, waves, p, scenarios[lane], kind)
+
+
+@qd.func
+def cue_value(exposure, scale, uniform):
+    return qd.cast(uniform < exposure / (scale + exposure), qd.i32)
+
+
+@qd.kernel(fastcache=True)
+def observe_world(
+    world: qd.types.ndarray(ndim=2),
+    source: qd.types.ndarray(ndim=2),
+    scenarios: qd.types.NDArray[qd.i32, 1],
+    waves: qd.types.ndarray(ndim=2),
+    p: qd.types.ndarray(ndim=1),
+    uniform_bits: qd.types.NDArray[qd.i32, 1],
+    observations: qd.types.NDArray[qd.i32, 1],
+    kind: qd.i32,
+):
+    for lane in range(world.shape[0]):
+        observations[lane] = cue_value(
+            world[lane, 3], p[5], qd.bit_cast(uniform_bits[lane], qd.f32)
+        )
+
+
+@qd.kernel(fastcache=True)
 def world_advance(
     world: qd.types.ndarray(ndim=2),
     source: qd.types.ndarray(ndim=2),
@@ -211,9 +246,7 @@ def decision_block(
             world[lane, column] = current[lane, column]
         translated = 0
         for tick in range(decisions):
-            cue = qd.cast(
-                draws[tick, scenario, 0] < world[lane, 3] / (p[5] + world[lane, 3]), qd.i32
-            )
+            cue = cue_value(world[lane, 3], p[5], draws[tick, scenario, 0])
             for species in range(supplies.shape[1]):
                 supplies[lane, species] = input_plan[lane, species]
             supplies[lane, cue_slots[lane]] = cue

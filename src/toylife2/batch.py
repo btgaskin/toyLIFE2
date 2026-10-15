@@ -549,6 +549,7 @@ class BatchRunner:
                     "execution": {
                         "requested_backend": self.execution.backend,
                         "actual_backend": self.execution.backend,
+                        **({"world": session.profile} if session.kind == "rollout" else {}),
                     },
                 },
             )

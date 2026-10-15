@@ -79,6 +79,9 @@ def numerical_mode(config):
     precision = config.get("world_precision", "float64")
     if engine not in {"numpy", "quadrants"} or precision not in {"float32", "float64"}:
         raise ValueError("chemotaxis requires numpy/quadrants and float32/float64")
+    from ._world_random import random_math
+
+    random_math(config)
     if config.get("reference_world", False):
         if config.get("world_engine") == "quadrants":
             raise ValueError("reference_world conflicts with world_engine=quadrants")
@@ -193,6 +196,9 @@ class Chemotaxis:
             raise ValueError("chemotaxis uses one cell per independent world")
         self.config, self.shape, self.rng, self.dt = dict(config), shape, rng, dt
         self.engine, self.precision = numerical_mode(config)
+        from ._world_random import random_math
+
+        self.random_math = random_math(config)
         self.dtype = np.dtype(self.precision)
         if config["motion_model"] != "ecoli_spherical_v1":
             raise ValueError("chemotaxis uses motion_model=ecoli_spherical_v1")
@@ -287,6 +293,27 @@ class Chemotaxis:
         if np.any(self.constants[[0, 5, 9]] <= 0):
             raise ValueError("chemotaxis scales underflow in the selected world precision")
         self._kernel_buffers = None
+        self._draw_layout = None
+        self._prepared_draw = None
+
+    def _host_draws(self, tick):
+        if self._prepared_draw is None or self._prepared_draw[0] != tick:
+            from .resident_world import RandomBlockCache
+
+            # A one-tick cache also reuses the shared runner cache when available.
+            engine = getattr(self, "_engine", None)
+            cache = engine._world_random_cache if engine is not None else RandomBlockCache(0)
+            values = cache.block(self, tick, 1)
+            self._prepared_draw = tick, values[0]
+        return self._prepared_draw[1][self.rng._inverse]
+
+    @property
+    def buffer_bytes(self):
+        return (
+            getattr(self._draw_layout, "bytes", 0)
+            + (0 if self._prepared_draw is None else self._prepared_draw[1].nbytes)
+            + getattr(self._kernel_buffers, "bytes", 0)
+        )
 
     def reset(self):
         state: dict[str, Any] = dict(
@@ -332,11 +359,17 @@ class Chemotaxis:
         return self.config["mean"] + self.config["amplitude"] * np.mean(np.cos(angles), axis=-1)
 
     def observe(self, state):
+        from ._world_random import FLOAT32
+
+        if self.random_math == FLOAT32 and self.engine == "quadrants":
+            from .resident_world import WorldBuffers
+
+            if self._kernel_buffers is None:
+                self._kernel_buffers = WorldBuffers(self, getattr(self, "_engine", None))
+            return self._kernel_buffers.observe(state)
         exposure = self.field(state)
-        cue = (
-            self.rng.uniform(state["tick"], "chem-sensor").astype(self.dtype)
-            < exposure / (self.config["sensor_scale"] + exposure)
-        ).astype(np.int32)
+        draw = self._host_draws(state["tick"])[..., 0]
+        cue = (draw < exposure / (self.config["sensor_scale"] + exposure)).astype(np.int32)
         return {"inputs": {self.config["input_channel"]: cue}, "exposure": exposure}
 
     def advance(self, state, actions):
@@ -350,7 +383,7 @@ class Chemotaxis:
         from .resident_world import WorldBuffers
 
         if self._kernel_buffers is None:
-            self._kernel_buffers = WorldBuffers(self)
+            self._kernel_buffers = WorldBuffers(self, getattr(self, "_engine", None))
         buffers = self._kernel_buffers
         buffers.upload(state)
         buffers.advance(actions, state["tick"])
@@ -371,23 +404,16 @@ class Chemotaxis:
         tumble = np.zeros(shape, bool)
         hazard = np.where(actions != 0, self.config["hazard_one"], self.config["hazard_zero"])
         hazard = hazard.astype(self.dtype)
-        finfo = np.finfo(self.dtype)
-
-        def uniform(role):
-            return np.clip(
-                self.rng.uniform(tick, role).astype(self.dtype),
-                finfo.tiny,
-                np.nextafter(self.dtype.type(1), self.dtype.type(0)),
-            )
+        draws = self._host_draws(tick)
+        base = 4 + len(self.wavevectors)
 
         for event in range(self.event_capacity):
+            start = base + event * self.motion_stride
             active = time_left > 0
             if not np.any(active):
                 break
             is_tumble = active & (remaining > 0)
-            waiting = -np.log(uniform(f"chem-motion-wait:{event}")) / np.where(
-                hazard > 0, hazard, 1
-            )
+            waiting = -np.log(draws[..., start]) / np.where(hazard > 0, hazard, 1)
             waiting = np.where(hazard > 0, waiting, np.inf)
             duration = np.minimum(time_left, np.where(is_tumble, remaining, waiting))
             duration = np.where(active, duration, 0).astype(self.dtype)
@@ -401,9 +427,7 @@ class Chemotaxis:
                     if step == self.motion_steps - 1
                     else np.minimum(segment_left, p[17])
                 )
-                noise = self.rng.normal(tick, f"chem-motion-rotation:{event}:{step}", 3).astype(
-                    self.dtype
-                )
+                noise = draws[..., start + 2 + 3 * step : start + 5 + 3 * step]
                 tangent = noise - np.sum(noise * orientation, axis=-1)[..., None] * orientation
                 w = np.sqrt(2 * diffusion * h)[..., None] * tangent
                 angle = np.sqrt(np.sum(w * w, axis=-1))
@@ -416,7 +440,7 @@ class Chemotaxis:
                 segment_left = np.maximum(segment_left - h, 0)
             tumble |= is_tumble & (duration > 0)
             remaining = np.where(is_tumble, np.maximum(remaining - duration, 0), remaining)
-            sampled_duration = -p[14] * np.log(uniform(f"chem-motion-duration:{event}"))
+            sampled_duration = -p[14] * np.log(draws[..., start + 1])
             remaining = np.where(new_tumble, sampled_duration, remaining)
             time_left = np.maximum(time_left - duration, 0)
         if np.any(time_left > 0):
@@ -426,9 +450,7 @@ class Chemotaxis:
         position -= p[0] * np.floor(position / p[0])
         phases = state["phases"].copy()
         if self.kind == "fluctuating" and not self.config["static"]:
-            phases += p[10] * self.rng.normal(
-                tick, "chem-phase-update", len(self.wavevectors)
-            ).astype(self.dtype)
+            phases += p[10] * draws[..., 4:base]
             phases -= p[11] * np.floor(phases / p[11])
         theta = np.arctan2(orientation[..., 1], orientation[..., 0])
         next_state = dict(

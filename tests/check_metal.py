@@ -47,6 +47,7 @@ def main(selected_backend="metal", extra_args=()) -> int:
         "rollout",
         "runtime_optimisation",
         "resident_world",
+        "world_random",
         "evaluation",
         "gene_copy",
         "molecular_interface",

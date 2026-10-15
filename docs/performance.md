@@ -110,10 +110,11 @@ world time remain ordered state transitions. These mechanisms reduce redundant
 work and enable batched kernel execution without prescribing a hardware speedup.
 
 For control tasks, benchmark the complete perception–chemistry–action loop at the
-intended gene count, scenario count, K chemical updates, and recording mode. Chemical
-updates return state/readout buffers, and world kernels use NumPy arrays at decision
-boundaries. Account for these transfers and checkpoint costs when choosing CPU or
-Metal. Record cold compilation separately from warm complete evaluation, include
+intended gene count, scenario count, K chemical updates, and recording mode.
+Resident chemotaxis keeps chemistry and world buffers on device across decision
+blocks; detailed traces materialize observations. Account for transfers and
+checkpoint costs when choosing CPU or Metal. Record cold compilation separately
+from warm complete evaluation, include
 validity and work counters, and retain identical logical seeds across comparisons.
 Existing fixed-assay C++ timings describe their original recorded workloads.
 
@@ -166,7 +167,34 @@ the existing payload schema.
 
 Scenario-addressed Philox draws compute each unique scenario address once and
 expand to the original episode layout. The random stream, tick, role, width, and
-returned values remain unchanged.
+component determine each draw independently of candidate ordering. Batched host
+generation groups integer work across roles and decisions, with scratch tiled to
+fit the shared memory budget. Immutable host blocks use a bounded cache.
+
+New float32 chemotaxis profiles use `world_random_math="box_muller_f32_v1"`.
+Direct generation uploads compact role keys and writes uniforms and normals
+into the existing draw buffer. CUDA uses this path by default. CPU and Metal use
+batched NumPy under the same declared mathematics. GPU buffers are reused without
+retaining an additional device-block cache. Compact role-key tables share the bounded host cache across
+cohorts, avoiding repeated namespace hashing for the same panel and decisions.
+The older `numpy_f64_v1` transforms remain available and apply
+when the setting is absent. Backend arithmetic can change trajectories; controls
+check distributions, motion and consistent scenario coupling.
+
+`benchmarks/chemotaxis_random.py` compares completed fixed-genotype rollouts using
+`--provider host` and `--provider direct`. Use fresh backend processes and the same
+scenario counts, fields and panel policy; `--reuse-panel` exercises repeated-cohort
+reuse. Receipts separate first execution from warm samples and include source
+hashes, upload/readback counts and backend identity. These measurements include
+session construction and completed numerical publication, with disk recording
+outside the timing interval. They launch no evolution.
+
+The Metal default favours repeated-cohort reuse: direct generation improved
+changing-panel timings but regressed the warm-cache guard beyond its 5% threshold.
+The benchmark can select it explicitly. The CUDA direct path passed both the
+changing-panel improvement gate and repeated-panel guard. Backend selection still
+defaults to Metal/CUDA followed by native CPU; this policy selects random preparation
+within that backend.
 
 Use `benchmarks/runtime_optimisation.py` for cold construction, warm chemistry,
 complete run/tumble decisions, and optional complete Wright–Fisher campaigns.

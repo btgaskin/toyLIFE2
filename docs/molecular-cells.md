@@ -225,6 +225,22 @@ Resident chemotaxis keeps molecular/world state on device across decisions. Rout
 production accounting transfers compact block totals rather than molecular inventories.
 Full traces and detailed inspection explicitly materialize observations.
 
+New float32 chemotaxis profiles declare
+`task.config.world_random_math="box_muller_f32_v1"`. A shared addressed Philox layout
+supplies sensing, event waiting times, tumble durations and rotational noise.
+CPU and Metal defaults batch those draws through NumPy; CUDA fills the resident
+draw buffer through Quadrants. Direct Metal generation remains available in the
+qualification benchmark. Both providers use float32 Box–Muller normals and
+strictly open uniforms. Initial positions, orientations, phases and sources retain
+the existing host initialization. Backend arithmetic can produce different
+trajectories while implementing the same stochastic process.
+
+The setting `numpy_f64_v1` uses binary64 NumPy transforms before conversion to the
+world precision. An absent setting retains that behavior for existing
+configurations. The declared mathematics is part of the task identity; the selected
+implementation is execution metadata. Neither choice changes tumble hazards,
+diffusion constants, the angular integrator or evolutionary variation rates.
+
 Every scientific run stores its resolved configuration, source/table identities,
 checkpoints and a generated `methods.md`. Molecular inspection writes actions,
 marker readouts, expression, task outcomes and production summaries. Cue inspection

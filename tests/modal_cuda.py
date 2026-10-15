@@ -25,6 +25,9 @@ image = (
         .add_local_file(ROOT / "uv.lock", "/workspace/uv.lock")
         .add_local_file(ROOT / "LICENSE", "/workspace/LICENSE")
         .add_local_file(
+            ROOT / "benchmarks/chemotaxis_random.py", "/workspace/benchmarks/chemotaxis_random.py"
+        )
+        .add_local_file(
             ROOT / "examples/replay_molecular_genome.py",
             "/workspace/examples/replay_molecular_genome.py",
         )
@@ -42,6 +45,7 @@ if modal.is_local():
         "rollout",
         "runtime_optimisation",
         "resident_world",
+        "world_random",
         "evaluation",
         "gene_copy",
         "molecular_interface",
@@ -72,7 +76,7 @@ app = modal.App("toylife2-cuda-qualification")
     retries=0,
     scaledown_window=2,
 )
-def qualify(test_filter: str = ""):
+def qualify(test_filter: str = "", random_benchmark: bool = False):
     import hashlib
     import io
     import json
@@ -131,6 +135,8 @@ print(json.dumps({'automatic_backend': spec.backend, 'quadrants_version': qd.__v
                 command = [sys.executable, "tests/check_cuda.py"]
                 if test_filter:
                     command += ["-k", test_filter]
+                if random_benchmark:
+                    command += ["-m", "device"]
                 result = subprocess.run(
                     command,
                     stdout=log,
@@ -140,6 +146,36 @@ print(json.dumps({'automatic_backend': spec.backend, 'quadrants_version': qd.__v
                 code = result.returncode
             except subprocess.TimeoutExpired:
                 code = 124
+    if code == 0 and random_benchmark:
+        with (destination / "random-benchmarks.log").open("w") as log:
+            for reuse in (False, True):
+                for provider in ("host", "direct"):
+                    name = f"random-cuda-{'reuse-' if reuse else ''}{provider}.json"
+                    command = [
+                        sys.executable,
+                        "benchmarks/chemotaxis_random.py",
+                        "--backend",
+                        "cuda",
+                        "--provider",
+                        provider,
+                        "--repeats",
+                        "5",
+                        "--destination",
+                        str(destination / name),
+                    ]
+                    if reuse:
+                        command += ["--reuse-panel"]
+                    try:
+                        outcome = subprocess.run(
+                            command, stdout=log, stderr=subprocess.STDOUT, timeout=120
+                        )
+                        code = outcome.returncode
+                    except subprocess.TimeoutExpired:
+                        code = 124
+                    if code:
+                        break
+                if code:
+                    break
     receipt["exit_code"] = code
     (destination / "modal-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     output = io.BytesIO()
@@ -151,11 +187,15 @@ print(json.dumps({'automatic_backend': spec.backend, 'quadrants_version': qd.__v
 
 
 @app.local_entrypoint()
-def main(destination: str = "qualification/modal-cuda", test_filter: str = ""):
+def main(
+    destination: str = "qualification/modal-cuda",
+    test_filter: str = "",
+    random_benchmark: bool = False,
+):
     import io
     import zipfile
 
-    code, evidence = qualify.remote(test_filter)
+    code, evidence = qualify.remote(test_filter, random_benchmark)
     destination = ROOT / destination
     destination.mkdir(parents=True, exist_ok=True)
     (destination / "evidence.zip").write_bytes(evidence)

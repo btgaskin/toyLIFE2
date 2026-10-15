@@ -116,6 +116,15 @@ def methods_summary(spec):
             f"world decision duration: `{episode.dt}` seconds."
         )
         rows.append(
+            f"Per-decision random mathematics: "
+            f"`{spec.task.config.get('world_random_math', 'numpy_f64_v1')}`. "
+            "Initialization retains the host Philox construction. Float32 Box-Muller "
+            "draws use batched NumPy or a direct Quadrants buffer fill; execution metadata "
+            "records the selected implementation. "
+            "The same addressed scenario noise couples matched candidates; backend "
+            "arithmetic can produce different trajectories."
+        )
+        rows.append(
             "Probabilities along a sampled trajectory are observations of that trajectory; "
             "expected total performance requires evaluation over trajectories."
         )

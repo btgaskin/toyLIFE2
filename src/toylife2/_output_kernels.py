@@ -19,7 +19,7 @@ def multiply_high(a, b):
 
 
 @qd.func
-def philox_word(index_lo, index_hi, key0, key1, attempt):
+def philox_pair(index_lo, index_hi, key0, key1, attempt):
     c0, c1, c2, c3 = index_lo, index_hi, attempt, qd.u32(0)
     k0, k1 = key0, key1
     for _ in range(10):
@@ -31,7 +31,13 @@ def philox_word(index_lo, index_hi, key0, key1, attempt):
         c0, c1, c2, c3 = n0, n1, n2, n3
         k0 += qd.u32(0x9E3779B9)
         k1 += qd.u32(0xBB67AE85)
-    return c0
+    return c0, c1
+
+
+@qd.func
+def philox_word(index_lo, index_hi, key0, key1, attempt):
+    first, _second = philox_pair(index_lo, index_hi, key0, key1, attempt)
+    return first
 
 
 @qd.func

@@ -128,6 +128,7 @@ arrival_radius = 0.4
 input_channel = "cue"
 world_engine = "quadrants"
 world_precision = "float32"
+world_random_math = "box_muller_f32_v1"
 motion_model = "ecoli_spherical_v1"
 tumble_mean_duration = 0.14
 tumble_rotational_diffusion = 3.5

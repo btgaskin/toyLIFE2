@@ -23,6 +23,36 @@ class RandomBlockCache:
             _, value = self.entries.popitem(last=False)
             self.bytes -= value.nbytes + 512
 
+    def key_block(self, world, tick, count):
+        """Reuse compact SHA role keys across cohorts in the existing host budget."""
+        from ._world_random import layout
+
+        plan = layout(world)
+        key = (
+            "philox_keys",
+            world.rng.stream.seed,
+            world.rng.panel,
+            tick,
+            count,
+            tuple(plan.roles),
+        )
+        if key in self.entries:
+            self.hits += 1
+            self.entries.move_to_end(key)
+            return self.entries[key]
+        size = count * len(plan.roles) * 8 + 512
+        retention = self.capacity
+        if self.engine is not None:
+            available = self.engine._available_bytes(minimum_bytes=size)
+            retention = min(retention, self.bytes + available)
+        self.reclaim(retention - size)
+        keys = plan.keys(world, tick, count)
+        keys.flags.writeable = False
+        if size <= retention:
+            self.entries[key] = keys
+            self.bytes += size
+        return keys
+
     def block(self, world, tick, count):
         rng = world.rng
         dynamic = world.kind == "fluctuating" and not world.config["static"]
@@ -39,63 +69,26 @@ class RandomBlockCache:
             world.precision,
             world.motion_steps,
             world.event_capacity,
+            world.random_math,
         )
         if key in self.entries:
             self.hits += 1
             self.entries.move_to_end(key)
             return self.entries[key]
+        from ._world_random import layout
+
+        plan = layout(world)
         size = count * len(rng._unique) * columns * world.dtype.itemsize + 512
+        keys = count * len(plan.roles) * 8
+        minimum = max(512, 512 * max(plan.requests))
+        scratch = max(minimum, 8 * 1024 * 1024)
         retention = self.capacity
         if self.engine is not None:
-            available = self.engine._available_bytes(minimum_bytes=size)
-            retention = min(retention, self.bytes + available)
-        self.reclaim(retention - size)
-        result = np.zeros((count, len(rng._unique), columns), world.dtype)
-        ids = rng._unique
-        for offset in range(count):
-
-            def uniform(role, event=tick + offset):
-                return rng.stream.uniform(ids, role=f"world:{role}", trial=rng.panel, event=event)
-
-            result[offset, :, 0] = uniform("chem-sensor")
-            if dynamic:
-                expanded = ids[:, None] * np.uint64(modes) + np.arange(modes, dtype=np.uint64)
-                u = rng.stream.uniform(
-                    expanded,
-                    role="world:chem-phase-update:normal-radius",
-                    trial=rng.panel,
-                    event=tick + offset,
-                )
-                v = rng.stream.uniform(
-                    expanded,
-                    role="world:chem-phase-update:normal-phase",
-                    trial=rng.panel,
-                    event=tick + offset,
-                )
-                result[offset, :, 4 : 4 + modes] = np.sqrt(-2 * np.log(u)) * np.cos(2 * np.pi * v)
-            finfo = np.finfo(world.dtype)
-            for event in range(world.event_capacity):
-                start = 4 + modes + event * world.motion_stride
-                for column, role in enumerate(
-                    (f"chem-motion-wait:{event}", f"chem-motion-duration:{event}")
-                ):
-                    result[offset, :, start + column] = np.clip(
-                        uniform(role).astype(world.dtype),
-                        finfo.tiny,
-                        np.nextafter(world.dtype.type(1), world.dtype.type(0)),
-                    )
-                expanded = ids[:, None] * np.uint64(3) + np.arange(3, dtype=np.uint64)
-                for step in range(world.motion_steps):
-                    role = f"world:chem-motion-rotation:{event}:{step}"
-                    u = rng.stream.uniform(
-                        expanded, role=role + ":normal-radius", trial=rng.panel, event=tick + offset
-                    )
-                    v = rng.stream.uniform(
-                        expanded, role=role + ":normal-phase", trial=rng.panel, event=tick + offset
-                    )
-                    result[offset, :, start + 2 + step * 3 : start + 5 + step * 3] = np.sqrt(
-                        -2 * np.log(u)
-                    ) * np.cos(2 * np.pi * v)
+            available = self.engine._available_bytes(minimum_bytes=size + keys + minimum)
+            scratch = min(scratch, available - size - keys)
+            retention = min(retention, self.bytes + available - size - keys - scratch)
+        self.reclaim(max(0, retention - size))
+        result = plan.generate(world, tick, count, scratch_bytes=scratch)
         result.flags.writeable = False
         size = result.nbytes + 512
         self.reclaim(retention - size)
@@ -112,6 +105,11 @@ class WorldBuffers:
         import quadrants as qd
 
         self.world, self.engine = world, engine
+        if engine is not None:
+            engine._check_memory(
+                self.estimate(world, engine),
+                message="world random buffers exceed execution memory budget",
+            )
         if world.precision == "float64" and cast(Any, qd).lang.impl.current_cfg().arch != qd.cpu:
             raise ValueError("Quadrants float64 chemotaxis requires the CPU backend")
         dtype = qd.f32 if world.precision == "float32" else qd.f64
@@ -132,6 +130,38 @@ class WorldBuffers:
         self.parameters.from_numpy(world.constants)
         self.draw_shape = (self.maximum, scenarios, self.draw_columns)
         self.draws = qd.ndarray(dtype, self.draw_shape)
+        self._draw_descriptors = self._draw_ids = self._draw_keys = None
+        self._key_staging = None
+        self.random_implementation = "batched_numpy"
+        from ._world_random import FLOAT32, layout
+
+        # The benchmark override keeps the host control on the same numerical contract.
+        provider = getattr(engine, "_world_random_provider", "auto")
+        self.native = world.random_math == FLOAT32 and (
+            provider == "direct"
+            or (provider == "auto" and cast(Any, qd).lang.impl.current_cfg().arch == qd.cuda)
+        )
+        self._draw_staging = None if self.native else np.zeros(self.draw_shape, world.dtype)
+        self.random_bytes = layout(world).bytes + (
+            0 if self._draw_staging is None else self._draw_staging.nbytes
+        )
+        if self.native:
+            plan = layout(world)
+            self._key_staging = np.zeros((self.maximum, len(plan.roles), 2), np.uint32)
+            self._draw_descriptors = qd.ndarray(qd.i32, plan.descriptors.shape)
+            self._draw_descriptors.from_numpy(plan.descriptors)
+            ids = world.rng._unique
+            words = np.stack((ids & np.uint64(0xFFFFFFFF), ids >> np.uint64(32)), -1).astype(
+                np.uint32
+            )
+            self._draw_ids = qd.ndarray(qd.u32, words.shape)
+            self._draw_ids.from_numpy(words)
+            self._draw_keys = qd.ndarray(qd.u32, self._key_staging.shape)
+            self.random_bytes += (
+                plan.descriptors.nbytes + words.nbytes + self._key_staging.nbytes * 2
+            )
+            self.random_implementation = "quadrants_direct"
+
         self.rewards = qd.ndarray(dtype, (self.maximum, self.lanes))
         self.actions = qd.ndarray(qd.i32, (self.lanes,))
         self.tumble = qd.ndarray(qd.i32, (self.lanes,))
@@ -142,14 +172,47 @@ class WorldBuffers:
         self.cache = engine._world_random_cache if engine is not None else RandomBlockCache(0)
         self.last_state = None
         self.bytes = (
-            2 * self.lanes * self.state_columns
-            + scenarios * 2
-            + 2 * self.modes
-            + len(world.constants)
-            + self.maximum * scenarios * self.draw_columns
-            + self.maximum * self.lanes
-        ) * world.dtype.itemsize + self.lanes * 24
+            (
+                2 * self.lanes * self.state_columns
+                + scenarios * 2
+                + 2 * self.modes
+                + len(world.constants)
+                + self.maximum * scenarios * self.draw_columns
+                + self.maximum * self.lanes
+            )
+            * world.dtype.itemsize
+            + self.lanes * 24
+            + self.random_bytes
+        )
         self.uploads = self.blocks = self.readbacks = 0
+
+    @staticmethod
+    def estimate(world, engine=None):
+        from ._world_random import FLOAT32
+
+        lanes = int(np.prod(world.shape))
+        scenarios, modes = len(world.rng._unique), len(world.wavevectors)
+        dynamic = world.kind == "fluctuating" and not world.config["static"]
+        roles = 1 + world.event_capacity * (2 + 2 * world.motion_steps) + 2 * dynamic
+        widths = {1, 3, *([modes] if dynamic else [])}
+        plan = world.draw_columns * 16 + scenarios * sum(int(width) for width in widths) * 8
+        draws = 8 * scenarios * world.draw_columns * world.dtype.itemsize
+        size = (
+            (2 * lanes * (8 + modes) + scenarios * 2 + 2 * modes + len(world.constants) + 8 * lanes)
+            * world.dtype.itemsize
+            + lanes * 24
+            + draws
+            + plan
+        )
+        provider = getattr(engine, "_world_random_provider", "auto")
+        backend = getattr(getattr(engine, "execution", None), "backend", "cpu")
+        if world.random_math == FLOAT32 and (
+            provider == "direct" or (provider == "auto" and backend == "cuda")
+        ):
+            size += world.draw_columns * 16 + scenarios * 8 + 2 * 8 * roles * 8
+        else:
+            size += draws
+        return size
 
     def upload(self, state):
         if self.last_state is state:
@@ -166,15 +229,74 @@ class WorldBuffers:
         _, first = np.unique(inverse, return_index=True)
         self._source_host = state["source"].reshape(-1, 2)[first].astype(self.world.dtype)
         self.source.from_numpy(self._source_host)
+        from ._world_random import FLOAT32
+
+        if self.world.random_math == FLOAT32:
+            from ._chemotaxis_kernels import refresh_field
+
+            cast(Any, refresh_field)(
+                self.current,
+                self.source,
+                self.scenarios,
+                self.waves,
+                self.parameters,
+                int(self.world.kind == "source"),
+            )
         self.last_state = state
         self.uploads += 1
 
     def prepare_draws(self, tick, count):
-        draws = self.cache.block(self.world, tick, count)
-        padded = np.zeros(self.draw_shape, self.world.dtype)
-        padded[:count] = draws
-        self.draws.from_numpy(padded)
+        if self.native:
+            from ._world_random_kernels import fill_draws
+
+            assert self._key_staging is not None
+            assert self._draw_keys is not None
+            self._key_staging.fill(0)
+            self._key_staging[:count] = self.cache.key_block(self.world, tick, count)
+            self._draw_keys.from_numpy(self._key_staging)
+            cast(Any, fill_draws)(
+                self._draw_descriptors, self._draw_ids, self._draw_keys, self.draws, count
+            )
+        else:
+            assert self._draw_staging is not None
+            draws = self.cache.block(self.world, tick, count)
+            self._draw_staging.fill(0)
+            self._draw_staging[:count] = draws
+            self.draws.from_numpy(self._draw_staging)
         self.uploads += 1
+
+    def observe(self, state):
+        from ._chemotaxis_kernels import observe_world
+        from ._world_random import layout, uniform32
+
+        self.upload(state)
+        # Sensing needs only its scalar stream, not the full motion panel.
+        words = self.world.rng.stream.words(
+            self.world.rng._unique,
+            role=layout(self.world).roles[0],
+            trial=self.world.rng.panel,
+            event=state["tick"],
+        )
+        # Reuse the action upload buffer for the uniform's float32 bits during sensing.
+        self._host_actions[:] = uniform32(words)[self.world.rng._inverse].reshape(-1).view(np.int32)
+        self.actions.from_numpy(self._host_actions)
+        cast(Any, observe_world)(
+            self.current,
+            self.source,
+            self.scenarios,
+            self.waves,
+            self.parameters,
+            self.actions,
+            self.observations,
+            int(self.world.kind == "source"),
+        )
+        # The shader publishes the very field value used by resident sensing.
+        packed = self.current.to_numpy()
+        exposure = packed[:, 3].reshape(self.world.shape).copy()
+        cue = self.observations.to_numpy().reshape(self.world.shape).copy()
+        self.uploads += 1
+        self.readbacks += 2
+        return {"inputs": {self.world.config["input_channel"]: cue}, "exposure": exposure}
 
     def advance(self, actions, tick):
         from ._chemotaxis_kernels import world_advance
@@ -277,18 +399,8 @@ class ResidentDecisions:
 
     @staticmethod
     def estimate(session):
-        lanes = session._world_work
-        modes = len(session.world.wavevectors)
         episodes = session.protocol.episodes
-        size = session.world.dtype.itemsize
-        world = (
-            2 * lanes * (8 + modes)
-            + episodes * 2
-            + 2 * modes
-            + len(session.world.constants)
-            + 8 * episodes * session.world.draw_columns
-            + 8 * lanes
-        ) * size + lanes * 24
+        world = WorldBuffers.estimate(session.world, session.model.engine)
         return (
             world * 3
             + episodes * 8

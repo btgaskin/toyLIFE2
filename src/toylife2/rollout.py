@@ -199,6 +199,8 @@ class RolloutSession(SessionBase):
             self.protocol.dt,
             kernels=not bool(self.task.config.get("reference_world", False)),
         )
+        if self.task.kind == "chemotaxis":
+            self.world._engine = model.engine
         if (
             self.task.kind == "chemotaxis"
             and self.world.engine == "quadrants"
@@ -221,6 +223,10 @@ class RolloutSession(SessionBase):
         if self.task.kind == "chemotaxis":
             world_bytes = 512 + 128 * len(self.task.config["modes"])
         self._world_peak_bytes = self._world_work * world_bytes + self._chemical_work * 16
+        if self.task.kind == "chemotaxis":
+            self._world_peak_bytes += (
+                self._world_work * self.world.draw_columns * self.world.dtype.itemsize * 2
+            )
         required = (
             self.chemistry.buffer_bytes
             + snapshot_bytes * 3
@@ -372,6 +378,7 @@ class RolloutSession(SessionBase):
             + _array_bytes(trees)
             + retained
             + getattr(getattr(self, "_resident", None), "bytes", 0)
+            + getattr(self.world, "buffer_bytes", 0)
         )
 
     @property
@@ -420,6 +427,16 @@ class RolloutSession(SessionBase):
             if not reference
             else "host_only",
             "world_block_size": getattr(self.model.engine, "_world_block_size", 1),
+            "world_random_math": getattr(self.world, "random_math", None),
+            "world_random_implementation": (
+                self._resident.world.random_implementation
+                if self._resident is not None
+                else getattr(
+                    getattr(self.world, "_kernel_buffers", None),
+                    "random_implementation",
+                    "batched_numpy",
+                )
+            ),
             "reward_accumulator_dtype": "float64",
             "buffer_bytes": self.buffer_bytes,
             "world_axes": self.world_shape,
@@ -1029,6 +1046,8 @@ class RolloutSession(SessionBase):
                 "precision": self.world.precision,
                 "backend": self.model.execution.backend,
             }
+            if "world_random_math" in self.task.config:
+                payload["world_numerics"]["random_math"] = self.world.random_math
         if self._publishing:
             assert self._pending is not None
             prepared = self._pending["prepared"]
@@ -1102,11 +1121,14 @@ class RolloutSession(SessionBase):
         ):
             raise ValueError("deprecated or incompatible single-cell checkpoint contract")
         mode = payload.get("world_numerics")
-        if mode is not None and mode != {
+        expected_mode = {
             "engine": "quadrants",
             "precision": getattr(self.world, "precision", None),
             "backend": self.model.execution.backend,
-        }:
+        }
+        if self.task.kind == "chemotaxis" and "world_random_math" in self.task.config:
+            expected_mode["random_math"] = self.world.random_math
+        if mode is not None and mode != expected_mode:
             raise ValueError("resident checkpoint requires the same numerical mode and backend")
         tick = payload["tick"]
         if (
